@@ -6,6 +6,7 @@ export interface Account {
     token: TokenData;
     fingerprint_id?: string;
     quota?: QuotaData;
+    quota_error?: QuotaErrorInfo;
     disabled?: boolean;
     disabled_reason?: string;
     disabled_at?: number;
@@ -27,6 +28,12 @@ export interface QuotaData {
     last_updated: number;
     is_forbidden?: boolean;
     subscription_tier?: string;
+}
+
+export interface QuotaErrorInfo {
+    code?: number;
+    message: string;
+    timestamp: number;
 }
 
 export interface ModelQuota {

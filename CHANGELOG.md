@@ -7,6 +7,20 @@ All notable changes to Cockpit Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
+## [0.4.9] - 2026-01-31
+
+### Added
+- **Quota error details**: Store the last quota error per account and show it in a dedicated error details modal (with link rendering).
+- **Forbidden status UI**: Show 403 forbidden status with a lock badge and an in-place quota banner.
+
+### Changed
+- **Quota fetch results**: Return structured error info (code/message) and persist it into account state.
+- **Account status hints**: Combine disabled/warning/forbidden hints in tooltips.
+- **Account actions UI**: Tightened action button spacing and size for account cards.
+
+### Fixed
+- **i18n**: Filled missing translations for account error actions and error detail fields.
+
 ## [0.4.8] - 2026-01-30
 
 ### Added

@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "Vedi dettagli",
+      "viewError": "Vedi errore",
       "fingerprint": "Impronta",
       "switch": "Cambia account",
       "switchTo": "Passa a questo account",
@@ -372,6 +373,13 @@
       "noData": "Nessun dato sulla quota",
       "close": "Chiudi",
       "resetTime": "Orario di ripristino"
+    },
+    "errors": {
+      "title": "Dettagli errore",
+      "empty": "Nessun dettaglio errore",
+      "account": "Account",
+      "code": "Codice errore",
+      "time": "Avvenuto il"
     }
   },
   "pagination": {

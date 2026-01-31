@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "查看詳情",
+      "viewError": "查看錯誤",
       "fingerprint": "指紋",
       "switch": "切換帳號",
       "switchTo": "切換到此帳號",
@@ -372,6 +373,13 @@
       "noData": "無配額數據",
       "close": "關閉",
       "resetTime": "重置時間"
+    },
+    "errors": {
+      "title": "錯誤詳情",
+      "empty": "暫無錯誤資訊",
+      "account": "帳號",
+      "code": "錯誤碼",
+      "time": "發生時間"
     }
   },
   "pagination": {

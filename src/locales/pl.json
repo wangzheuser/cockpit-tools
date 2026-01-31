@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "Pokaż szczegóły",
+      "viewError": "Zobacz błąd",
       "fingerprint": "Odcisk",
       "switch": "Przełącz konto",
       "switchTo": "Przełącz na to konto",
@@ -372,6 +373,13 @@
       "noData": "Brak danych o limitach",
       "close": "Zamknij",
       "resetTime": "Czas resetu"
+    },
+    "errors": {
+      "title": "Szczegóły błędu",
+      "empty": "Brak szczegółów błędu",
+      "account": "Konto",
+      "code": "Kod błędu",
+      "time": "Wystąpiło"
     }
   },
   "pagination": {

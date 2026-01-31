@@ -127,6 +127,19 @@ struct QuotaInfo {
     reset_time: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct QuotaFetchError {
+    pub code: Option<u16>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct QuotaFetchResult {
+    pub quota: QuotaData,
+    pub project_id: Option<String>,
+    pub error: Option<QuotaFetchError>,
+}
+
 #[derive(Debug, Deserialize)]
 struct LoadProjectResponse {
     #[serde(rename = "cloudaicompanionProject")]
@@ -419,7 +432,7 @@ pub async fn fetch_project_id(access_token: &str, email: &str) -> (Option<String
 }
 
 /// 查询账号配额
-pub async fn fetch_quota(access_token: &str, email: &str) -> crate::error::AppResult<(QuotaData, Option<String>)> {
+pub async fn fetch_quota(access_token: &str, email: &str) -> crate::error::AppResult<QuotaFetchResult> {
     use crate::error::AppError;
     
     let (project_id, subscription_tier) = fetch_project_id(access_token, email).await;
@@ -445,7 +458,11 @@ pub async fn fetch_quota(access_token: &str, email: &str) -> crate::error::AppRe
                     }
                 }
                 quota_data.subscription_tier = subscription_tier.clone();
-                return Ok((quota_data, project_id.clone()));
+                return Ok(QuotaFetchResult {
+                    quota: quota_data,
+                    project_id: project_id.clone(),
+                    error: None,
+                });
             }
         } else {
             crate::modules::logger::log_info(&format!(
@@ -482,10 +499,23 @@ pub async fn fetch_quota(access_token: &str, email: &str) -> crate::error::AppRe
                         crate::modules::logger::log_warn(&format!(
                             "账号无权限 (403 Forbidden), 标记为 forbidden 状态: {}", email
                         ));
+                        let text = response.text().await.unwrap_or_default();
                         let mut q = QuotaData::new();
                         q.is_forbidden = true;
                         q.subscription_tier = subscription_tier.clone();
-                        return Ok((q, project_id.clone()));
+                        let message = if text.trim().is_empty() {
+                            "API returned 403 Forbidden".to_string()
+                        } else {
+                            text
+                        };
+                        return Ok(QuotaFetchResult {
+                            quota: q,
+                            project_id: project_id.clone(),
+                            error: Some(QuotaFetchError {
+                                code: Some(status.as_u16()),
+                                message,
+                            }),
+                        });
                     }
                     
                     if attempt < max_retries {
@@ -525,7 +555,11 @@ pub async fn fetch_quota(access_token: &str, email: &str) -> crate::error::AppRe
                 
                 quota_data.subscription_tier = subscription_tier.clone();
                 
-                return Ok((quota_data, project_id.clone()));
+                return Ok(QuotaFetchResult {
+                    quota: quota_data,
+                    project_id: project_id.clone(),
+                    error: None,
+                });
             },
             Err(e) => {
                 if attempt < max_retries {

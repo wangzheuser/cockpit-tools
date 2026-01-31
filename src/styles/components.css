@@ -216,6 +216,12 @@
   border-color: rgba(14, 165, 165, 0.3);
 }
 
+.pill-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 @keyframes floatIn {
   from {
     opacity: 0;
@@ -668,6 +674,24 @@
   min-width: 280px;
 }
 
+.quota-grid .quota-forbidden {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.quota-grid .quota-forbidden svg {
+  flex-shrink: 0;
+}
+
 .quota-item {
   display: flex;
   flex-direction: column;
@@ -940,6 +964,37 @@
 .modal .quota-reset-info strong {
   color: var(--text-secondary);
   font-weight: 600;
+}
+
+.error-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.error-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.error-detail-message {
+  padding: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-primary);
+}
+
+.error-detail-message a {
+  color: var(--primary);
+  text-decoration: underline;
 }
 
 .modal-footer {

@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::sync::Mutex;
 use std::collections::HashSet;
 
-use crate::models::{Account, AccountIndex, AccountSummary, TokenData, QuotaData, DeviceProfile, DeviceProfileVersion};
+use crate::models::{Account, AccountIndex, AccountSummary, TokenData, QuotaData, DeviceProfile, DeviceProfileVersion, QuotaErrorInfo};
 use crate::modules;
 
 static ACCOUNT_INDEX_LOCK: std::sync::LazyLock<Mutex<()>> = std::sync::LazyLock::new(|| Mutex::new(()));
@@ -628,6 +628,12 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> crate::error::AppR
                 account.disabled_reason = Some(format!("invalid_grant: {}", e));
                 let _ = save_account(account);
             }
+            account.quota_error = Some(QuotaErrorInfo {
+                code: None,
+                message: format!("OAuth error: {}", e),
+                timestamp: chrono::Utc::now().timestamp(),
+            });
+            let _ = save_account(account);
             return Err(AppError::OAuth(e));
         }
     };
@@ -638,7 +644,26 @@ pub async fn fetch_quota_with_retry(account: &mut Account) -> crate::error::AppR
     }
 
     let result = modules::quota::fetch_quota(&account.token.access_token, &account.email).await;
-    result.map(|(q, _)| q)
+    match result {
+        Ok(payload) => {
+            account.quota_error = payload.error.map(|err| QuotaErrorInfo {
+                code: err.code,
+                message: err.message,
+                timestamp: chrono::Utc::now().timestamp(),
+            });
+            let _ = save_account(account);
+            Ok(payload.quota)
+        }
+        Err(err) => {
+            account.quota_error = Some(QuotaErrorInfo {
+                code: None,
+                message: err.to_string(),
+                timestamp: chrono::Utc::now().timestamp(),
+            });
+            let _ = save_account(account);
+            Err(err)
+        }
+    }
 }
 
 /// 内部切换账号函数（供 WebSocket 调用）

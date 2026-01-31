@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "Ver detalhes",
+      "viewError": "Ver erro",
       "fingerprint": "Impressão digital",
       "switch": "Trocar conta",
       "switchTo": "Trocar para esta conta",
@@ -372,6 +373,13 @@
       "noData": "Sem dados de cota",
       "close": "Fechar",
       "resetTime": "Tempo de redefinição"
+    },
+    "errors": {
+      "title": "Detalhes do erro",
+      "empty": "Sem detalhes do erro",
+      "account": "Conta",
+      "code": "Código do erro",
+      "time": "Ocorreu em"
     }
   },
   "pagination": {

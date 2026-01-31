@@ -27,6 +27,9 @@ pub struct Account {
     /// 受配额保护禁用的模型列表
     #[serde(default, skip_serializing_if = "HashSet::is_empty")]
     pub protected_models: HashSet<String>,
+    /// 最近一次配额错误信息
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quota_error: Option<QuotaErrorInfo>,
     pub created_at: i64,
     pub last_used: i64,
 }
@@ -50,6 +53,7 @@ impl Account {
             disabled_reason: None,
             disabled_at: None,
             protected_models: HashSet::new(),
+            quota_error: None,
             created_at: now,
             last_used: now,
         }
@@ -69,6 +73,15 @@ impl Account {
         }
         self.quota = Some(quota);
     }
+}
+
+/// 配额错误信息
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuotaErrorInfo {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code: Option<u16>,
+    pub message: String,
+    pub timestamp: i64,
 }
 
 /// 账号索引数据（accounts.json）

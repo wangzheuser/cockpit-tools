@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "View details",
+      "viewError": "View error",
       "fingerprint": "Fingerprint",
       "switch": "Switch account",
       "switchTo": "Switch to this account",
@@ -372,6 +373,13 @@
       "noData": "No quota data",
       "close": "Close",
       "resetTime": "Reset Time"
+    },
+    "errors": {
+      "title": "Error Details",
+      "empty": "No error details",
+      "account": "Account",
+      "code": "Error Code",
+      "time": "Occurred At"
     }
   },
   "pagination": {

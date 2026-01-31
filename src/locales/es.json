@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "Ver detalles",
+      "viewError": "Ver error",
       "fingerprint": "Huella",
       "switch": "Cambiar cuenta",
       "switchTo": "Cambiar a esta cuenta",
@@ -372,6 +373,13 @@
       "noData": "Sin datos de cuota",
       "close": "Cerrar",
       "resetTime": "Hora de reinicio"
+    },
+    "errors": {
+      "title": "Detalles del error",
+      "empty": "No hay detalles del error",
+      "account": "Cuenta",
+      "code": "Código de error",
+      "time": "Ocurrió el"
     }
   },
   "pagination": {

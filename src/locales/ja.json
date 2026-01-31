@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "詳細を見る",
+      "viewError": "エラーを表示",
       "fingerprint": "指紋",
       "switch": "アカウント切替",
       "switchTo": "このアカウントに切替",
@@ -372,6 +373,13 @@
       "noData": "クォータデータなし",
       "close": "閉じる",
       "resetTime": "リセット時間"
+    },
+    "errors": {
+      "title": "エラー詳細",
+      "empty": "エラー詳細はありません",
+      "account": "アカウント",
+      "code": "エラーコード",
+      "time": "発生時刻"
     }
   },
   "pagination": {

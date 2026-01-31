@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "상세 보기",
+      "viewError": "오류 보기",
       "fingerprint": "지문",
       "switch": "계정 전환",
       "switchTo": "이 계정으로 전환",
@@ -372,6 +373,13 @@
       "noData": "할당량 데이터 없음",
       "close": "닫기",
       "resetTime": "재설정 시간"
+    },
+    "errors": {
+      "title": "오류 상세",
+      "empty": "오류 상세 정보 없음",
+      "account": "계정",
+      "code": "오류 코드",
+      "time": "발생 시간"
     }
   },
   "pagination": {

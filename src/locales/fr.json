@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "Voir les détails",
+      "viewError": "Voir l'erreur",
       "fingerprint": "Empreinte",
       "switch": "Changer de compte",
       "switchTo": "Basculer vers ce compte",
@@ -372,6 +373,13 @@
       "noData": "Pas de données de quota",
       "close": "Fermer",
       "resetTime": "Heure de réinitialisation"
+    },
+    "errors": {
+      "title": "Détails de l'erreur",
+      "empty": "Aucun détail d'erreur",
+      "account": "Compte",
+      "code": "Code d'erreur",
+      "time": "Survenu le"
     }
   },
   "pagination": {

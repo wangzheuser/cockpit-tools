@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "Details anzeigen",
+      "viewError": "Fehler anzeigen",
       "fingerprint": "Fingerabdruck",
       "switch": "Konto wechseln",
       "switchTo": "Zu diesem Konto wechseln",
@@ -372,6 +373,13 @@
       "noData": "Keine Kontingentdaten",
       "close": "Schließen",
       "resetTime": "Reset-Zeit"
+    },
+    "errors": {
+      "title": "Fehlerdetails",
+      "empty": "Keine Fehlerdetails",
+      "account": "Konto",
+      "code": "Fehlercode",
+      "time": "Aufgetreten am"
     }
   },
   "pagination": {

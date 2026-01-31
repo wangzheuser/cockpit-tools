@@ -20,6 +20,8 @@ import {
   Fingerprint,
   AlarmClock,
   Link,
+  Lock,
+  AlertTriangle,
   CircleAlert,
   Play,
   RotateCw,
@@ -149,6 +151,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
 
   // Quota Detail Modal
   const [showQuotaModal, setShowQuotaModal] = useState<string | null>(null)
+  const [showErrorModal, setShowErrorModal] = useState<string | null>(null)
 
   // 标签编辑弹窗
   const [showTagModal, setShowTagModal] = useState<string | null>(null)
@@ -1185,6 +1188,36 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const normalizeWarningMessage = (raw: string) =>
     raw.replace(/^Error:\s*/i, '').trim()
 
+  const extractQuotaErrorMessage = (raw: string) => {
+    const trimmed = raw.trim()
+    if (!trimmed) return raw
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed?.error?.message) {
+        return String(parsed.error.message)
+      }
+    } catch (_) {
+      // Keep raw message if it is not JSON.
+    }
+    return raw
+  }
+
+  const renderErrorMessage = (raw: string) => {
+    const message = extractQuotaErrorMessage(raw)
+    const parts = message.split(/(https?:\/\/[^\s]+)/g)
+    const linkRegex = /(https?:\/\/[^\s]+)/
+    return parts.map((part, index) => {
+      if (linkRegex.test(part)) {
+        return (
+          <a key={`link-${index}`} href={part} target="_blank" rel="noreferrer">
+            {part}
+          </a>
+        )
+      }
+      return <span key={`text-${index}`}>{part}</span>
+    })
+  }
+
   const isAuthFailure = (message: string) => {
     const lower = message.toLowerCase()
     return (
@@ -1250,13 +1283,17 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
       const tierLabel = t(`accounts.tier.${tier.toLowerCase()}`, tier)
       const displayModels = getDisplayModels(account.quota)
       const isDisabled = account.disabled
+      const isForbidden = Boolean(account.quota?.is_forbidden)
       const isSelected = selected.has(account.id)
+      const quotaError = account.quota_error
+      const hasQuotaError = Boolean(quotaError?.message)
       const warning = refreshWarnings[account.email]
       const warningLabel =
         warning?.kind === 'auth'
           ? t('accounts.status.authInvalid')
           : t('accounts.status.refreshFailed')
       const warningTitle = warning?.message || ''
+      const forbiddenTitle = t('accounts.status.forbidden_tooltip')
       const disabledTitle = isDisabled
         ? `${t('accounts.status.disabled')}${account.disabled_reason ? `: ${account.disabled_reason}` : ''}`
         : ''
@@ -1305,40 +1342,55 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                 {t('accounts.status.disabled')}
               </span>
             )}
+            {isForbidden && (
+              <span className="status-pill forbidden" title={forbiddenTitle}>
+                <Lock size={12} />
+                {t('accounts.status.forbidden')}
+              </span>
+            )}
             <span className={`tier-badge ${tier.toLowerCase()}`}>
               {tierLabel}
             </span>
           </div>
 
           <div className="card-quota-grid">
-            {displayModels.map((model) => {
-              const resetLabel = formatResetTimeDisplay(model.reset_time, t)
-              return (
-                <div key={model.name} className="quota-compact-item">
-                  <div className="quota-compact-header">
-                    <span className="model-label">
-                      {getModelDisplayLabel(model.name)}
-                    </span>
-                    <span
-                      className={`model-pct ${getQuotaClass(model.percentage)}`}
-                    >
-                      {model.percentage}%
-                    </span>
-                  </div>
-                  <div className="quota-compact-bar-track">
-                    <div
-                      className={`quota-compact-bar ${getQuotaClass(model.percentage)}`}
-                      style={{ width: `${model.percentage}%` }}
-                    />
-                  </div>
-                  {resetLabel && (
-                    <span className="quota-compact-reset">{resetLabel}</span>
-                  )}
-                </div>
-              )
-            })}
-            {displayModels.length === 0 && (
-              <div className="quota-empty">{t('overview.noQuotaData')}</div>
+            {isForbidden ? (
+              <div className="quota-forbidden" title={forbiddenTitle}>
+                <Lock size={14} />
+                <span>{t('accounts.status.forbidden_msg')}</span>
+              </div>
+            ) : (
+              <>
+                {displayModels.map((model) => {
+                  const resetLabel = formatResetTimeDisplay(model.reset_time, t)
+                  return (
+                    <div key={model.name} className="quota-compact-item">
+                      <div className="quota-compact-header">
+                        <span className="model-label">
+                          {getModelDisplayLabel(model.name)}
+                        </span>
+                        <span
+                          className={`model-pct ${getQuotaClass(model.percentage)}`}
+                        >
+                          {model.percentage}%
+                        </span>
+                      </div>
+                      <div className="quota-compact-bar-track">
+                        <div
+                          className={`quota-compact-bar ${getQuotaClass(model.percentage)}`}
+                          style={{ width: `${model.percentage}%` }}
+                        />
+                      </div>
+                      {resetLabel && (
+                        <span className="quota-compact-reset">{resetLabel}</span>
+                      )}
+                    </div>
+                  )
+                })}
+                {displayModels.length === 0 && (
+                  <div className="quota-empty">{t('overview.noQuotaData')}</div>
+                )}
+              </>
             )}
           </div>
 
@@ -1352,6 +1404,15 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               >
                 <CircleAlert size={14} />
               </button>
+              {hasQuotaError && (
+                <button
+                  className="card-action-btn"
+                  onClick={() => setShowErrorModal(account.id)}
+                  title={t('accounts.actions.viewError')}
+                >
+                  <AlertTriangle size={14} />
+                </button>
+              )}
               <button
                 className="card-action-btn"
                 onClick={() => openFpSelectModal(account.id)}
@@ -1483,21 +1544,22 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
           const overallQuota = calculateOverallQuota(quotas)
           const isSelected = selected.has(account.id)
           const isDisabled = account.disabled
+          const isForbidden = Boolean(account.quota?.is_forbidden)
           const warning = refreshWarnings[account.email]
           const warningLabel =
             warning?.kind === 'auth'
               ? t('accounts.status.authInvalid')
               : t('accounts.status.refreshFailed')
           const warningTitle = warning?.message || ''
+          const forbiddenTitle = t('accounts.status.forbidden_tooltip')
           const disabledTitle = isDisabled
             ? `${t('accounts.status.disabled')}${account.disabled_reason ? `: ${account.disabled_reason}` : ''}`
             : ''
-          const statusTitle =
-            warning && isDisabled
-              ? `${disabledTitle} / ${warningTitle || warningLabel}`
-              : warning
-                ? warningTitle || warningLabel
-                : disabledTitle
+          const statusHints = []
+          if (warning) statusHints.push(warningTitle || warningLabel)
+          if (isDisabled) statusHints.push(disabledTitle || t('accounts.status.disabled'))
+          if (isForbidden) statusHints.push(forbiddenTitle)
+          const statusTitle = statusHints.join(' / ')
 
           // 获取可见分组的配额（按排序后的顺序，排除隐藏的和无配额数据的）
           const groupQuotas = visibleGroups
@@ -1549,7 +1611,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
             <span
               className={`${styles.email} ${tier === 'PRO' || tier === 'ULTRA' ? styles.emailGradient : ''}`}
             >
-              {(warning || isDisabled) && (
+              {(warning || isDisabled || isForbidden) && (
                 <span className={styles.statusIcon} title={statusTitle}>
                   !
                 </span>
@@ -1738,12 +1800,16 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
       const tier = getSubscriptionTier(account.quota)
       const tierLabel = t(`accounts.tier.${tier.toLowerCase()}`, tier)
       const displayModels = getDisplayModels(account.quota)
+      const isForbidden = Boolean(account.quota?.is_forbidden)
+      const quotaError = account.quota_error
+      const hasQuotaError = Boolean(quotaError?.message)
       const warning = refreshWarnings[account.email]
       const warningLabel =
         warning?.kind === 'auth'
           ? t('accounts.status.authInvalid')
           : t('accounts.status.refreshFailed')
       const warningTitle = warning?.message || ''
+      const forbiddenTitle = t('accounts.status.forbidden_tooltip')
       const disabledTitle = account.disabled
         ? `${t('accounts.status.disabled')}${account.disabled_reason ? `: ${account.disabled_reason}` : ''}`
         : ''
@@ -1788,6 +1854,12 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                     {t('accounts.status.disabled')}
                   </span>
                 )}
+                {isForbidden && (
+                  <span className="status-pill forbidden" title={forbiddenTitle}>
+                    <Lock size={12} />
+                    {t('accounts.status.forbidden')}
+                  </span>
+                )}
               </div>
             </div>
           </td>
@@ -1806,35 +1878,44 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
           </td>
           <td>
             <div className="quota-grid">
-              {displayModels.map((model) => (
-                <div className="quota-item" key={model.name}>
-                  <div className="quota-header">
-                    <span className="quota-name">
-                      {getModelDisplayLabel(model.name)}
-                    </span>
-                    <span
-                      className={`quota-value ${getQuotaClass(model.percentage)}`}
-                    >
-                      {model.percentage}%
-                    </span>
-                  </div>
-                  <div className="quota-progress-track">
-                    <div
-                      className={`quota-progress-bar ${getQuotaClass(model.percentage)}`}
-                      style={{ width: `${model.percentage}%` }}
-                    />
-                  </div>
-                  <div className="quota-footer">
-                    <span className="quota-reset">
-                      {formatResetTimeDisplay(model.reset_time, t)}
-                    </span>
-                  </div>
+              {isForbidden ? (
+                <div className="quota-forbidden" title={forbiddenTitle}>
+                  <Lock size={14} />
+                  <span>{t('accounts.status.forbidden_msg')}</span>
                 </div>
-              ))}
-              {displayModels.length === 0 && (
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                  {t('overview.noQuotaData')}
-                </span>
+              ) : (
+                <>
+                  {displayModels.map((model) => (
+                    <div className="quota-item" key={model.name}>
+                      <div className="quota-header">
+                        <span className="quota-name">
+                          {getModelDisplayLabel(model.name)}
+                        </span>
+                        <span
+                          className={`quota-value ${getQuotaClass(model.percentage)}`}
+                        >
+                          {model.percentage}%
+                        </span>
+                      </div>
+                      <div className="quota-progress-track">
+                        <div
+                          className={`quota-progress-bar ${getQuotaClass(model.percentage)}`}
+                          style={{ width: `${model.percentage}%` }}
+                        />
+                      </div>
+                      <div className="quota-footer">
+                        <span className="quota-reset">
+                          {formatResetTimeDisplay(model.reset_time, t)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {displayModels.length === 0 && (
+                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                      {t('overview.noQuotaData')}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </td>
@@ -1847,6 +1928,15 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               >
                 <CircleAlert size={16} />
               </button>
+              {hasQuotaError && (
+                <button
+                  className="action-btn"
+                  onClick={() => setShowErrorModal(account.id)}
+                  title={t('accounts.actions.viewError')}
+                >
+                  <AlertTriangle size={16} />
+                </button>
+              )}
               <button
                 className="action-btn"
                 onClick={() => openTagModal(account.id)}
@@ -2714,6 +2804,74 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                         <RefreshCw size={16} />
                       )}
                       {t('common.refresh')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
+      {/* Error Details Modal */}
+      {showErrorModal &&
+        (() => {
+          const account = accounts.find((a) => a.id === showErrorModal)
+          if (!account) return null
+          const errorInfo = account.quota_error
+
+          return (
+            <div
+              className="modal-overlay"
+              onClick={() => setShowErrorModal(null)}
+            >
+              <div
+                className="modal modal-lg"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="modal-header">
+                  <h2>{t('modals.errors.title')}</h2>
+                  <button
+                    className="close-btn"
+                    onClick={() => setShowErrorModal(null)}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="modal-body">
+                  {!errorInfo?.message ? (
+                    <div className="empty-state-small">
+                      {t('modals.errors.empty')}
+                    </div>
+                  ) : (
+                    <div className="error-detail">
+                      <div className="error-detail-meta">
+                        <span>
+                          {t('modals.errors.account')}: {account.email}
+                        </span>
+                        {errorInfo.code && (
+                          <span>
+                            {t('modals.errors.code')}: {errorInfo.code}
+                          </span>
+                        )}
+                        {errorInfo.timestamp && (
+                          <span>
+                            {t('modals.errors.time')}:{' '}
+                            {formatDate(errorInfo.timestamp)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="error-detail-message">
+                        {renderErrorMessage(errorInfo.message)}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="modal-actions" style={{ marginTop: 20 }}>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setShowErrorModal(null)}
+                    >
+                      {t('common.close')}
                     </button>
                   </div>
                 </div>

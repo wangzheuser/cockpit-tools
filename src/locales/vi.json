@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "Xem chi tiết",
+      "viewError": "Xem lỗi",
       "fingerprint": "Vân tay",
       "switch": "Chuyển tài khoản",
       "switchTo": "Chuyển sang tài khoản này",
@@ -372,6 +373,13 @@
       "noData": "Chưa có dữ liệu hạn mức",
       "close": "Đóng",
       "resetTime": "Thời gian đặt lại"
+    },
+    "errors": {
+      "title": "Chi tiết lỗi",
+      "empty": "Không có chi tiết lỗi",
+      "account": "Tài khoản",
+      "code": "Mã lỗi",
+      "time": "Thời điểm xảy ra"
     }
   },
   "pagination": {

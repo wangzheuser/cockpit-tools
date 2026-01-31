@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "Zobrazit detaily",
+      "viewError": "Zobrazit chybu",
       "fingerprint": "Otisk",
       "switch": "Přepnout účet",
       "switchTo": "Přepnout na tento účet",
@@ -372,6 +373,13 @@
       "noData": "Žádná data o kvótě",
       "close": "Zavřít",
       "resetTime": "Čas resetu"
+    },
+    "errors": {
+      "title": "Podrobnosti chyby",
+      "empty": "Žádné podrobnosti chyby",
+      "account": "Účet",
+      "code": "Kód chyby",
+      "time": "Nastalo"
     }
   },
   "pagination": {

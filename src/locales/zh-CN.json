@@ -194,6 +194,7 @@
     "defaultGroup": "默认分组",
     "actions": {
       "viewDetails": "查看详情",
+      "viewError": "查看错误",
       "fingerprint": "指纹",
       "switch": "切换账号",
       "switchTo": "切换到此账号",
@@ -372,6 +373,13 @@
       "noData": "无配额数据",
       "close": "关闭",
       "resetTime": "重置时间"
+    },
+    "errors": {
+      "title": "错误详情",
+      "empty": "暂无错误信息",
+      "account": "账号",
+      "code": "错误码",
+      "time": "发生时间"
     }
   },
   "pagination": {

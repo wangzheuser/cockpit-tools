@@ -185,6 +185,7 @@
     },
     "actions": {
       "viewDetails": "Detayları görüntüle",
+      "viewError": "Hata görüntüle",
       "fingerprint": "Parmak izi",
       "switch": "Hesap değiştir",
       "switchTo": "Bu hesaba geç",
@@ -372,6 +373,13 @@
       "noData": "Kota verisi yok",
       "close": "Kapat",
       "resetTime": "Sıfırlama Zamanı"
+    },
+    "errors": {
+      "title": "Hata detayları",
+      "empty": "Hata detayı yok",
+      "account": "Hesap",
+      "code": "Hata kodu",
+      "time": "Oluşma zamanı"
     }
   },
   "pagination": {
