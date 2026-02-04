@@ -33,6 +33,8 @@ pub struct GeneralConfig {
     pub close_behavior: String,
     /// OpenCode 启动路径（为空则使用默认路径）
     pub opencode_app_path: String,
+    /// Antigravity 启动路径（为空则使用默认路径）
+    pub antigravity_app_path: String,
     /// 切换 Codex 时是否自动重启 OpenCode
     pub opencode_sync_on_switch: bool,
 }
@@ -104,6 +106,7 @@ pub fn save_network_config(ws_enabled: bool, ws_port: u16) -> Result<bool, Strin
         codex_auto_refresh_minutes: current.codex_auto_refresh_minutes,
         close_behavior: current.close_behavior,
         opencode_app_path: current.opencode_app_path,
+        antigravity_app_path: current.antigravity_app_path,
         opencode_sync_on_switch: current.opencode_sync_on_switch,
     };
     
@@ -130,6 +133,7 @@ pub fn get_general_config() -> Result<GeneralConfig, String> {
         codex_auto_refresh_minutes: user_config.codex_auto_refresh_minutes,
         close_behavior: close_behavior_str.to_string(),
         opencode_app_path: user_config.opencode_app_path,
+        antigravity_app_path: user_config.antigravity_app_path,
         opencode_sync_on_switch: user_config.opencode_sync_on_switch,
     })
 }
@@ -143,10 +147,12 @@ pub fn save_general_config(
     codex_auto_refresh_minutes: i32,
     close_behavior: String,
     opencode_app_path: String,
+    antigravity_app_path: String,
     opencode_sync_on_switch: bool,
 ) -> Result<(), String> {
     let current = config::get_user_config();
     let normalized_opencode_path = opencode_app_path.trim().to_string();
+    let normalized_antigravity_path = antigravity_app_path.trim().to_string();
     // 标准化语言代码为小写，确保与插件端格式一致
     let normalized_language = language.to_lowercase();
     let language_changed = current.language != normalized_language;
@@ -170,6 +176,7 @@ pub fn save_general_config(
         codex_auto_refresh_minutes,
         close_behavior: close_behavior_enum,
         opencode_app_path: normalized_opencode_path,
+        antigravity_app_path: normalized_antigravity_path,
         opencode_sync_on_switch,
     };
     
@@ -234,6 +241,71 @@ pub fn handle_window_close(window: tauri::Window, action: String, remember: bool
             return Err("无效的操作".to_string());
         }
     }
+    
+    Ok(())
+}
+
+/// 打开指定文件夹（如不存在则创建）
+#[tauri::command]
+pub async fn open_folder(path: String) -> Result<(), String> {
+    let folder_path = std::path::Path::new(&path);
+    
+    // 如果目录不存在则创建
+    if !folder_path.exists() {
+        std::fs::create_dir_all(folder_path)
+            .map_err(|e| format!("创建文件夹失败: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("打开文件夹失败: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("打开文件夹失败: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("打开文件夹失败: {}", e))?;
+    }
+
+    Ok(())
+}
+
+/// 删除损坏的文件（会先备份）
+#[tauri::command]
+pub async fn delete_corrupted_file(path: String) -> Result<(), String> {
+    let file_path = std::path::Path::new(&path);
+    
+    if !file_path.exists() {
+        // 文件不存在，直接返回成功
+        return Ok(());
+    }
+    
+    // 创建备份文件名
+    let timestamp = chrono::Utc::now().timestamp();
+    let backup_name = format!("{}.corrupted.{}", path, timestamp);
+    
+    // 备份文件
+    std::fs::rename(&path, &backup_name)
+        .map_err(|e| format!("备份损坏文件失败: {}", e))?;
+    
+    modules::logger::log_info(&format!(
+        "已备份并删除损坏文件: {} -> {}", 
+        path, 
+        backup_name
+    ));
     
     Ok(())
 }

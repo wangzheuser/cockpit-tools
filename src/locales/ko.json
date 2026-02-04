@@ -29,7 +29,8 @@
     "fingerprints": "기기 지문",
     "settings": "설정",
     "codex": "Codex 계정",
-    "dashboard": "대시보드"
+    "dashboard": "대시보드",
+    "instances": "멀티 인스턴스"
   },
   "settings": {
     "title": "앱 설정",
@@ -707,7 +708,32 @@
     "filterTagsCount": "태그",
     "noAvailableTags": "사용 가능한 태그가 없습니다",
     "clearFilter": "필터 지우기",
-    "editTags": "태그 편집"
+    "editTags": "태그 편집",
+    "instances": {
+      "subtitle": "인스턴스별 독립 구성, 여러 계정으로 병렬 운영.",
+      "comingSoon": "멀티 인스턴스 곧 출시",
+      "comingSoonDesc": "다른 계정으로 여러 Codex.app 인스턴스를 동시에 실행할 수 있습니다.",
+      "unsupported": {
+        "title": "이 시스템에서 지원되지 않음",
+        "desc": "Codex 멀티 인스턴스는 현재 macOS에서만 사용 가능합니다."
+      },
+      "quota": {
+        "hourly": "5시간",
+        "weekly": "주간"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "모든 Codex 프로세스에 SIGTERM을 보내 앱이 스스로 저장하고 종료하도록 한 다음, 대상 인스턴스를 다시 시작합니다 (필요 시 강제 종료).",
+          "commandMac": "macOS: kill -15 <pid> (모든 Codex 프로세스)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (모든 Codex 프로세스)"
+        },
+        "force": {
+          "principle": "CODEX_HOME으로 프로세스를 찾아 강제 종료(SIGKILL / taskkill /F)한 다음, 대상 인스턴스를 다시 시작합니다.",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (CODEX_HOME 일치 항목)"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "계정 대시보드",
@@ -758,5 +784,154 @@
     "noRecommendation": "더 나은 추천 없음",
     "noData": "데이터 없음",
     "viewAllAccounts": "모든 계정 보기"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "파일 읽기 실패",
+      "description": "{{fileName}} 파일이 손상되어 분석할 수 없습니다.",
+      "errorInfo": "오류 상세",
+      "filePath": "파일 위치",
+      "helpText": "폴더를 열어 수동으로 복구하거나 파일을 삭제한 후 애플리케이션을 다시 시작하십시오.",
+      "openFolder": "폴더 열기"
+    }
+  },
+  "instances": {
+    "title": "다중 인스턴스",
+    "subtitle": "다중 계정 병렬 실행을 위한 격리된 프로필.",
+    "defaultName": "기본 인스턴스",
+    "search": "인스턴스 검색",
+    "actions": {
+      "create": "새 인스턴스",
+      "refresh": "새로고침",
+      "startAll": "모두 시작",
+      "restartAll": "모두 재시작",
+      "stopAll": "모두 정지",
+      "start": "시작",
+      "stop": "정지",
+      "openFolder": "폴더 열기",
+      "edit": "편집",
+      "openRootDir": "폴더 열기",
+      "selectPath": "폴더 선택"
+    },
+    "bulkConfirm": {
+      "startAll": "정지된 모든 인스턴스를 시작할까요?",
+      "restartAll": "실행 중인 모든 인스턴스를 재시작할까요?",
+      "stopAll": "모든 인스턴스를 닫을까요?"
+    },
+    "status": {
+      "running": "실행 중",
+      "stopped": "정지됨",
+      "restarting": "재시작 중"
+    },
+    "labels": {
+      "path": "디렉토리",
+      "args": "실행 인자",
+      "argsEmpty": "없음",
+      "bindAccount": "연결된 계정",
+      "unbound": "연결되지 않음",
+      "quota": "쿼터",
+      "lastLaunched": "마지막 실행"
+    },
+    "columns": {
+      "instance": "인스턴스",
+      "email": "계정",
+      "quota": "쿼터 상태",
+      "actions": "작업"
+    },
+    "empty": {
+      "title": "인스턴스가 없습니다",
+      "desc": "격리된 프로필을 만들어 여러 인스턴스를 빠르게 실행해 보세요."
+    },
+    "form": {
+      "name": "인스턴스 이름",
+      "namePlaceholder": "예: 업무용 계정",
+      "path": "인스턴스 디렉토리",
+      "pathPlaceholder": "인스턴스 디렉토리 선택",
+      "pathReadOnly": "편집 시 경로는 변경할 수 없습니다",
+      "pathAutoHint": "이름 변경 시 경로가 자동 업데이트됩니다 (수동 선택 가능)",
+      "copyLogin": "현재 로그인 상태 복사",
+      "copyLoginDesc": "기본 디렉토리에서 설정 및 로그인 데이터를 복사합니다",
+      "copySource": "소스 인스턴스 복사",
+      "copySourceDesc": "선택한 인스턴스에서 설정 및 로그인 정보를 복사합니다",
+      "copySourcePlaceholder": "원본 인스턴스 선택",
+      "copySourceRequired": "원본 인스턴스를 선택해 주세요",
+      "copySourceRunningHint": "원본 인스턴스가 실행 중입니다. 데이터 불일치를 방지하려면 먼저 종료하는 것을 권장합니다.",
+      "bindInject": "계정 연결",
+      "followCurrent": "현재 계정 팔로우",
+      "selectAccount": "계정 선택",
+      "bindAccount": "계정 연결",
+      "unbound": "연결되지 않음",
+      "extraArgs": "사용자 정의 실행 인자",
+      "extraArgsPlaceholder": "예: --disable-gpu --log-level=2",
+      "extraArgsDesc": "인자는 공백으로 구분하며 따옴표를 지원합니다",
+      "nameRequired": "인스턴스 이름을 입력해 주세요",
+      "pathRequired": "인스턴스 디렉토리를 선택해 주세요",
+      "bindRequired": "연결할 계정을 선택해 주세요"
+    },
+    "quota": {
+      "unbound": "연결된 계정 없음",
+      "accountMissing": "계정을 찾을 수 없음",
+      "empty": "캐시된 쿼터 없음"
+    },
+    "messages": {
+      "created": "인스턴스가 생성되었습니다",
+      "updated": "인스턴스가 업데이트되었습니다",
+      "deleted": "인스턴스가 삭제되었습니다",
+      "started": "인스턴스가 시작되었습니다",
+      "stopped": "인스턴스가 정지되었습니다",
+      "startedAll": "모든 정지된 인스턴스를 시작했습니다",
+      "restartedAll": "실행 중인 인스턴스를 재시작했습니다",
+      "closedAll": "모든 인스턴스를 닫았습니다",
+      "allAlreadyRunning": "모든 인스턴스가 이미 실행 중입니다",
+      "noneRunning": "실행 중인 인스턴스를 찾을 수 없습니다"
+    },
+    "runningDialog": {
+      "title": "인스턴스가 이미 실행 중입니다",
+      "desc": "이 인스턴스는 이미 실행 중입니다. 창으로 이동하거나 현재 전략으로 재시작할 수 있습니다.",
+      "current": "현재 전략: {{name}}",
+      "pathLabel": "인스턴스 디렉토리",
+      "go": "지금 이동",
+      "restart": "닫고 재시작"
+    },
+    "restartStrategy": {
+      "button": "재시작 전략",
+      "title": "재시작 전략",
+      "desc": "인스턴스 재시작 방법을 선택하세요. 각 옵션은 범위와 안정성에 영향을 줍니다.",
+      "recommended": "권장",
+      "labels": {
+        "principle": "기술 원리",
+        "command": "명령어",
+        "pros": "장점",
+        "cons": "단점"
+      },
+      "safe": {
+        "title": "안전한 재시작 (권장)",
+        "principle": "모든 Antigravity 프로세스에 SIGTERM을 보내 앱이 스스로 저장하고 종료하도록 한 다음, 대상 인스턴스를 다시 시작합니다 (필요 시 강제 종료).",
+        "commandMac": "macOS/Linux: kill -15 <pid> (모든 Antigravity 프로세스)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (모든 Antigravity 프로세스)",
+        "pros": "정상 종료에 가까우며 크래시 경고가 발생할 확률이 낮고 데이터가 더 안전합니다.",
+        "cons": "모든 인스턴스의 전체 재시작만 지원합니다."
+      },
+      "force": {
+        "title": "강제 재시작",
+        "principle": "--user-data-dir로 프로세스를 찾아 강제 종료(SIGKILL / taskkill /F)한 다음, 대상 인스턴스를 다시 시작합니다.",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (--user-data-dir 일치 항목)",
+        "pros": "단일 인스턴스를 정확하게 재시작할 수 있습니다.",
+        "cons": "“예기치 않은 종료” 경고가 발생할 수 있으며 저장되지 않은 데이터 손실 위험이 있습니다."
+      }
+    },
+    "stop": {
+      "title": "인스턴스 강제 종료",
+      "message": "강제 종료를 위해 종료 신호(SIGTERM)를 보냅니다. 데이터 손실이 발생할 수 있습니다. 계속할까요?"
+    },
+    "delete": {
+      "title": "인스턴스 삭제",
+      "message": "인스턴스 {{name}}을(를) 삭제하시겠습니까? 설정이 제거되고 인스턴스 폴더도 삭제됩니다."
+    },
+    "modal": {
+      "createTitle": "새 인스턴스",
+      "editTitle": "인스턴스 편집"
+    }
   }
 }

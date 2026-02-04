@@ -25,7 +25,7 @@ interface FlyingRocket {
 
 export function SideNav({ page, setPage }: SideNavProps) {
   const { t } = useTranslation();
-  const isOverviewGroup = page === 'overview' || page === 'fingerprints' || page === 'wakeup';
+  const isOverviewGroup = page === 'overview' || page === 'fingerprints' || page === 'wakeup' || page === 'instances';
   const [clickCount, setClickCount] = useState(0);
   const [flyingRockets, setFlyingRockets] = useState<FlyingRocket[]>([]);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,7 +119,6 @@ export function SideNav({ page, setPage }: SideNavProps) {
           <span className="tooltip">{t('nav.codex')}</span>
         </button>
 
-        
         <button 
           className={`nav-item ${page === 'settings' ? 'active' : ''}`} 
           onClick={() => setPage('settings')}

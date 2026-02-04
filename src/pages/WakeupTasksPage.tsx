@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { confirm as confirmDialog } from '@tauri-apps/plugin-dialog';
-import { Plus, Pencil, Trash2, Power, X, AlarmClock, Fingerprint } from 'lucide-react';
+import { Plus, Pencil, Trash2, Power, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAccountStore } from '../stores/useAccountStore';
 import { Page } from '../types/navigation';
 import { Account } from '../types/account';
 import { getModelShortName } from '../utils/account';
-import { RobotIcon } from '../components/icons/RobotIcon';
+import { OverviewTabsHeader } from '../components/OverviewTabsHeader';
 
 const TASKS_STORAGE_KEY = 'agtools.wakeup.tasks';
 const WAKEUP_ENABLED_KEY = 'agtools.wakeup.enabled';
@@ -1448,6 +1448,7 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
           codexAutoRefreshMinutes: config.codex_auto_refresh_minutes ?? 10,
           closeBehavior: config.close_behavior || 'ask',
           opencodeAppPath: config.opencode_app_path ?? '',
+          antigravityAppPath: config.antigravity_app_path ?? '',
           opencodeSyncOnSwitch: config.opencode_sync_on_switch ?? true,
         });
         
@@ -1636,33 +1637,11 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
 
   return (
     <main className="main-content wakeup-page">
-      <div className="page-tabs-row">
-        <div className="page-tabs-label">{t('overview.brandTitle')}</div>
-        <div className="page-tabs filter-tabs">
-          <button
-            className="filter-tab"
-            onClick={() => onNavigate?.('overview')}
-          >
-            <RobotIcon className="tab-icon" />
-            <span>{t('overview.title')}</span>
-          </button>
-          <button
-            className="filter-tab"
-            onClick={() => onNavigate?.('fingerprints')}
-          >
-            <Fingerprint className="tab-icon" />
-            <span>{t('fingerprints.title')}</span>
-          </button>
-          <button
-            className="filter-tab active"
-            onClick={() => onNavigate?.('wakeup')}
-          >
-            <AlarmClock className="tab-icon" />
-            <span>{t('wakeup.title')}</span>
-          </button>
-        </div>
-      </div>
-
+      <OverviewTabsHeader
+        active="wakeup"
+        onNavigate={onNavigate}
+        subtitle={t('wakeup.subtitle')}
+      />
       <div className="toolbar">
         <div className="toolbar-right">
           <button className="btn btn-primary" onClick={openCreateModal}>
@@ -1797,8 +1776,12 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <h2>{t('wakeup.dialogs.enableTitle')}</h2>
-              <button className="modal-close" onClick={() => setShowWakeupConfirm(false)}>
-                <X size={18} />
+              <button
+                className="modal-close"
+                onClick={() => setShowWakeupConfirm(false)}
+                aria-label={t('common.close', '关闭')}
+              >
+                <X />
               </button>
             </div>
             <div className="modal-body">
@@ -1824,8 +1807,12 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
           >
             <div className="modal-header">
               <h2>{t('wakeup.dialogs.testTitle')}</h2>
-              <button className="modal-close" onClick={() => setShowTestModal(false)}>
-                <X size={18} />
+              <button
+                className="modal-close"
+                onClick={() => setShowTestModal(false)}
+                aria-label={t('common.close', '关闭')}
+              >
+                <X />
               </button>
             </div>
             <div className="modal-body">
@@ -1917,8 +1904,12 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
           >
             <div className="modal-header">
               <h2>{t('wakeup.dialogs.historyTitle')}</h2>
-              <button className="modal-close" onClick={() => setShowHistoryModal(false)}>
-                <X size={18} />
+              <button
+                className="modal-close"
+                onClick={() => setShowHistoryModal(false)}
+                aria-label={t('common.close', '关闭')}
+              >
+                <X />
               </button>
             </div>
             <div className="modal-body">
@@ -1984,8 +1975,12 @@ export function WakeupTasksPage({ onNavigate }: WakeupPageProps) {
           <div className="modal modal-lg wakeup-modal" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingTaskId ? t('wakeup.dialogs.taskTitleEdit') : t('wakeup.dialogs.taskTitleNew')}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>
-                <X size={18} />
+              <button
+                className="modal-close"
+                onClick={() => setShowModal(false)}
+                aria-label={t('common.close', '关闭')}
+              >
+                <X />
               </button>
             </div>
             <div className="modal-body">

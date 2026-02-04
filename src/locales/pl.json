@@ -29,7 +29,8 @@
     "fingerprints": "Odciski palca",
     "settings": "Ustawienia",
     "codex": "Konta Codex",
-    "dashboard": "Panel"
+    "dashboard": "Panel",
+    "instances": "Multi-Instancja"
   },
   "settings": {
     "title": "Ustawienia aplikacji",
@@ -707,7 +708,32 @@
     "filterTagsCount": "Tagi",
     "noAvailableTags": "Brak dostępnych tagów",
     "clearFilter": "Wyczyść filtr",
-    "editTags": "Edytuj tagi"
+    "editTags": "Edytuj tagi",
+    "instances": {
+      "subtitle": "Niezależna konfiguracja dla każdej instancji, równoległa praca z wieloma kontami.",
+      "comingSoon": "Multi-Instancja Wkrótce",
+      "comingSoonDesc": "Uruchamiaj wiele instancji Codex.app z różnymi kontami jednocześnie.",
+      "unsupported": {
+        "title": "Nieobsługiwane na tym systemie",
+        "desc": "Multi-instancja Codex jest obecnie dostępna tylko na macOS."
+      },
+      "quota": {
+        "hourly": "5h",
+        "weekly": "Tygodniowo"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "Wysyła sygnał SIGTERM do wszystkich procesów Codex, prosząc aplikację o zapisanie danych i zamknięcie się, a następnie uruchamia instancję docelową (wymusza zamknięcie w razie potrzeby).",
+          "commandMac": "macOS: kill -15 <pid> (wszystkie procesy Codex)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (wszystkie procesy Codex)"
+        },
+        "force": {
+          "principle": "Identyfikuje procesy poprzez CODEX_HOME i zamyka je siłą (SIGKILL / taskkill /F), a następnie uruchamia instancję docelową.",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (dopasowanie do CODEX_HOME)"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "Panel kont",
@@ -758,5 +784,154 @@
     "noRecommendation": "Brak lepszej rekomendacji",
     "noData": "Brak danych",
     "viewAllAccounts": "Pokaż wszystkie konta"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "Błąd odczytu pliku",
+      "description": "Plik {{fileName}} jest uszkodzony i nie można go przetworzyć.",
+      "errorInfo": "Szczegóły błędu",
+      "filePath": "Lokalizacja pliku",
+      "helpText": "Otwórz folder, aby naprawić plik ręcznie lub go usunąć, a następnie uruchom ponownie aplikację.",
+      "openFolder": "Otwórz folder"
+    }
+  },
+  "instances": {
+    "title": "Wiele instancji",
+    "subtitle": "Izolowane profile do równoległej pracy wielu kont.",
+    "defaultName": "Instancja domyślna",
+    "search": "Szukaj instancji",
+    "actions": {
+      "create": "Nowa instancja",
+      "refresh": "Odśwież",
+      "startAll": "Uruchom wszystkie",
+      "restartAll": "Restartuj wszystkie",
+      "stopAll": "Zatrzymaj wszystkie",
+      "start": "Uruchom",
+      "stop": "Zatrzymaj",
+      "openFolder": "Otwórz folder",
+      "edit": "Edytuj",
+      "openRootDir": "Otwórz folder",
+      "selectPath": "Wybierz ścieżkę"
+    },
+    "bulkConfirm": {
+      "startAll": "Uruchomić wszystkie zatrzymane instancje?",
+      "restartAll": "Zrestartować wszystkie uruchomione instancje?",
+      "stopAll": "Zamknąć wszystkie instancje?"
+    },
+    "status": {
+      "running": "Uruchomiona",
+      "stopped": "Zatrzymana",
+      "restarting": "Restartowanie"
+    },
+    "labels": {
+      "path": "Katalog",
+      "args": "Argumenty uruchamiania",
+      "argsEmpty": "Brak",
+      "bindAccount": "Powiązane konto",
+      "unbound": "Brak powiązania",
+      "quota": "Limit",
+      "lastLaunched": "Ostatnie uruchomienie"
+    },
+    "columns": {
+      "instance": "Instancja",
+      "email": "Konto",
+      "quota": "Status limitu",
+      "actions": "Akcje"
+    },
+    "empty": {
+      "title": "Brak instancji",
+      "desc": "Utwórz izolowany katalog konfiguracji, aby szybko uruchamiać wiele instancji."
+    },
+    "form": {
+      "name": "Nazwa instancji",
+      "namePlaceholder": "np. Konto służbowe",
+      "path": "Katalog instancji",
+      "pathPlaceholder": "Wybierz katalog",
+      "pathReadOnly": "Ścieżki nie można zmienić podczas edycji",
+      "pathAutoHint": "Ścieżka aktualizuje się automatycznie przy zmianie nazwy (lub wybierz ręcznie)",
+      "copyLogin": "Kopiuj aktualny stan logowania",
+      "copyLoginDesc": "Kopiuj konfigurację i dane logowania z domyślnego katalogu",
+      "copySource": "Kopiuj z instancji źródłowej",
+      "copySourceDesc": "Kopiuj konfigurację i dane logowania z wybranej instancji",
+      "copySourcePlaceholder": "Wybierz instancję źródłową",
+      "copySourceRequired": "Proszę wybrać instancję źródłową",
+      "copySourceRunningHint": "Instancja źródłowa jest uruchomiona. Zaleca się jej wcześniejsze zamknięcie, aby uniknąć niezgodności danych.",
+      "bindInject": "Powiąż konto",
+      "followCurrent": "Podążaj za aktualnym kontem",
+      "selectAccount": "Wybierz konto",
+      "bindAccount": "Powiąż konto",
+      "unbound": "Brak powiązania",
+      "extraArgs": "Własne argumenty uruchamiania",
+      "extraArgsPlaceholder": "np. --disable-gpu --log-level=2",
+      "extraArgsDesc": "Oddzielaj argumenty spacjami, cudzysłowy są obsługiwane",
+      "nameRequired": "Proszę podać nazwę instancji",
+      "pathRequired": "Proszę wybrać katalog instancji",
+      "bindRequired": "Proszę wybrać konto do powiązania"
+    },
+    "quota": {
+      "unbound": "Konto niepowiązane",
+      "accountMissing": "Nie znaleziono konta",
+      "empty": "Brak limitu w pamięci podręcznej"
+    },
+    "messages": {
+      "created": "Utworzono instancję",
+      "updated": "Zaktualizowano instancję",
+      "deleted": "Usunięto instancję",
+      "started": "Uruchomiono instancję",
+      "stopped": "Zatrzymano instancję",
+      "startedAll": "Wszystkie zatrzymane instancje zostały uruchomione",
+      "restartedAll": "Restartowano uruchomione instancje",
+      "closedAll": "Wszystkie instancje zostały zatrzymane",
+      "allAlreadyRunning": "Wszystkie instancje są już uruchomione",
+      "noneRunning": "Nie znaleziono uruchomionych instancji"
+    },
+    "runningDialog": {
+      "title": "Instancja jest już uruchomiona",
+      "desc": "Ta instancja jest już uruchomiona. Możesz przejść do okna lub zrestartować ją zgodnie z aktualną strategią.",
+      "current": "Aktualna strategia: {{name}}",
+      "pathLabel": "Katalog instancji",
+      "go": "Przełącz teraz",
+      "restart": "Zamknij i restartuj"
+    },
+    "restartStrategy": {
+      "button": "Strategia restartu",
+      "title": "Strategia restartu",
+      "desc": "Wybierz metodę restartu instancji. Każda opcja wpływa na zakres i stabilność.",
+      "recommended": "Zalecane",
+      "labels": {
+        "principle": "Zasada techniczna",
+        "command": "Komenda",
+        "pros": "Zalety",
+        "cons": "Wady"
+      },
+      "safe": {
+        "title": "Bezpieczny restart (Zalecane)",
+        "principle": "Wysyła sygnał SIGTERM do wszystkich procesów Antigravity, prosząc aplikację o zapisanie danych i zamknięcie się, a następnie uruchamia instancję docelową (wymusza zamknięcie w razie potrzeby).",
+        "commandMac": "macOS/Linux: kill -15 <pid> (wszystkie procesy Antigravity)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (wszystkie procesy Antigravity)",
+        "pros": "Najbardziej zbliżone do normalnego zamknięcia, mniejsze prawdopodobieństwo błędów, bezpieczniejsze dane.",
+        "cons": "Obsługuje tylko globalny restart wszystkich instancji."
+      },
+      "force": {
+        "title": "Wymuszony restart",
+        "principle": "Identyfikuje procesy poprzez --user-data-dir i zamyka je siłą (SIGKILL / taskkill /F), a następnie uruchamia instancję docelową.",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (dopasowanie do --user-data-dir)",
+        "pros": "Może precyzyjnie zrestartować pojedynczą instancję.",
+        "cons": "Może spowodować ostrzeżenie o „nieoczekiwanym zamknięciu”, ryzyko utraty niezapisanych danych."
+      }
+    },
+    "stop": {
+      "title": "Wymuś zatrzymanie instancji",
+      "message": "Wysyła sygnał zatrzymania (SIGTERM) do procesu instancji. Niezapisane dane mogą zostać utracone. Kontynuować?"
+    },
+    "delete": {
+      "title": "Usuń instancję",
+      "message": "Czy usunąć instancję {{name}}? Spowoduje to usunięcie konfiguracji i folderu instancji."
+    },
+    "modal": {
+      "createTitle": "Nowa instancja",
+      "editTitle": "Edytuj instancję"
+    }
   }
 }

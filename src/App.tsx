@@ -9,6 +9,7 @@ import { CodexAccountsPage } from './pages/CodexAccountsPage';
 import { FingerprintsPage } from './pages/FingerprintsPage';
 import { WakeupTasksPage } from './pages/WakeupTasksPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { InstancesPage } from './pages/InstancesPage';
 import { SideNav } from './components/layout/SideNav';
 import { UpdateNotification } from './components/UpdateNotification';
 import { CloseConfirmDialog } from './components/CloseConfirmDialog';
@@ -231,6 +232,7 @@ function App() {
         {page === 'dashboard' && <DashboardPage onNavigate={setPage} />}
         {page === 'overview' && <AccountsPage onNavigate={setPage} />}
         {page === 'codex' && <CodexAccountsPage />}
+        {page === 'instances' && <InstancesPage onNavigate={setPage} />}
         {page === 'fingerprints' && <FingerprintsPage onNavigate={setPage} />}
         {page === 'wakeup' && <WakeupTasksPage onNavigate={setPage} />}
         {page === 'settings' && <SettingsPage />}

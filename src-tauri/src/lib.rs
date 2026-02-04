@@ -163,6 +163,8 @@ pub fn run() {
             commands::system::save_general_config,
             commands::system::set_wakeup_override,
             commands::system::handle_window_close,
+            commands::system::open_folder,
+            commands::system::delete_corrupted_file,
 
             // Wakeup Commands
             commands::wakeup::trigger_wakeup,
@@ -204,6 +206,30 @@ pub fn run() {
             commands::codex::is_codex_oauth_port_in_use,
             commands::codex::close_codex_oauth_port,
             commands::codex::update_codex_account_tags,
+
+            // Codex Instance Commands
+            commands::codex_instance::codex_get_instance_defaults,
+            commands::codex_instance::codex_list_instances,
+            commands::codex_instance::codex_create_instance,
+            commands::codex_instance::codex_update_instance,
+            commands::codex_instance::codex_delete_instance,
+            commands::codex_instance::codex_start_instance,
+            commands::codex_instance::codex_stop_instance,
+            commands::codex_instance::codex_open_instance_window,
+            commands::codex_instance::codex_force_stop_instance,
+            commands::codex_instance::codex_close_all_instances,
+
+            // Instance Commands
+            commands::instance::get_instance_defaults,
+            commands::instance::list_instances,
+            commands::instance::create_instance,
+            commands::instance::update_instance,
+            commands::instance::delete_instance,
+            commands::instance::start_instance,
+            commands::instance::stop_instance,
+            commands::instance::open_instance_window,
+            commands::instance::force_stop_instance,
+            commands::instance::close_all_instances,
 
         ])
         .build(tauri::generate_context!())

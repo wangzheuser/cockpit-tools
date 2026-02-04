@@ -23,7 +23,10 @@
 
   /* Background Colors */
   --bg-primary: #f6f5f2;
+  /* Solid surfaces: dialogs / dropdowns / menus (no transparency) */
   --bg-secondary: #ffffff;
+  --bg-surface: var(--bg-secondary);
+  /* Soft panels: cards / list rows (slight transparency to show gradient) */
   --bg-tertiary: #eef2f7;
   --bg-card: rgba(255, 255, 255, 0.75);
   --bg-hover: rgba(15, 23, 42, 0.06);
@@ -53,6 +56,9 @@
   --radius-lg: 18px;
   --radius-xl: 24px;
   --radius-full: 9999px;
+
+  /* Component sizing */
+  --modal-close-icon-size: 16px;
 }
 
 /* === Dark Theme === */
@@ -70,7 +76,10 @@
 
   /* Background Colors - dark palette */
   --bg-primary: #0f172a;
+  /* Solid surfaces: dialogs / dropdowns / menus (no transparency) */
   --bg-secondary: #1e293b;
+  --bg-surface: var(--bg-secondary);
+  /* Soft panels: cards / list rows (slight transparency to show gradient) */
   --bg-tertiary: #334155;
   --bg-card: rgba(30, 41, 59, 0.85);
   --bg-hover: rgba(255, 255, 255, 0.08);
@@ -117,4 +126,3 @@ html[data-theme="dark"] body {
     linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
   color-scheme: dark;
 }
-

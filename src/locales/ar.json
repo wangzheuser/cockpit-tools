@@ -29,7 +29,8 @@
     "fingerprints": "بصمات الجهاز",
     "settings": "الإعدادات",
     "codex": "حسابات Codex",
-    "dashboard": "لوحة التحكم"
+    "dashboard": "لوحة التحكم",
+    "instances": "مثيلات متعددة"
   },
   "settings": {
     "title": "إعدادات التطبيق",
@@ -707,7 +708,32 @@
     "filterTagsCount": "العلامات",
     "noAvailableTags": "لا توجد علامات متاحة",
     "clearFilter": "مسح التصفية",
-    "editTags": "تحرير العلامات"
+    "editTags": "تحرير العلامات",
+    "instances": {
+      "subtitle": "تكوين مستقل لكل مثيل، تشغيل متوازٍ بحسابات متعددة.",
+      "comingSoon": "ميزة المثيلات المتعددة قادمة قريبًا",
+      "comingSoonDesc": "تشغيل عدة مثيلات Codex.app بحسابات مختلفة في وقت واحد، ترقبوا.",
+      "unsupported": {
+        "title": "غير مدعوم على هذا النظام",
+        "desc": "مثيلات Codex المتعددة متاحة حاليًا على macOS فقط."
+      },
+      "quota": {
+        "hourly": "5 ساعات",
+        "weekly": "أسبوعي"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "إرسال SIGTERM إلى جميع عمليات Codex، يطلب من التطبيق الحفظ والخروج ذاتيًا، ثم تشغيل المثيل المستهدف (سيتم الإنهاء القسري إذا لزم الأمر).",
+          "commandMac": "macOS: kill -15 <pid> (جميع عمليات Codex)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (جميع عمليات Codex)"
+        },
+        "force": {
+          "principle": "مطابقة العملية بواسطة CODEX_HOME والإنهاء القسري (SIGKILL / taskkill /F)، ثم تشغيل المثيل المستهدف.",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (مطابقة CODEX_HOME)"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "لوحة حسابات",
@@ -758,5 +784,154 @@
     "noRecommendation": "لا توجد توصية أفضل",
     "noData": "لا توجد بيانات",
     "viewAllAccounts": "عرض كل الحسابات"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "فشل قراءة الملف",
+      "description": "الملف {{fileName}} تالف ولا يمكن تحليله.",
+      "errorInfo": "تفاصيل الخطأ",
+      "filePath": "موقع الملف",
+      "helpText": "يرجى فتح المجلد للإصلاح يدويًا أو حذف الملف، ثم إعادة تشغيل التطبيق.",
+      "openFolder": "فتح المجلد"
+    }
+  },
+  "instances": {
+    "title": "مثيلات متعددة",
+    "subtitle": "تكوين مستقل لكل مثيل، تشغيل متوازٍ بحسابات متعددة.",
+    "defaultName": "المثيل الافتراضي",
+    "search": "بحث المثيلات",
+    "actions": {
+      "create": "إنشاء مثيل",
+      "refresh": "تحديث",
+      "startAll": "تشغيل الكل",
+      "restartAll": "إعادة تشغيل الكل",
+      "stopAll": "إيقاف الكل",
+      "start": "تشغيل",
+      "stop": "إيقاف",
+      "openFolder": "فتح المجلد",
+      "edit": "تعديل",
+      "openRootDir": "فتح المجلد",
+      "selectPath": "اختيار المجلد"
+    },
+    "bulkConfirm": {
+      "startAll": "تشغيل جميع المثيلات المتوقفة؟",
+      "restartAll": "إعادة تشغيل جميع المثيلات قيد التشغيل؟",
+      "stopAll": "إيقاف جميع المثيلات؟"
+    },
+    "status": {
+      "running": "قيد التشغيل",
+      "stopped": "متوقف",
+      "restarting": "إعادة التشغيل"
+    },
+    "labels": {
+      "path": "المجلد",
+      "args": "معاملات التشغيل",
+      "argsEmpty": "لا يوجد",
+      "bindAccount": "ربط الحساب",
+      "unbound": "غير مرتبط",
+      "quota": "الحصة",
+      "lastLaunched": "آخر تشغيل"
+    },
+    "columns": {
+      "instance": "المثيل",
+      "email": "الحساب",
+      "quota": "حالة الحصة",
+      "actions": "إجراءات"
+    },
+    "empty": {
+      "title": "لا توجد مثيلات",
+      "desc": "قم بإنشاء مجلد تكوين مستقل لبدء مثيلات متعددة."
+    },
+    "form": {
+      "name": "اسم المثيل",
+      "namePlaceholder": "مثال: حساب العمل",
+      "path": "مجلد المثيل",
+      "pathPlaceholder": "اختر مجلد المثيل",
+      "pathReadOnly": "لا يمكن تعديل المسار أثناء التحرير",
+      "pathAutoHint": "يتم تحديث المسار تلقائيًا عند تغيير الاسم، أو يمكنك اختياره يدويًا",
+      "copyLogin": "نسخ حالة تسجيل الدخول الحالية",
+      "copyLoginDesc": "نسخ التكوين ومعلومات تسجيل الدخول من المجلد الافتراضي",
+      "copySource": "نسخ مثيل المصدر",
+      "copySourceDesc": "نسخ الإعدادات وبيانات تسجيل الدخول من المثيل المحدد",
+      "copySourcePlaceholder": "اختر مثيلًا كمصدر",
+      "copySourceRequired": "يرجى اختيار مثيل كمصدر",
+      "copySourceRunningHint": "مثيل المصدر قيد التشغيل. يُنصح بإغلاقه أولًا لتجنب عدم اتساق البيانات.",
+      "bindInject": "ربط الحساب",
+      "followCurrent": "متابعة الحساب الحالي",
+      "selectAccount": "اختيار الحساب",
+      "bindAccount": "ربط الحساب",
+      "unbound": "بدون ربط",
+      "extraArgs": "معاملات تشغيل مخصصة",
+      "extraArgsPlaceholder": "مثال: --disable-gpu --log-level=2",
+      "extraArgsDesc": "فصل المعاملات بمسافات، يدعم التضمين بعلامات الاقتباس",
+      "nameRequired": "يرجى إدخال اسم المثيل",
+      "pathRequired": "يرجى اختيار مجلد المثيل",
+      "bindRequired": "يرجى اختيار الحساب للربط"
+    },
+    "quota": {
+      "unbound": "حساب غير مرتبط",
+      "accountMissing": "الحساب غير موجود",
+      "empty": "لا يوجد ذاكرة تخزين مؤقت للحصة"
+    },
+    "messages": {
+      "created": "تم إنشاء المثيل",
+      "updated": "تم تحديث المثيل",
+      "deleted": "تم حذف المثيل",
+      "started": "تم تشغيل المثيل",
+      "stopped": "تم إيقاف المثيل",
+      "startedAll": "تم تشغيل جميع المثيلات المتوقفة",
+      "restartedAll": "تم إعادة تشغيل المثيلات قيد التشغيل",
+      "closedAll": "تم إيقاف جميع المثيلات",
+      "allAlreadyRunning": "جميع المثيلات قيد التشغيل بالفعل",
+      "noneRunning": "لا توجد مثيلات قيد التشغيل حاليًا"
+    },
+    "runningDialog": {
+      "title": "المثيل قيد التشغيل",
+      "desc": "المثيل قيد التشغيل بالفعل، يمكنك الانتقال إليه أو إعادة تشغيله وفقًا للاستراتيجية الحالية.",
+      "current": "الاستراتيجية الحالية: {{name}}",
+      "pathLabel": "مجلد المثيل",
+      "go": "الانتقال الآن",
+      "restart": "إغلاق وإعادة التشغيل"
+    },
+    "restartStrategy": {
+      "button": "استراتيجية إعادة التشغيل",
+      "title": "استراتيجية إعادة التشغيل",
+      "desc": "اختر طريقة إعادة تشغيل المثيل، تؤثر الطرق المختلفة على نطاق الإنهاء والاستقرار.",
+      "recommended": "موصى به",
+      "labels": {
+        "principle": "المبدأ التقني",
+        "command": "الأمر",
+        "pros": "المزايا",
+        "cons": "العيوب"
+      },
+      "safe": {
+        "title": "إعادة تشغيل آمنة (موصى به)",
+        "principle": "إرسال SIGTERM إلى جميع عمليات Antigravity، يطلب من التطبيق الحفظ والخروج ذاتيًا، ثم تشغيل المثيل المستهدف (سيتم الإنهاء القسري إذا لزم الأمر).",
+        "commandMac": "macOS/Linux: kill -15 <pid> (جميع عمليات Antigravity)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (جميع عمليات Antigravity)",
+        "pros": "أقرب إلى الخروج الطبيعي، أقل عرضة لتحذيرات الانهيار، البيانات أكثر أمانًا.",
+        "cons": "يمكن الخروج وإعادة التشغيل بالكامل فقط، لا يمكن إعادة تشغيل مثيل واحد فقط."
+      },
+      "force": {
+        "title": "إعادة تشغيل قسرية",
+        "principle": "مطابقة العملية بواسطة --user-data-dir والإنهاء القسري (SIGKILL / taskkill /F)، ثم تشغيل المثيل المستهدف.",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (مطابقة --user-data-dir)",
+        "pros": "يمكن إعادة تشغيل مثيل واحد بدقة.",
+        "cons": "قد يؤدي إلى تحذير \"إنهاء غير متوقع\"، خطر فقدان البيانات غير المحفوظة."
+      }
+    },
+    "stop": {
+      "title": "إيقاف المثيل قسرًا",
+      "message": "سيتم إرسال إشارة إنهاء (SIGTERM) إلى عملية المثيل للإيقاف القسري، قد يؤدي ذلك إلى فقدان البيانات غير المحفوظة. هل تريد المتابعة؟"
+    },
+    "delete": {
+      "title": "حذف المثيل",
+      "message": "هل تريد حذف نسخة {{name}}؟ سيؤدي ذلك إلى إزالة التكوين وحذف مجلد النسخة."
+    },
+    "modal": {
+      "createTitle": "إنشاء مثيل",
+      "editTitle": "تحرير مثيل"
+    }
   }
 }

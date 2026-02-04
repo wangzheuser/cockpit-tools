@@ -29,7 +29,8 @@
     "fingerprints": "Impressões",
     "settings": "Configurações",
     "codex": "Contas Codex",
-    "dashboard": "Painel"
+    "dashboard": "Painel",
+    "instances": "Multi-Instância"
   },
   "settings": {
     "title": "Configurações do App",
@@ -664,6 +665,7 @@
     },
     "search": "Pesquisar contas...",
     "view": {
+      "compact": "Visualização compacta",
       "list": "Lista",
       "grid": "Grade"
     },
@@ -706,7 +708,32 @@
     "filterTagsCount": "Tags",
     "noAvailableTags": "Nenhuma tag disponível",
     "clearFilter": "Limpar filtro",
-    "editTags": "Editar tags"
+    "editTags": "Editar tags",
+    "instances": {
+      "subtitle": "Configuração independente por instância, operação paralela com múltiplas contas.",
+      "comingSoon": "Multi-Instância Em Breve",
+      "comingSoonDesc": "Execute várias instâncias do Codex.app com diferentes contas simultaneamente.",
+      "unsupported": {
+        "title": "Não suportado neste sistema",
+        "desc": "Multi-instância Codex está disponível atualmente apenas no macOS."
+      },
+      "quota": {
+        "hourly": "5h",
+        "weekly": "Semanal"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "Envia um sinal SIGTERM para todos os processos do Codex, solicitando que o app salve os dados e feche, em seguida inicia a instância de destino (força o fechamento se necessário).",
+          "commandMac": "macOS: kill -15 <pid> (todos os processos Codex)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (todos os processos Codex)"
+        },
+        "force": {
+          "principle": "Identifica processos via CODEX_HOME e os fecha forçadamente (SIGKILL / taskkill /F), em seguida inicia a instância de destino.",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (correspondência com CODEX_HOME)"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "Painel de contas",
@@ -757,5 +784,154 @@
     "noRecommendation": "Nenhuma recomendação melhor",
     "noData": "Sem dados",
     "viewAllAccounts": "Ver todas as contas"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "Falha na leitura do arquivo",
+      "description": "O arquivo {{fileName}} está corrompido e não pode ser analisado.",
+      "errorInfo": "Detalhes do erro",
+      "filePath": "Localização do arquivo",
+      "helpText": "Por favor, abra a pasta para reparar manualmente ou exclua o arquivo e reinicie o aplicativo.",
+      "openFolder": "Abrir pasta"
+    }
+  },
+  "instances": {
+    "title": "Múltiplas Instâncias",
+    "subtitle": "Perfis isolados para execução paralela de várias contas.",
+    "defaultName": "Instância padrão",
+    "search": "Buscar instâncias",
+    "actions": {
+      "create": "Nova instância",
+      "refresh": "Atualizar",
+      "startAll": "Iniciar tudo",
+      "restartAll": "Reiniciar tudo",
+      "stopAll": "Parar tudo",
+      "start": "Iniciar",
+      "stop": "Parar",
+      "openFolder": "Abrir pasta",
+      "edit": "Editar",
+      "openRootDir": "Abrir pasta",
+      "selectPath": "Selecionar caminho"
+    },
+    "bulkConfirm": {
+      "startAll": "Iniciar todas as instâncias paradas?",
+      "restartAll": "Reiniciar todas as instâncias em execução?",
+      "stopAll": "Fechar todas as instâncias?"
+    },
+    "status": {
+      "running": "Executando",
+      "stopped": "Parado",
+      "restarting": "Reiniciando"
+    },
+    "labels": {
+      "path": "Diretório",
+      "args": "Argumentos de inicialização",
+      "argsEmpty": "Nenhum",
+      "bindAccount": "Conta vinculada",
+      "unbound": "Não vinculada",
+      "quota": "Cota",
+      "lastLaunched": "Última execução"
+    },
+    "columns": {
+      "instance": "Instância",
+      "email": "Conta",
+      "quota": "Estado da cota",
+      "actions": "Ações"
+    },
+    "empty": {
+      "title": "Nenhuma instância",
+      "desc": "Crie um diretório de configuração isolado para iniciar múltiplas instâncias rapidamente."
+    },
+    "form": {
+      "name": "Nome da instância",
+      "namePlaceholder": "ex: Conta de trabalho",
+      "path": "Diretório da instância",
+      "pathPlaceholder": "Selecionar diretório",
+      "pathReadOnly": "O caminho não pode ser alterado durante a edição",
+      "pathAutoHint": "O caminho é atualizado automaticamente ao alterar o nome (ou selecione manualmente)",
+      "copyLogin": "Copiar estado de login atual",
+      "copyLoginDesc": "Copiar configuração e dados de login do diretório padrão",
+      "copySource": "Copiar instância de origem",
+      "copySourceDesc": "Copiar configuração e dados de login da instância selecionada",
+      "copySourcePlaceholder": "Selecionar instância de origem",
+      "copySourceRequired": "Selecione uma instância de origem",
+      "copySourceRunningHint": "A instância de origem está em execução. Recomenda-se fechá-la primeiro para evitar inconsistências nos dados.",
+      "bindInject": "Vincular conta",
+      "followCurrent": "Seguir conta atual",
+      "selectAccount": "Selecionar conta",
+      "bindAccount": "Vincular conta",
+      "unbound": "Não vinculada",
+      "extraArgs": "Argumentos de inicialização personalizados",
+      "extraArgsPlaceholder": "ex: --disable-gpu --log-level=2",
+      "extraArgsDesc": "Separar argumentos com espaços, aspas são suportadas",
+      "nameRequired": "Insira um nome para a instância",
+      "pathRequired": "Selecione um diretório para a instância",
+      "bindRequired": "Selecione uma conta para vincular"
+    },
+    "quota": {
+      "unbound": "Conta não vinculada",
+      "accountMissing": "Conta não encontrada",
+      "empty": "Nenhuma cota em cache"
+    },
+    "messages": {
+      "created": "Instância criada",
+      "updated": "Instância atualizada",
+      "deleted": "Instância excluída",
+      "started": "Instância iniciada",
+      "stopped": "Instância parada",
+      "startedAll": "Todas as instâncias paradas foram iniciadas",
+      "restartedAll": "Instâncias em execução reiniciadas",
+      "closedAll": "Todas as instâncias foram paradas",
+      "allAlreadyRunning": "Todas as instâncias já estão em execução",
+      "noneRunning": "Nenhuma instância em execução encontrada"
+    },
+    "runningDialog": {
+      "title": "A instância já está em execução",
+      "desc": "Esta instância já está iniciada. Você pode alternar para a janela ou reiniciá-la conforme a estratégia atual.",
+      "current": "Estrategia atual: {{name}}",
+      "pathLabel": "Diretório da instância",
+      "go": "Alternar agora",
+      "restart": "Fechar e reiniciar"
+    },
+    "restartStrategy": {
+      "button": "Estratégia de reinicialização",
+      "title": "Estratégia de reinicialização",
+      "desc": "Escolha o método para reiniciar a instância. Cada opção afeta o alcance e a estabilidade.",
+      "recommended": "Recomendado",
+      "labels": {
+        "principle": "Princípio técnico",
+        "command": "Comando",
+        "pros": "Prós",
+        "cons": "Contras"
+      },
+      "safe": {
+        "title": "Reinicialização segura (Recomendado)",
+        "principle": "Envia um sinal SIGTERM para todos os processos do Antigravity, solicitando que o app salve os dados e feche, em seguida inicia a instância de destino (força o fechamento se necessário).",
+        "commandMac": "macOS/Linux: kill -15 <pid> (todos os processos Antigravity)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (todos os processos Antigravity)",
+        "pros": "Mais próximo de um fechamento normal, menos provável de ocorrer avisos de erro, dados mais seguros.",
+        "cons": "Suporta apenas o reinício global de todas as instâncias."
+      },
+      "force": {
+        "title": "Reinicialização forçada",
+        "principle": "Identifica processos via --user-data-dir e os fecha forçadamente (SIGKILL / taskkill /F), em seguida inicia a instância de destino.",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (correspondência com --user-data-dir)",
+        "pros": "Pode reiniciar precisamente uma única instância.",
+        "cons": "Pode causar o aviso de \"fechamento inesperado\", risco de perda de dados não salvos."
+      }
+    },
+    "stop": {
+      "title": "Forçar parada da instância",
+      "message": "Envia um sinal de encerramento (SIGTERM) ao processo da instância. Dados não salvos podem ser perdidos. Continuar?"
+    },
+    "delete": {
+      "title": "Excluir instância",
+      "message": "Excluir instância {{name}}? Isso removerá a configuração e excluirá a pasta da instância."
+    },
+    "modal": {
+      "createTitle": "Nova instância",
+      "editTitle": "Editar instância"
+    }
   }
 }

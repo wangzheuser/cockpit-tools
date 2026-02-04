@@ -29,7 +29,8 @@
     "fingerprints": "デバイス指紋",
     "settings": "設定",
     "codex": "Codex アカウント",
-    "dashboard": "ダッシュボード"
+    "dashboard": "ダッシュボード",
+    "instances": "マルチインスタンス"
   },
   "settings": {
     "title": "アプリ設定",
@@ -707,7 +708,32 @@
     "filterTagsCount": "タグ",
     "noAvailableTags": "利用可能なタグはありません",
     "clearFilter": "フィルターをクリア",
-    "editTags": "タグを編集"
+    "editTags": "タグを編集",
+    "instances": {
+      "subtitle": "インスタンスごとの独立設定、複数アカウントでの並列運用。",
+      "comingSoon": "マルチインスタンス機能は近日公開",
+      "comingSoonDesc": "異なるアカウントで複数のCodex.appインスタンスを同時に実行できます。お楽しみに。",
+      "unsupported": {
+        "title": "このシステムでは非対応",
+        "desc": "Codexマルチインスタンスは現在macOSでのみ利用可能です。"
+      },
+      "quota": {
+        "hourly": "5時間",
+        "weekly": "週間"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "すべての Codex プロセスに SIGTERM を送信して、アプリが自身で保存して終了するように促します。終了後にターゲットインスタンスを起動します（必要に応じて強制終了します）。",
+          "commandMac": "macOS: kill -15 <pid> (すべての Codex プロセス)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (すべての Codex プロセス)"
+        },
+        "force": {
+          "principle": "CODEX_HOME でプロセスを一致させて強制終了（SIGKILL / taskkill /F）し、その後ターゲットインスタンスを起動します。",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (CODEX_HOME に一致するもの)"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "アカウントダッシュボード",
@@ -758,5 +784,154 @@
     "noRecommendation": "より良いおすすめがありません",
     "noData": "データなし",
     "viewAllAccounts": "すべてのアカウントを見る"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "ファイルの読み込みに失敗しました",
+      "description": "ファイル {{fileName}} が破損しており、解析できません。",
+      "errorInfo": "エラー詳細",
+      "filePath": "ファイルの場所",
+      "helpText": "フォルダを開いて手動で修復するか、ファイルを削除してからアプリケーションを再起動してください。",
+      "openFolder": "フォルダを開く"
+    }
+  },
+  "instances": {
+    "title": "マルチインスタンス",
+    "subtitle": "複数アカウントの並列実行に向けた独立した設定管理（プロファイル）。",
+    "defaultName": "デフォルトインスタンス",
+    "search": "インスタンスを検索",
+    "actions": {
+      "create": "新規インスタンス",
+      "refresh": "更新",
+      "startAll": "すべて開始",
+      "restartAll": "すべて再起動",
+      "stopAll": "すべて停止",
+      "start": "開始",
+      "stop": "停止",
+      "openFolder": "フォルダーを開く",
+      "edit": "編集",
+      "openRootDir": "フォルダーを開く",
+      "selectPath": "フォルダーを選択"
+    },
+    "bulkConfirm": {
+      "startAll": "停止中のすべてのインスタンスを開始しますか？",
+      "restartAll": "実行中のすべてのインスタンスを再起動しますか？",
+      "stopAll": "すべてのインスタンスを閉じますか？"
+    },
+    "status": {
+      "running": "実行中",
+      "stopped": "停止",
+      "restarting": "再起動中"
+    },
+    "labels": {
+      "path": "ディレクトリ",
+      "args": "起動引数",
+      "argsEmpty": "なし",
+      "bindAccount": "紐付けアカウント",
+      "unbound": "未紐付け",
+      "quota": "クォータ",
+      "lastLaunched": "最終起動"
+    },
+    "columns": {
+      "instance": "インスタンス",
+      "email": "アカウント",
+      "quota": "クォータ状況",
+      "actions": "操作"
+    },
+    "empty": {
+      "title": "インスタンスがありません",
+      "desc": "独立した設定ディレクトリを作成して、マルチインスタンスを素早く起動しましょう。"
+    },
+    "form": {
+      "name": "インスタンス名",
+      "namePlaceholder": "例: 仕事用アカウント",
+      "path": "インスタンスディレクトリ",
+      "pathPlaceholder": "インスタンスディレクトリを選択",
+      "pathReadOnly": "編集時はパスを変更できません",
+      "pathAutoHint": "名前の変更に合わせてパスが自動更新されます（手動選択も可）",
+      "copyLogin": "現在のログイン状態をコピー",
+      "copyLoginDesc": "デフォルトディレクトリから設定とログインデータをコピーします",
+      "copySource": "コピー元インスタンス",
+      "copySourceDesc": "選択したインスタンスから設定とログイン情報をコピーします",
+      "copySourcePlaceholder": "コピー元インスタンスを選択",
+      "copySourceRequired": "コピー元インスタンスを選択してください",
+      "copySourceRunningHint": "コピー元インスタンスが稼動中です。データ不整合を避けるため、先に閉じることを推奨します。",
+      "bindInject": "アカウントを紐付ける",
+      "followCurrent": "現在のアカウントに追従",
+      "selectAccount": "アカウントを選択",
+      "bindAccount": "アカウントを紐付け",
+      "unbound": "未紐付け",
+      "extraArgs": "カスタム起動引数",
+      "extraArgsPlaceholder": "例: --disable-gpu --log-level=2",
+      "extraArgsDesc": "引数をスペースで区切ります。引用符もサポートされています",
+      "nameRequired": "インスタンス名を入力してください",
+      "pathRequired": "インスタンスディレクトリを選択してください",
+      "bindRequired": "紐付けるアカウントを選択してください"
+    },
+    "quota": {
+      "unbound": "紐付けアカウントなし",
+      "accountMissing": "アカウントが見つかりません",
+      "empty": "キャッシュされたクォータなし"
+    },
+    "messages": {
+      "created": "インスタンスを作成しました",
+      "updated": "インスタンスを更新しました",
+      "deleted": "インスタンスを削除しました",
+      "started": "インスタンスを開始しました",
+      "stopped": "インスタンスを停止しました",
+      "startedAll": "停止中のすべてのインスタンスを開始しました",
+      "restartedAll": "実行中のインスタンスを再起動しました",
+      "closedAll": "すべてのインスタンスを閉じました",
+      "allAlreadyRunning": "すべてのインスタンスが既に実行中です",
+      "noneRunning": "実行中のインスタンスが見つかりません"
+    },
+    "runningDialog": {
+      "title": "インスタンスは既に実行中です",
+      "desc": "このインスタンスは既に実行されています。ウィンドウへ移動するか、現在の戦略で再起動できます。",
+      "current": "現在の戦略: {{name}}",
+      "pathLabel": "インスタンスディレクトリ",
+      "go": "今すぐ移動",
+      "restart": "閉じて再起動"
+    },
+    "restartStrategy": {
+      "button": "再起動戦略",
+      "title": "再起動戦略",
+      "desc": "インスタンスの再起動方法を選択してください。各オプションは範囲と安定性に影響します。",
+      "recommended": "推奨",
+      "labels": {
+        "principle": "技術原理",
+        "command": "コマンド",
+        "pros": "メリット",
+        "cons": "デメリット"
+      },
+      "safe": {
+        "title": "安全な再起動（推奨）",
+        "principle": "すべての Antigravity プロセスに SIGTERM を送信して、アプリが自身で保存して終了するように促します。終了後にターゲットインスタンスを起動します（必要に応じて強制終了します）。",
+        "commandMac": "macOS/Linux: kill -15 <pid> (すべての Antigravity プロセス)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (すべての Antigravity プロセス)",
+        "pros": "通常の終了に近く、クラッシュ警告が出にくく、データがより安全です。",
+        "cons": "すべてのインスタンスの全体的な再起動のみをサポートします。"
+      },
+      "force": {
+        "title": "強制再起動",
+        "principle": "--user-data-dir でプロセスを一致させて強制終了（SIGKILL / taskkill /F）し、その後ターゲットインスタンスを起動します。",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (--user-data-dir に一致するもの)",
+        "pros": "特定のインスタンスを正確に再起動できます。",
+        "cons": "「予期しない終了」警告が出る可能性があり、未保存のデータ紛失リスクがあります。"
+      }
+    },
+    "stop": {
+      "title": "インスタンスを強制終了",
+      "message": "強制終了のために終了信号（SIGTERM）を送信します。データが失われる可能性があります。続行しますか？"
+    },
+    "delete": {
+      "title": "インスタンスを削除",
+      "message": "インスタンス {{name}} を削除しますか？設定が削除され、インスタンスフォルダーも削除されます。"
+    },
+    "modal": {
+      "createTitle": "新規インスタンス",
+      "editTitle": "インスタンスを編集"
+    }
   }
 }

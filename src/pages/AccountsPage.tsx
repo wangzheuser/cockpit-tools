@@ -18,7 +18,6 @@ import {
   List,
   Search,
   Fingerprint,
-  AlarmClock,
   Link,
   Lock,
   AlertTriangle,
@@ -59,8 +58,9 @@ import {
   calculateGroupQuota,
   updateGroupOrder
 } from '../services/groupService'
-import { RobotIcon } from '../components/icons/RobotIcon'
+import { OverviewTabsHeader } from '../components/OverviewTabsHeader'
 import styles from '../styles/CompactView.module.css'
+import { FileCorruptedModal, parseFileCorruptedError, type FileCorruptedError } from '../components/FileCorruptedModal'
 
 interface AccountsPageProps {
   onNavigate?: (page: Page) => void
@@ -77,6 +77,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     accounts,
     currentAccount,
     loading,
+    error: storeError,
     fetchAccounts,
     fetchCurrentAccount,
     deleteAccounts,
@@ -86,6 +87,19 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     switchAccount,
     updateAccountTags
   } = useAccountStore()
+
+  // 文件损坏错误状态
+  const [fileCorruptedError, setFileCorruptedError] = useState<FileCorruptedError | null>(null)
+
+  // 监听 store 的 error 变化，检测文件损坏
+  useEffect(() => {
+    if (storeError) {
+      const corrupted = parseFileCorruptedError(storeError)
+      if (corrupted) {
+        setFileCorruptedError(corrupted)
+      }
+    }
+  }, [storeError])
 
   // View mode - persisted to localStorage
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -2034,33 +2048,11 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   return (
     <>
       <main className="main-content accounts-page">
-        <div className="page-tabs-row">
-          <div className="page-tabs-label">{t('overview.brandTitle')}</div>
-          <div className="page-tabs filter-tabs">
-            <button
-              className="filter-tab active"
-              onClick={() => onNavigate?.('overview')}
-            >
-              <RobotIcon className="tab-icon" />
-              <span>{t('overview.title')}</span>
-            </button>
-            <button
-              className="filter-tab"
-              onClick={() => onNavigate?.('fingerprints')}
-            >
-              <Fingerprint className="tab-icon" />
-              <span>{t('fingerprints.title')}</span>
-            </button>
-            <button
-              className="filter-tab"
-              onClick={() => onNavigate?.('wakeup')}
-            >
-              <AlarmClock className="tab-icon" />
-              <span>{t('wakeup.title')}</span>
-            </button>
-          </div>
-        </div>
-
+        <OverviewTabsHeader
+          active="overview"
+          onNavigate={onNavigate}
+          subtitle={t('overview.subtitle')}
+        />
         {/* 工具栏 */}
         <div className="toolbar">
           <div className="toolbar-left">
@@ -2546,8 +2538,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               <button
                 className="modal-close"
                 onClick={() => !deleting && setDeleteConfirm(null)}
+                aria-label={t('common.close', '关闭')}
               >
-                <X size={18} />
+                <X />
               </button>
             </div>
             <div className="modal-body">
@@ -2584,8 +2577,9 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
               <button
                 className="modal-close"
                 onClick={() => !deletingTag && setTagDeleteConfirm(null)}
+                aria-label={t('common.close', '关闭')}
               >
-                <X size={18} />
+                <X />
               </button>
             </div>
             <div className="modal-body">
@@ -2897,6 +2891,14 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
           loadDisplayGroups()
         }}
       />
+
+      {/* 文件损坏弹窗 */}
+      {fileCorruptedError && (
+        <FileCorruptedModal
+          error={fileCorruptedError}
+          onClose={() => setFileCorruptedError(null)}
+        />
+      )}
     </>
   )
 }

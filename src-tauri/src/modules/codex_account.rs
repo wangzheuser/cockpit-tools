@@ -2,10 +2,10 @@ use crate::models::codex::{
     CodexAccount, CodexAccountIndex, CodexAccountSummary, CodexAuthFile, CodexAuthTokens,
     CodexJwtPayload, CodexTokens,
 };
-use crate::modules::logger;
+use crate::modules::{codex_oauth, logger};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// 获取 Codex 数据目录
 pub fn get_codex_home() -> PathBuf {
@@ -257,12 +257,8 @@ pub fn get_current_account() -> Option<CodexAccount> {
     accounts.into_iter().find(|a| a.email == email)
 }
 
-/// 切换账号（写入 auth.json）
-pub fn switch_account(account_id: &str) -> Result<CodexAccount, String> {
-    let account = load_account(account_id).ok_or_else(|| format!("账号不存在: {}", account_id))?;
-
-    // 构造 auth.json 内容
-    let auth_file = CodexAuthFile {
+fn build_auth_file(account: &CodexAccount) -> CodexAuthFile {
+    CodexAuthFile {
         openai_api_key: Some(serde_json::Value::Null),
         tokens: CodexAuthTokens {
             id_token: account.tokens.id_token.clone(),
@@ -275,18 +271,49 @@ pub fn switch_account(account_id: &str) -> Result<CodexAccount, String> {
                 .format("%Y-%m-%dT%H:%M:%S%.6fZ")
                 .to_string(),
         )),
-    };
+    }
+}
 
-    // 确保目录存在
-    let auth_path = get_auth_json_path();
+pub fn write_auth_file_to_dir(base_dir: &Path, account: &CodexAccount) -> Result<(), String> {
+    let auth_path = base_dir.join("auth.json");
     if let Some(parent) = auth_path.parent() {
         fs::create_dir_all(parent).ok();
     }
-
-    // 写入文件
+    let auth_file = build_auth_file(account);
     let content =
         serde_json::to_string_pretty(&auth_file).map_err(|e| format!("序列化失败: {}", e))?;
     fs::write(&auth_path, content).map_err(|e| format!("写入 auth.json 失败: {}", e))?;
+    Ok(())
+}
+
+/// 准备账号注入：如有必要刷新 Token 并写回存储
+pub async fn prepare_account_for_injection(account_id: &str) -> Result<CodexAccount, String> {
+    let mut account = load_account(account_id).ok_or_else(|| format!("账号不存在: {}", account_id))?;
+    if codex_oauth::is_token_expired(&account.tokens.access_token) {
+        logger::log_info(&format!("账号 {} 的 Token 已过期，尝试刷新", account.email));
+        if let Some(ref refresh_token) = account.tokens.refresh_token {
+            match codex_oauth::refresh_access_token(refresh_token).await {
+                Ok(new_tokens) => {
+                    logger::log_info(&format!("账号 {} 的 Token 刷新成功", account.email));
+                    account.tokens = new_tokens;
+                    save_account(&account)?;
+                }
+                Err(e) => {
+                    logger::log_error(&format!("账号 {} Token 刷新失败: {}", account.email, e));
+                    return Err(format!("Token 已过期且刷新失败: {}", e));
+                }
+            }
+        } else {
+            return Err("Token 已过期且无 refresh_token，请重新登录".to_string());
+        }
+    }
+    Ok(account)
+}
+
+/// 切换账号（写入 auth.json）
+pub fn switch_account(account_id: &str) -> Result<CodexAccount, String> {
+    let account = load_account(account_id).ok_or_else(|| format!("账号不存在: {}", account_id))?;
+    write_auth_file_to_dir(&get_codex_home(), &account)?;
 
     // 更新索引中的 current_account_id
     let mut index = load_account_index();

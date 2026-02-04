@@ -328,7 +328,7 @@
   display: flex;
   gap: 4px;
   padding: 6px;
-  background: var(--bg-secondary);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--compact-radius);
   box-shadow: var(--shadow-md);
@@ -340,7 +340,7 @@
   display: flex;
   gap: 4px;
   padding: 6px;
-  background: var(--bg-secondary);
+  background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--compact-radius);
   box-shadow: var(--shadow-lg);

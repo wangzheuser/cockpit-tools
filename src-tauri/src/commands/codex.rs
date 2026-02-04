@@ -17,29 +17,7 @@ pub fn get_current_codex_account() -> Result<Option<CodexAccount>, String> {
 /// 切换 Codex 账号（包含 token 刷新检查）
 #[tauri::command]
 pub async fn switch_codex_account(app: AppHandle, account_id: String) -> Result<CodexAccount, String> {
-    let mut account = codex_account::load_account(&account_id)
-        .ok_or_else(|| format!("账号不存在: {}", account_id))?;
-    
-    // 检查 token 是否过期，如果过期则刷新
-    if codex_oauth::is_token_expired(&account.tokens.access_token) {
-        logger::log_info(&format!("账号 {} 的 Token 已过期，尝试刷新", account.email));
-        
-        if let Some(ref refresh_token) = account.tokens.refresh_token {
-            match codex_oauth::refresh_access_token(refresh_token).await {
-                Ok(new_tokens) => {
-                    logger::log_info(&format!("账号 {} 的 Token 刷新成功", account.email));
-                    account.tokens = new_tokens;
-                    codex_account::save_account(&account)?;
-                }
-                Err(e) => {
-                    logger::log_error(&format!("账号 {} Token 刷新失败: {}", account.email, e));
-                    return Err(format!("Token 已过期且刷新失败: {}", e));
-                }
-            }
-        } else {
-            return Err("Token 已过期且无 refresh_token，请重新登录".to_string());
-        }
-    }
+    let _ = codex_account::prepare_account_for_injection(&account_id).await?;
     
     // 切换账号（写入 auth.json）
     let account = codex_account::switch_account(&account_id)?;

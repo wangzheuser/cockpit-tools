@@ -7,3 +7,5 @@ pub mod wakeup;
 pub mod update;
 pub mod group;
 pub mod codex;
+pub mod instance;
+pub mod codex_instance;

@@ -29,7 +29,8 @@
     "fingerprints": "Huellas",
     "settings": "Ajustes",
     "codex": "Cuentas de Codex",
-    "dashboard": "Panel"
+    "dashboard": "Panel",
+    "instances": "Multi-Instancia"
   },
   "settings": {
     "title": "Ajustes de la Aplicación",
@@ -707,7 +708,32 @@
     "filterTagsCount": "Etiquetas",
     "noAvailableTags": "No hay etiquetas disponibles",
     "clearFilter": "Limpiar filtro",
-    "editTags": "Editar etiquetas"
+    "editTags": "Editar etiquetas",
+    "instances": {
+      "subtitle": "Configuración independiente por instancia, operación paralela con múltiples cuentas.",
+      "comingSoon": "Multi-Instancia Próximamente",
+      "comingSoonDesc": "Ejecute múltiples instancias de Codex.app con diferentes cuentas simultáneamente.",
+      "unsupported": {
+        "title": "No soportado en este sistema",
+        "desc": "La multi-instancia de Codex solo está disponible en macOS actualmente."
+      },
+      "quota": {
+        "hourly": "5h",
+        "weekly": "Semanal"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "Envía una señal SIGTERM a todos los procesos de Codex, pidiendo a la aplicación que guarde y se cierre, luego inicia la instancia de destino (forzar el cierre si es necesario).",
+          "commandMac": "macOS: kill -15 <pid> (todos los procesos de Codex)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (todos los procesos de Codex)"
+        },
+        "force": {
+          "principle": "Identifica procesos mediante CODEX_HOME y los detiene por la fuerza (SIGKILL / taskkill /F), luego inicia la instancia de destino.",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (coincidencia con CODEX_HOME)"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "Panel de cuentas",
@@ -758,5 +784,154 @@
     "noRecommendation": "No hay una mejor recomendación",
     "noData": "Sin datos",
     "viewAllAccounts": "Ver todas las cuentas"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "Error al leer el archivo",
+      "description": "El archivo {{fileName}} está dañado y no se puede analizar.",
+      "errorInfo": "Detalles del error",
+      "filePath": "Ubicación del archivo",
+      "helpText": "Abra la carpeta para reparar o eliminar el archivo manualmente y, a continuación, reinicie la aplicación.",
+      "openFolder": "Abrir carpeta"
+    }
+  },
+  "instances": {
+    "title": "Instancias Múltiples",
+    "subtitle": "Perfiles aislados para la ejecución paralela de múltiples cuentas.",
+    "defaultName": "Instancia predeterminada",
+    "search": "Buscar instancias",
+    "actions": {
+      "create": "Nueva instancia",
+      "refresh": "Actualizar",
+      "startAll": "Iniciar todo",
+      "restartAll": "Reiniciar todo",
+      "stopAll": "Detener todo",
+      "start": "Iniciar",
+      "stop": "Detener",
+      "openFolder": "Abrir carpeta",
+      "edit": "Editar",
+      "openRootDir": "Abrir carpeta",
+      "selectPath": "Seleccionar ruta"
+    },
+    "bulkConfirm": {
+      "startAll": "¿Iniciar todas las instancias detenidas?",
+      "restartAll": "¿Reiniciar todas las instancias en ejecución?",
+      "stopAll": "¿Cerrar todas las instancias?"
+    },
+    "status": {
+      "running": "En ejecución",
+      "stopped": "Detenido",
+      "restarting": "Reiniciando"
+    },
+    "labels": {
+      "path": "Directorio",
+      "args": "Argumentos de inicio",
+      "argsEmpty": "Ninguno",
+      "bindAccount": "Cuenta vinculada",
+      "unbound": "No vinculada",
+      "quota": "Cuota",
+      "lastLaunched": "Último inicio"
+    },
+    "columns": {
+      "instance": "Instancia",
+      "email": "Cuenta",
+      "quota": "Estado de cuota",
+      "actions": "Acciones"
+    },
+    "empty": {
+      "title": "No hay instancias",
+      "desc": "Crea un directorio de configuración aislado para iniciar múltiples instancias rápidamente."
+    },
+    "form": {
+      "name": "Nombre de la instancia",
+      "namePlaceholder": "ej: Cuenta de trabajo",
+      "path": "Directorio de la instancia",
+      "pathPlaceholder": "Seleccionar directorio",
+      "pathReadOnly": "La ruta no se puede cambiar al editar",
+      "pathAutoHint": "La ruta se actualiza automáticamente al cambiar el nombre (o seleccionar manualmente)",
+      "copyLogin": "Copiar estado de inicio de sesión actual",
+      "copyLoginDesc": "Copiar configuración y datos de inicio de sesión del directorio predeterminado",
+      "copySource": "Copiar instancia de origen",
+      "copySourceDesc": "Copiar configuración y datos de inicio de sesión de la instancia seleccionada",
+      "copySourcePlaceholder": "Seleccionar instancia de origen",
+      "copySourceRequired": "Seleccione una instancia de origen",
+      "copySourceRunningHint": "La instancia de origen está en ejecución. Se recomienda cerrarla primero para evitar inconsistencias de datos.",
+      "bindInject": "Vincular cuenta",
+      "followCurrent": "Seguir cuenta actual",
+      "selectAccount": "Seleccionar cuenta",
+      "bindAccount": "Vincular cuenta",
+      "unbound": "No vinculada",
+      "extraArgs": "Argumentos de inicio personalizados",
+      "extraArgsPlaceholder": "ej: --disable-gpu --log-level=2",
+      "extraArgsDesc": "Separar argumentos con espacios, se admiten comillas",
+      "nameRequired": "Ingrese un nombre de instancia",
+      "pathRequired": "Seleccione un directorio de instancia",
+      "bindRequired": "Seleccione una cuenta para vincular"
+    },
+    "quota": {
+      "unbound": "Cuenta no vinculada",
+      "accountMissing": "Cuenta no encontrada",
+      "empty": "No hay cuota almacenada en caché"
+    },
+    "messages": {
+      "created": "Instancia creada",
+      "updated": "Instancia actualizada",
+      "deleted": "Instancia eliminada",
+      "started": "Instancia iniciada",
+      "stopped": "Instancia detenida",
+      "startedAll": "Se iniciaron todas las instancias detenidas",
+      "restartedAll": "Se reiniciaron las instancias en ejecución",
+      "closedAll": "Se detuvieron todas las instancias",
+      "allAlreadyRunning": "Todas las instancias ya están en ejecución",
+      "noneRunning": "No se encontraron instancias en ejecución"
+    },
+    "runningDialog": {
+      "title": "La instancia ya está en ejecución",
+      "desc": "Esta instancia ya está iniciada. Puede cambiar a la ventana o reiniciarla según la estrategia actual.",
+      "current": "Estrategia actual: {{name}}",
+      "pathLabel": "Directorio de la instancia",
+      "go": "Cambiar ahora",
+      "restart": "Cerrar y reiniciar"
+    },
+    "restartStrategy": {
+      "button": "Estrategia de reinicio",
+      "title": "Estrategia de reinicio",
+      "desc": "Elija el método para reiniciar la instancia. Cada opción afecta el alcance y la estabilidad.",
+      "recommended": "Recomendado",
+      "labels": {
+        "principle": "Principio técnico",
+        "command": "Comando",
+        "pros": "Ventajas",
+        "cons": "Desventajas"
+      },
+      "safe": {
+        "title": "Reinicio seguro (Recomendado)",
+        "principle": "Envía una señal SIGTERM a todos los procesos de Antigravity, solicitando a la aplicación que guarde y se cierre, luego inicia la instancia de destino (forzar el cierre si es necesario).",
+        "commandMac": "macOS/Linux: kill -15 <pid> (todos los procesos de Antigravity)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (todos los procesos de Antigravity)",
+        "pros": "Más cercano a un cierre normal, menos probable que ocurran advertencias de errores, datos más seguros.",
+        "cons": "Solo admite el reinicio global de todas las instancias."
+      },
+      "force": {
+        "title": "Reinicio forzado",
+        "principle": "Identifica procesos mediante --user-data-dir y los detiene por la fuerza (SIGKILL / taskkill /F), luego inicia la instancia de destino.",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (coincidencia con --user-data-dir)",
+        "pros": "Puede reiniciar con precisión una sola instancia.",
+        "cons": "Podría causar una advertencia de \"cierre inesperado\", riesgo de pérdida de datos no guardado."
+      }
+    },
+    "stop": {
+      "title": "Forzar detención de instancia",
+      "message": "Envía una señal de detención (SIGTERM) al proceso de la instancia. Se pueden perder datos no guardados. ¿Continuar?"
+    },
+    "delete": {
+      "title": "Eliminar instancia",
+      "message": "¿Eliminar instancia {{name}}? Esto eliminará la configuración y borrará la carpeta de la instancia."
+    },
+    "modal": {
+      "createTitle": "Nueva instancia",
+      "editTitle": "Editar instancia"
+    }
   }
 }

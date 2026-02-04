@@ -244,7 +244,7 @@
   top: calc(100% + 8px);
   left: 0;
   min-width: 220px;
-  background: var(--bg-secondary);
+  background: var(--bg-surface);
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 12px;
   box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);

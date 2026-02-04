@@ -29,7 +29,147 @@
     "wakeup": "唤醒任务",
     "fingerprints": "设备指纹",
     "settings": "设置",
-    "codex": "Codex 账号"
+    "codex": "Codex 账号",
+    "instances": "多开实例"
+  },
+  "instances": {
+    "title": "多开实例",
+    "subtitle": "多实例独立配置，多账号并行运行。",
+    "defaultName": "默认实例",
+    "search": "搜索实例",
+    "actions": {
+      "create": "新建实例",
+      "refresh": "刷新",
+      "startAll": "全部启动",
+      "restartAll": "全部重启",
+      "stopAll": "全部关闭",
+      "start": "启动",
+      "stop": "停止",
+      "openFolder": "打开目录",
+      "edit": "编辑",
+      "openRootDir": "打开目录",
+      "selectPath": "选择目录"
+    },
+    "bulkConfirm": {
+      "startAll": "确认启动所有未运行实例？",
+      "restartAll": "确认重启所有运行中的实例？",
+      "stopAll": "确认关闭全部实例？"
+    },
+    "status": {
+      "running": "运行中",
+      "stopped": "未运行",
+      "restarting": "重启中"
+    },
+    "labels": {
+      "path": "目录",
+      "args": "启动参数",
+      "argsEmpty": "无",
+      "bindAccount": "绑定账号",
+      "unbound": "未绑定",
+      "quota": "配额",
+      "lastLaunched": "上次启动"
+    },
+    "columns": {
+      "instance": "实例",
+      "email": "账号",
+      "quota": "配额状态",
+      "actions": "操作"
+    },
+    "empty": {
+      "title": "还没有实例",
+      "desc": "创建一个独立配置目录，快速开启多实例。"
+    },
+    "modal": {
+      "createTitle": "新建实例",
+      "editTitle": "编辑实例"
+    },
+    "form": {
+      "name": "实例名称",
+      "namePlaceholder": "例如：工作账号",
+      "path": "实例目录",
+      "pathPlaceholder": "选择实例目录",
+      "pathReadOnly": "编辑时不可修改路径",
+      "pathAutoHint": "修改名称时自动更新路径，也可手动选择",
+      "copyLogin": "复制当前登录状态",
+      "copyLoginDesc": "从默认目录复制配置与登录信息",
+      "copySource": "复制来源实例",
+      "copySourceDesc": "从指定实例复制配置与登录信息",
+      "copySourcePlaceholder": "选择来源实例",
+      "copySourceRequired": "请选择复制来源实例",
+      "copySourceRunningHint": "该实例正在运行，建议先关闭以避免数据不一致",
+      "bindInject": "绑定账号",
+      "followCurrent": "跟随当前账号",
+      "selectAccount": "选择账号",
+      "bindAccount": "绑定账号",
+      "unbound": "不绑定",
+      "extraArgs": "自定义启动参数",
+      "extraArgsPlaceholder": "例如：--disable-gpu --log-level=2",
+      "extraArgsDesc": "按空格分隔参数，支持引号包裹",
+      "nameRequired": "请输入实例名称",
+      "pathRequired": "请选择实例目录",
+      "bindRequired": "请选择要绑定的账号"
+    },
+    "quota": {
+      "unbound": "未绑定账号",
+      "accountMissing": "账号不存在",
+      "empty": "暂无配额缓存"
+    },
+    "messages": {
+      "created": "实例已创建",
+      "updated": "实例已更新",
+      "deleted": "实例已删除",
+      "started": "实例已启动",
+      "stopped": "实例已关闭",
+      "startedAll": "已启动所有未运行实例",
+      "restartedAll": "已重启运行中的实例",
+      "closedAll": "已关闭所有实例",
+      "allAlreadyRunning": "所有实例已在运行",
+      "noneRunning": "当前没有运行中的实例"
+    },
+    "runningDialog": {
+      "title": "实例已在运行",
+      "desc": "实例已在运行中，可立马前往或按当前策略重启。",
+      "current": "当前策略：{{name}}",
+      "pathLabel": "实例目录",
+      "go": "立马前往",
+      "restart": "关闭并重启"
+    },
+    "restartStrategy": {
+      "button": "重启策略",
+      "title": "重启策略",
+      "desc": "选择实例重启方式，不同方式影响退出范围与稳定性。",
+      "recommended": "推荐",
+      "labels": {
+        "principle": "技术原理",
+        "command": "命令",
+        "pros": "优点",
+        "cons": "缺点"
+      },
+      "safe": {
+        "title": "安全重启（推荐）",
+        "principle": "向目标实例进程发送 SIGTERM，请求应用自行保存并退出，退出后再启动该实例（必要时会强制结束）。",
+        "commandMac": "macOS/Linux: kill -15 <pid> （匹配 --user-data-dir）",
+        "commandWin": "Windows: taskkill /F /PID <pid> （匹配 --user-data-dir）",
+        "pros": "更接近正常退出，不易触发崩溃提示，数据更安全。",
+        "cons": "需要等待进程优雅退出，耗时更长。"
+      },
+      "force": {
+        "title": "强制重启",
+        "principle": "按 --user-data-dir 匹配进程并强制终止（SIGKILL / taskkill /F），再启动目标实例。",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> （匹配 --user-data-dir）",
+        "pros": "可精准重启单个实例。",
+        "cons": "可能触发“意外终止”提示，存在未保存数据丢失风险。"
+      }
+    },
+    "stop": {
+      "title": "强制关闭实例",
+      "message": "将向实例进程发送终止信号（SIGTERM）强制关闭，可能导致未保存的数据丢失。确认继续？"
+    },
+    "delete": {
+      "title": "删除实例",
+      "message": "确认删除实例 {{name}}？将移除配置并删除实例目录。"
+    }
   },
   "settings": {
     "title": "应用设置",
@@ -407,7 +547,7 @@
   },
   "wakeup": {
     "title": "唤醒任务",
-    "subtitle": "管理多个自动唤醒任务，支持独立启停与统一开关。",
+    "subtitle": "管理唤醒任务，支持独立启停与统一开关。",
     "globalToggle": "唤醒总开关",
     "newTask": "新建任务",
     "runTest": "立即测试",
@@ -583,7 +723,32 @@
   },
   "codex": {
     "title": "Codex 账号管理",
-    "subtitle": "管理您的 OpenAI Codex 账号",
+    "subtitle": "实时监控所有Codex账号的模型配额状态。",
+    "instances": {
+      "subtitle": "多实例独立配置，多账号并行运行。",
+      "comingSoon": "多开实例功能即将上线",
+      "comingSoonDesc": "支持以不同账号同时运行多个 Codex.app 实例，敬请期待。",
+      "unsupported": {
+        "title": "暂不支持当前系统",
+        "desc": "Codex 多开实例仅支持 macOS，请在 macOS 上使用。"
+      },
+      "quota": {
+        "hourly": "5小时",
+        "weekly": "周"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "向目标 Codex 进程发送 SIGTERM，请求应用自行保存并退出，退出后再启动该实例（必要时会强制结束）。",
+          "commandMac": "macOS: kill -15 <pid> （匹配 CODEX_HOME）",
+          "commandWin": "Windows: taskkill /F /PID <pid> （匹配 CODEX_HOME）"
+        },
+        "force": {
+          "principle": "按 CODEX_HOME 匹配进程并强制终止（SIGKILL / taskkill /F），再启动目标实例。",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> （匹配 CODEX_HOME）"
+        }
+      }
+    },
     "addAccount": "添加账号",
     "refreshAll": "刷新全部",
     "refreshQuota": "刷新配额",
@@ -664,6 +829,7 @@
     },
     "search": "搜索账号...",
     "view": {
+      "compact": "紧凑视图",
       "list": "列表视图",
       "grid": "卡片视图"
     },
@@ -756,6 +922,16 @@
     },
     "badges": {
       "recommended": "推荐"
+    }
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "文件读取失败",
+      "description": "文件 {{fileName}} 已损坏，无法解析。",
+      "errorInfo": "错误信息",
+      "filePath": "文件位置",
+      "helpText": "请打开文件夹手动修复或删除该文件，然后重新启动应用。",
+      "openFolder": "打开文件夹"
     }
   }
 }

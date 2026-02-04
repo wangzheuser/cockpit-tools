@@ -29,7 +29,8 @@
     "fingerprints": "Otisky",
     "settings": "Nastavení",
     "codex": "Účty Codex",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "instances": "Více instancí"
   },
   "settings": {
     "title": "Nastavení aplikace",
@@ -707,7 +708,32 @@
     "filterTagsCount": "Štítky",
     "noAvailableTags": "Žádné dostupné štítky",
     "clearFilter": "Vymazat filtr",
-    "editTags": "Upravit štítky"
+    "editTags": "Upravit štítky",
+    "instances": {
+      "subtitle": "Nezávislá konfigurace pro každou instanci, paralelní provoz s více účty.",
+      "comingSoon": "Funkce více instancí již brzy",
+      "comingSoonDesc": "Spusťte více instancí Codex.app s různými účty současně, zůstaňte naladěni.",
+      "unsupported": {
+        "title": "Na tomto systému nepodporováno",
+        "desc": "Více instancí Codex je aktuálně dostupné pouze na macOS."
+      },
+      "quota": {
+        "hourly": "5 hodin",
+        "weekly": "Týdně"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "Odešle signál SIGTERM všem procesům Codex, požádá aplikaci o uložení dat a ukončení, poté spustí cílovou instanci (v případě potřeby vynutí ukončení).",
+          "commandMac": "macOS: kill -15 <pid> (všechny procesy Codex)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (všechny procesy Codex)"
+        },
+        "force": {
+          "principle": "Identifikuje procesy pomocí CODEX_HOME a vynutí jejich ukončení (SIGKILL / taskkill /F), poté spustí cílovou instanci.",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (shoda s CODEX_HOME)"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "Přehled účtů",
@@ -758,5 +784,154 @@
     "noRecommendation": "Žádné lepší doporučení",
     "noData": "Žádná data",
     "viewAllAccounts": "Zobrazit všechny účty"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "Chyba čtení souboru",
+      "description": "Soubor {{fileName}} je poškozen a nelze jej analyzovat.",
+      "errorInfo": "Podrobnosti chyby",
+      "filePath": "Umístění souboru",
+      "helpText": "Otevřete složku a opravte nebo odstraňte soubor ručně, poté restartujte aplikaci.",
+      "openFolder": "Otevřít složku"
+    }
+  },
+  "instances": {
+    "title": "Více instancí",
+    "subtitle": "Izolované profily pro paralelní provoz více účtů.",
+    "defaultName": "Výchozí instance",
+    "search": "Hledat instance",
+    "actions": {
+      "create": "Nová instance",
+      "refresh": "Obnovit",
+      "startAll": "Spustit vše",
+      "restartAll": "Restartovat vše",
+      "stopAll": "Zastavit vše",
+      "start": "Spustit",
+      "stop": "Zastavit",
+      "openFolder": "Otevřít složku",
+      "edit": "Upravit",
+      "openRootDir": "Otvřít složku",
+      "selectPath": "Vybrat cestu"
+    },
+    "bulkConfirm": {
+      "startAll": "Spustit všechny zastavené instance?",
+      "restartAll": "Restartovat všechny běžící instance?",
+      "stopAll": "Zavřít všechny instance?"
+    },
+    "status": {
+      "running": "Běží",
+      "stopped": "Zastaveno",
+      "restarting": "Restartování"
+    },
+    "labels": {
+      "path": "Adresář",
+      "args": "Argumenty spuštění",
+      "argsEmpty": "Žádné",
+      "bindAccount": "Propojený účet",
+      "unbound": "Nepropojeno",
+      "quota": "Kvóta",
+      "lastLaunched": "Poslední spuštění"
+    },
+    "columns": {
+      "instance": "Instance",
+      "email": "Účet",
+      "quota": "Stav kvóty",
+      "actions": "Akce"
+    },
+    "empty": {
+      "title": "Žádné instance",
+      "desc": "Vytvořte izolovaný konfigurační adresář pro rychlé spuštění více instancí."
+    },
+    "form": {
+      "name": "Název instance",
+      "namePlaceholder": "např. Pracovní účet",
+      "path": "Adresář instance",
+      "pathPlaceholder": "Vybrat adresář",
+      "pathReadOnly": "Cestu nelze při úpravách změnit",
+      "pathAutoHint": "Cesta se automaticky aktualizuje při změně názvu (nebo vyberte ručně)",
+      "copyLogin": "Kopírovat aktuální stav přihlášení",
+      "copyLoginDesc": "Kopírovat konfiguraci a přihlašovací údaje z výchozího adresáře",
+      "copySource": "Kopírovat zdrojovou instanci",
+      "copySourceDesc": "Kopírovat konfiguraci a přihlašovací údaje z vybrané instance",
+      "copySourcePlaceholder": "Vybrat zdrojovou instanci",
+      "copySourceRequired": "Vyberte prosím zdrojovou instanci",
+      "copySourceRunningHint": "Zdrojová instance běží. Doporučuje se ji nejdříve zavřít, aby se předešlo nekonzistenci dat.",
+      "bindInject": "Propojit účet",
+      "followCurrent": "Sledovat aktuální účet",
+      "selectAccount": "Vybrat účet",
+      "bindAccount": "Propojit účet",
+      "unbound": "Nepropojeno",
+      "extraArgs": "Vlastní argumenty spuštění",
+      "extraArgsPlaceholder": "např. --disable-gpu --log-level=2",
+      "extraArgsDesc": "Argumenty oddělujte mezerami, uvozovky jsou podporovány",
+      "nameRequired": "Zadejte prosím název instance",
+      "pathRequired": "Vyberte prosím adresář instance",
+      "bindRequired": "Vyberte prosím účet k propojení"
+    },
+    "quota": {
+      "unbound": "Účet není propojen",
+      "accountMissing": "Účet nenalezen",
+      "empty": "Žádná kvóta v mezipaměti"
+    },
+    "messages": {
+      "created": "Instance vytvořena",
+      "updated": "Instance aktualizována",
+      "deleted": "Instance smazána",
+      "started": "Instance spuštěna",
+      "stopped": "Instance zastavena",
+      "startedAll": "Všechny zastavené instance byly spuštěny",
+      "restartedAll": "Běžící instance byly restartovány",
+      "closedAll": "Všechny instance byly zastaveny",
+      "allAlreadyRunning": "Všechny instance již běží",
+      "noneRunning": "Nebyly nalezeny žádné běžící instance"
+    },
+    "runningDialog": {
+      "title": "Instance již běží",
+      "desc": "Tato instance je již spuštěna. Můžete se přepnout do okna nebo ji restartovat podle aktuální strategie.",
+      "current": "Aktuální strategie: {{name}}",
+      "pathLabel": "Adresář instance",
+      "go": "Přepnout nyní",
+      "restart": "Zavřít a restartovat"
+    },
+    "restartStrategy": {
+      "button": "Strategie restartu",
+      "title": "Strategie restartu",
+      "desc": "Vyberte metodu pro restartování instance. Každá možnost ovlivňuje rozsah a stabilitu.",
+      "recommended": "Doporučeno",
+      "labels": {
+        "principle": "Technický princip",
+        "command": "Příkaz",
+        "pros": "Plusy",
+        "cons": "Mínusy"
+      },
+      "safe": {
+        "title": "Bezpečný restart (Doporučeno)",
+        "principle": "Odešle signál SIGTERM všem procesům Antigravity, požádá aplikaci o uložení dat a ukončení, poté spustí cílovou instanci (v případě potřeby vynutí ukončení).",
+        "commandMac": "macOS/Linux: kill -15 <pid> (všechny procesy Antigravity)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (všechny procesy Antigravity)",
+        "pros": "Nejblíže normálnímu ukončení, menší pravděpodobnost varování o chybách, data jsou v bezpečí.",
+        "cons": "Podporuje pouze globální restart všech instancí."
+      },
+      "force": {
+        "title": "Vynucený restart",
+        "principle": "Identifikuje procesy pomocí --user-data-dir a vynutí jejich ukončení (SIGKILL / taskkill /F), poté spustí cílovou instanci.",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (shoda s --user-data-dir)",
+        "pros": "Může přesně restartovat jednu konkrétní instanci.",
+        "cons": "Může způsobit varování o „neočekávaném ukončení“, riziko ztráty neuložených dat."
+      }
+    },
+    "stop": {
+      "title": "Vynutit zastavení instance",
+      "message": "Odešle signál k ukončení (SIGTERM) procesu instance. Neuložená data mohou být ztracena. Pokračovat?"
+    },
+    "delete": {
+      "title": "Smazat instanci",
+      "message": "Smazat instanci {{name}}? Tím se odstraní konfigurace a smaže se složka instance."
+    },
+    "modal": {
+      "createTitle": "Nová instance",
+      "editTitle": "Upravit instanci"
+    }
   }
 }

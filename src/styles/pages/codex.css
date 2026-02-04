@@ -9,109 +9,7 @@
   animation: fadeUp 0.5s ease;
 }
 
-.codex-accounts-page .page-header {
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.codex-accounts-page .page-header h1 {
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.codex-accounts-page .page-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.codex-accounts-page .opencode-switch {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-sm);
-}
-
-.codex-accounts-page .opencode-switch-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.codex-accounts-page .opencode-switch-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.codex-accounts-page .opencode-switch-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.codex-accounts-page .switch {
-  position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 24px;
-}
-
-.codex-accounts-page .switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.codex-accounts-page .slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--border);
-  transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  border-radius: 24px;
-}
-
-.codex-accounts-page .slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 2px;
-  bottom: 2px;
-  background-color: white;
-  transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.codex-accounts-page .switch input:checked + .slider {
-  background-color: var(--primary);
-}
-
-.codex-accounts-page .switch input:checked + .slider:before {
-  transform: translateX(20px);
-}
-
-.codex-accounts-page .page-subtitle {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-top: 4px;
-}
+/* 使用通用的 page-header 样式，不再覆盖 */
 
 /* Codex 账号网格 */
 .codex-accounts-grid {
@@ -494,7 +392,7 @@
   top: calc(100% + 8px);
   left: 0;
   min-width: 220px;
-  background: var(--bg-secondary);
+  background: var(--bg-surface);
   border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 12px;
   box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);
@@ -1101,3 +999,44 @@
 }
 
 /* Dark Mode Table Overrides */
+
+/* ============================================
+   Codex Instances Content (embedded in CodexAccountsPage)
+   ============================================ */
+
+.codex-instances-content .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  gap: 20px;
+  animation: fadeUp 0.3s ease;
+}
+
+.codex-instances-content .empty-state .empty-icon {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.codex-instances-content .empty-state h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.codex-instances-content .empty-state p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 360px;
+  margin: 0;
+}
+
+.codex-instances-content .empty-state .btn {
+  margin-top: 8px;
+}

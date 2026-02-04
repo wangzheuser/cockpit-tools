@@ -37,21 +37,14 @@ import { confirm as confirmDialog } from '@tauri-apps/plugin-dialog';
 import { save } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { invoke } from '@tauri-apps/api/core';
-
-interface GeneralConfig {
-  language: string;
-  theme: string;
-  auto_refresh_minutes: number;
-  codex_auto_refresh_minutes: number;
-  close_behavior: string;
-  opencode_app_path: string;
-  opencode_sync_on_switch: boolean;
-}
+import { CodexOverviewTabsHeader, CodexTab } from '../components/CodexOverviewTabsHeader';
+import { CodexInstancesContent } from './CodexInstancesPage';
 
 export function CodexAccountsPage() {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || 'zh-CN';
   const untaggedKey = '__untagged__';
+  const [activeTab, setActiveTab] = useState<CodexTab>('overview');
 
   const {
     accounts,
@@ -95,8 +88,6 @@ export function CodexAccountsPage() {
   const [deleting, setDeleting] = useState(false);
   const [tagDeleteConfirm, setTagDeleteConfirm] = useState<{ tag: string; count: number } | null>(null);
   const [deletingTag, setDeletingTag] = useState(false);
-  const [opencodeSyncOnSwitch, setOpencodeSyncOnSwitch] = useState(true);
-  const [opencodeSwitchSaving, setOpencodeSwitchSaving] = useState(false);
 
   const showAddModalRef = useRef(showAddModal);
   const addTabRef = useRef(addTab);
@@ -128,43 +119,6 @@ export function CodexAccountsPage() {
     fetchCurrentAccount();
   }, [fetchAccounts, fetchCurrentAccount]);
 
-  useEffect(() => {
-    let active = true;
-    invoke<GeneralConfig>('get_general_config')
-      .then((config) => {
-        if (!active) return;
-        setOpencodeSyncOnSwitch(config.opencode_sync_on_switch ?? true);
-      })
-      .catch((err) => {
-        console.error('[Codex] 加载 OpenCode 开关失败:', err);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const handleOpencodeSwitchToggle = async (checked: boolean) => {
-    setOpencodeSwitchSaving(true);
-    setOpencodeSyncOnSwitch(checked);
-    try {
-      const config = await invoke<GeneralConfig>('get_general_config');
-      await invoke('save_general_config', {
-        language: config.language,
-        theme: config.theme,
-        autoRefreshMinutes: config.auto_refresh_minutes,
-        codexAutoRefreshMinutes: config.codex_auto_refresh_minutes ?? 10,
-        closeBehavior: config.close_behavior || 'ask',
-        opencodeAppPath: config.opencode_app_path ?? '',
-        opencodeSyncOnSwitch: checked,
-      });
-      window.dispatchEvent(new Event('config-updated'));
-    } catch (err) {
-      setOpencodeSyncOnSwitch(!checked);
-      setMessage({ text: t('codex.opencodeSwitchFailed', { error: String(err) }), tone: 'error' });
-    } finally {
-      setOpencodeSwitchSaving(false);
-    }
-  };
 
   useEffect(() => {
     let unlisten: UnlistenFn | undefined;
@@ -897,29 +851,10 @@ export function CodexAccountsPage() {
 
   return (
     <div className="codex-accounts-page">
-      <div className="page-header">
-        <h1>{t('codex.title', 'Codex 账号管理')}</h1>
-        <div className="page-header-actions">
-          <div className="opencode-switch">
-            <div className="opencode-switch-text">
-              <div className="opencode-switch-title">{t('codex.opencodeSwitch', 'OpenCode切换开关')}</div>
-              <div className="opencode-switch-desc">
-                {t('codex.opencodeSwitchDesc', '仅控制自动重启，auth.json 会同步')}
-              </div>
-            </div>
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={opencodeSyncOnSwitch}
-                onChange={(e) => handleOpencodeSwitchToggle(e.target.checked)}
-                disabled={opencodeSwitchSaving}
-                aria-label={t('codex.opencodeSwitch', 'OpenCode切换开关')}
-              />
-              <span className="slider"></span>
-            </label>
-          </div>
-        </div>
-      </div>
+      <CodexOverviewTabsHeader active={activeTab} onTabChange={setActiveTab} />
+
+      {activeTab === 'overview' && (
+        <>
 
       {message && (
         <div className={`message-bar ${message.tone === 'error' ? 'error' : 'success'}`}>
@@ -1216,8 +1151,8 @@ export function CodexAccountsPage() {
           <div className="modal-content codex-add-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{t('codex.addModal.title', '添加 Codex 账号')}</h2>
-              <button className="modal-close" onClick={closeAddModal}>
-                <X size={20} />
+              <button className="modal-close" onClick={closeAddModal} aria-label={t('common.close', '关闭')}>
+                <X />
               </button>
             </div>
 
@@ -1340,8 +1275,9 @@ export function CodexAccountsPage() {
               <button
                 className="modal-close"
                 onClick={() => !deleting && setDeleteConfirm(null)}
+                aria-label={t('common.close', '关闭')}
               >
-                <X size={18} />
+                <X />
               </button>
             </div>
             <div className="modal-body">
@@ -1367,8 +1303,9 @@ export function CodexAccountsPage() {
               <button
                 className="modal-close"
                 onClick={() => !deletingTag && setTagDeleteConfirm(null)}
+                aria-label={t('common.close', '关闭')}
               >
-                <X size={18} />
+                <X />
               </button>
             </div>
             <div className="modal-body">
@@ -1395,6 +1332,12 @@ export function CodexAccountsPage() {
         onClose={() => setShowTagModal(null)}
         onSave={handleSaveTags}
       />
+        </>
+      )}
+
+      {activeTab === 'instances' && (
+        <CodexInstancesContent />
+      )}
     </div>
   );
 }

@@ -86,8 +86,13 @@ pub fn load_fingerprint_store() -> Result<FingerprintStore, String> {
         return Ok(FingerprintStore::new());
     }
     
-    serde_json::from_str(&content)
-        .map_err(|e| format!("解析指纹存储失败: {}", e))
+    serde_json::from_str(&content).map_err(|e| {
+        crate::error::file_corrupted_error(
+            FINGERPRINTS_FILE,
+            &path.to_string_lossy(),
+            &e.to_string(),
+        )
+    })
 }
 
 /// 保存指纹存储

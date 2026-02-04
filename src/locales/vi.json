@@ -29,7 +29,8 @@
     "fingerprints": "Vân tay thiết bị",
     "settings": "Cài đặt",
     "codex": "Tài khoản Codex",
-    "dashboard": "Bảng điều khiển"
+    "dashboard": "Bảng điều khiển",
+    "instances": "Đa Phiên Bản"
   },
   "settings": {
     "title": "Cài đặt ứng dụng",
@@ -664,6 +665,7 @@
     },
     "search": "Tìm kiếm tài khoản...",
     "view": {
+      "compact": "Dạng thu gọn",
       "list": "Dạng danh sách",
       "grid": "Dạng thẻ"
     },
@@ -706,7 +708,32 @@
     "filterTagsCount": "Thẻ",
     "noAvailableTags": "Không có thẻ nào",
     "clearFilter": "Xóa bộ lọc",
-    "editTags": "Chỉnh sửa thẻ"
+    "editTags": "Chỉnh sửa thẻ",
+    "instances": {
+      "subtitle": "Cấu hình độc lập cho mỗi phiên bản, vận hành song song với nhiều tài khoản.",
+      "comingSoon": "Đa Phiên Bản Sắp Ra Mắt",
+      "comingSoonDesc": "Chạy nhiều phiên bản Codex.app với các tài khoản khác nhau cùng lúc.",
+      "unsupported": {
+        "title": "Không hỗ trợ trên hệ thống này",
+        "desc": "Đa phiên bản Codex hiện chỉ khả dụng trên macOS."
+      },
+      "quota": {
+        "hourly": "5 giờ",
+        "weekly": "Tuần"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "Gửi tín hiệu SIGTERM đến tất cả các tiến trình Codex, yêu cầu ứng dụng lưu dữ liệu và đóng lại, sau đó bắt đầu phiên bản đích (buộc đóng nếu cần).",
+          "commandMac": "macOS: kill -15 <pid> (tất cả tiến trình Codex)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (tất cả tiến trình Codex)"
+        },
+        "force": {
+          "principle": "Xác định các tiến trình qua CODEX_HOME và buộc đóng chúng (SIGKILL / taskkill /F), sau đó bắt đầu phiên bản đích.",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (khớp với CODEX_HOME)"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "Bảng điều khiển tài khoản",
@@ -757,5 +784,154 @@
     "noRecommendation": "Không có đề xuất tốt hơn",
     "noData": "Không có dữ liệu",
     "viewAllAccounts": "Xem tất cả tài khoản"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "Lỗi đọc tệp",
+      "description": "Tệp {{fileName}} bị hỏng và không thể phân tích.",
+      "errorInfo": "Chi tiết lỗi",
+      "filePath": "Vị trí tệp",
+      "helpText": "Vui lòng mở thư mục để sửa thủ công hoặc xóa tệp, sau đó khởi động lại ứng dụng.",
+      "openFolder": "Mở thư mục"
+    }
+  },
+  "instances": {
+    "title": "Nhiều phiên bản",
+    "subtitle": "Hồ sơ riêng biệt để chạy song song nhiều tài khoản.",
+    "defaultName": "Phiên bản mặc định",
+    "search": "Tìm kiếm phiên bản",
+    "actions": {
+      "create": "Phiên bản mới",
+      "refresh": "Làm mới",
+      "startAll": "Bắt đầu tất cả",
+      "restartAll": "Khởi động lại tất cả",
+      "stopAll": "Dừng tất cả",
+      "start": "Bắt đầu",
+      "stop": "Dừng",
+      "openFolder": "Mở thư mục",
+      "edit": "Chỉnh sửa",
+      "openRootDir": "Mở thư mục",
+      "selectPath": "Chọn đường dẫn"
+    },
+    "bulkConfirm": {
+      "startAll": "Bắt đầu tất cả các phiên bản đang dừng?",
+      "restartAll": "Khởi động lại tất cả các phiên bản đang chạy?",
+      "stopAll": "Đóng tất cả các phiên bản?"
+    },
+    "status": {
+      "running": "Đang chạy",
+      "stopped": "Đã dừng",
+      "restarting": "Đang khởi động lại"
+    },
+    "labels": {
+      "path": "Thư mục",
+      "args": "Đối số khởi động",
+      "argsEmpty": "Không có",
+      "bindAccount": "Tài khoản liên kết",
+      "unbound": "Chưa liên kết",
+      "quota": "Hạn ngạch",
+      "lastLaunched": "Lần chạy cuối"
+    },
+    "columns": {
+      "instance": "Phiên bản",
+      "email": "Tài khoản",
+      "quota": "Trạng thái hạn ngạch",
+      "actions": "Hành động"
+    },
+    "empty": {
+      "title": "Không có phiên bản nào",
+      "desc": "Tạo một thư mục cấu hình riêng biệt để khởi động nhanh nhiều phiên bản."
+    },
+    "form": {
+      "name": "Tên phiên bản",
+      "namePlaceholder": "vd: Tài khoản công việc",
+      "path": "Thư mục phiên bản",
+      "pathPlaceholder": "Chọn thư mục",
+      "pathReadOnly": "Đường dẫn không thể thay đổi khi chỉnh sửa",
+      "pathAutoHint": "Đường dẫn tự động cập nhật khi đổi tên (hoặc chọn thủ công)",
+      "copyLogin": "Sao chép trạng thái đăng nhập hiện tại",
+      "copyLoginDesc": "Sao chép cấu hình và dữ liệu đăng nhập từ thư mục mặc định",
+      "copySource": "Sao chép từ phiên bản nguồn",
+      "copySourceDesc": "Sao chép cấu hình và dữ liệu đăng nhập từ phiên bản đã chọn",
+      "copySourcePlaceholder": "Chọn phiên bản nguồn",
+      "copySourceRequired": "Vui lòng chọn một phiên bản nguồn",
+      "copySourceRunningHint": "Phiên bản nguồn đang chạy. Khuyên dùng đóng nó trước để tránh không nhất quán dữ liệu.",
+      "bindInject": "Liên kết tài khoản",
+      "followCurrent": "Theo tài khoản hiện tại",
+      "selectAccount": "Chọn tài khoản",
+      "bindAccount": "Liên kết tài khoản",
+      "unbound": "Chưa liên kết",
+      "extraArgs": "Đối số khởi động tùy chỉnh",
+      "extraArgsPlaceholder": "vd: --disable-gpu --log-level=2",
+      "extraArgsDesc": "Phân cách các đối số bằng khoảng trắng, hỗ trợ dấu ngoặc kép",
+      "nameRequired": "Vui lòng nhập tên phiên bản",
+      "pathRequired": "Vui lòng chọn thư mục phiên bản",
+      "bindRequired": "Vui lòng chọn một tài khoản để liên kết"
+    },
+    "quota": {
+      "unbound": "Tài khoản chưa liên kết",
+      "accountMissing": "Không tìm thấy tài khoản",
+      "empty": "Không có hạn ngạch trong bộ nhớ đệm"
+    },
+    "messages": {
+      "created": "Đã tạo phiên bản",
+      "updated": "Đã cập nhật phiên bản",
+      "deleted": "Đã xóa phiên bản",
+      "started": "Đã bắt đầu phiên bản",
+      "stopped": "Đã dừng phiên bản",
+      "startedAll": "Tất cả các phiên bản đã dừng đã được bắt đầu",
+      "restartedAll": "Các phiên bản đang chạy đã được khởi động lại",
+      "closedAll": "Tất cả các phiên bản đã được dừng",
+      "allAlreadyRunning": "Tất cả các phiên bản đã đang chạy",
+      "noneRunning": "Không tìm thấy phiên bản nào đang chạy"
+    },
+    "runningDialog": {
+      "title": "Phiên bản đã đang chạy",
+      "desc": "Phiên bản này đã được bắt đầu. Bạn có thể chuyển sang cửa sổ đó hoặc khởi động lại theo chiến lược hiện tại.",
+      "current": "Chiến lược hiện tại: {{name}}",
+      "pathLabel": "Thư mục phiên bản",
+      "go": "Chuyển sang ngay",
+      "restart": "Đóng và khởi động lại"
+    },
+    "restartStrategy": {
+      "button": "Chiến lược khởi động lại",
+      "title": "Chiến lược khởi động lại",
+      "desc": "Chọn phương thức khởi động lại phiên bản. Mỗi tùy chọn ảnh hưởng đến phạm vi và độ ổn định.",
+      "recommended": "Khuyên dùng",
+      "labels": {
+        "principle": "Nguyên lý kỹ thuật",
+        "command": "Lệnh",
+        "pros": "Ưu điểm",
+        "cons": "Nhược điểm"
+      },
+      "safe": {
+        "title": "Khởi động lại an toàn (Khuyên dùng)",
+        "principle": "Gửi tín hiệu SIGTERM đến tất cả các tiến trình Antigravity, yêu cầu ứng dụng lưu dữ liệu và đóng lại, sau đó bắt đầu phiên bản đích (buộc đóng nếu cần).",
+        "commandMac": "macOS/Linux: kill -15 <pid> (tất cả tiến trình Antigravity)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (tất cả tiến trình Antigravity)",
+        "pros": "Gần nhất với đóng bình thường, ít khả năng gây ra cảnh báo lỗi, dữ liệu an toàn hơn.",
+        "cons": "Chỉ hỗ trợ khởi động lại toàn cục cho tất cả các phiên bản."
+      },
+      "force": {
+        "title": "Khởi động lại bắt buộc",
+        "principle": "Xác định các tiến trình qua --user-data-dir và buộc đóng chúng (SIGKILL / taskkill /F), sau đó bắt đầu phiên bản đích.",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (khớp với --user-data-dir)",
+        "pros": "Có thể khởi động lại chính xác một phiên bản duy nhất.",
+        "cons": "Có thể gây ra cảnh báo \"đóng bất ngờ\", rủi ro mất dữ liệu chưa lưu."
+      }
+    },
+    "stop": {
+      "title": "Buộc dừng phiên bản",
+      "message": "Gửi tín hiệu kết thúc (SIGTERM) đến tiến trình phiên bản. Dữ liệu chưa lưu có thể bị mất. Tiếp tục?"
+    },
+    "delete": {
+      "title": "Xóa phiên bản",
+      "message": "Xóa phiên bản {{name}}? Hành động này sẽ gỡ bỏ cấu hình và xóa thư mục phiên bản."
+    },
+    "modal": {
+      "createTitle": "Tạo phiên bản mới",
+      "editTitle": "Chỉnh sửa phiên bản"
+    }
   }
 }

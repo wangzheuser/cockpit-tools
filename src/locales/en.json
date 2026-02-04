@@ -29,7 +29,147 @@
     "fingerprints": "Fingerprints",
     "settings": "Settings",
     "codex": "Codex Accounts",
-    "dashboard": "Dashboard"
+    "dashboard": "Dashboard",
+    "instances": "Multi-Instance"
+  },
+  "instances": {
+    "title": "Multi-Instance",
+    "subtitle": "Isolated profiles for multi-account parallel runs.",
+    "defaultName": "Default Instance",
+    "search": "Search instances",
+    "actions": {
+      "create": "New Instance",
+      "refresh": "Refresh",
+      "startAll": "Start All",
+      "restartAll": "Restart All",
+      "stopAll": "Stop All",
+      "start": "Start",
+      "stop": "Stop",
+      "openFolder": "Open Folder",
+      "edit": "Edit",
+      "openRootDir": "Open Folder",
+      "selectPath": "Select Folder"
+    },
+    "bulkConfirm": {
+      "startAll": "Start all stopped instances?",
+      "restartAll": "Restart all running instances?",
+      "stopAll": "Close all instances?"
+    },
+    "status": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "restarting": "Restarting"
+    },
+    "labels": {
+      "path": "Directory",
+      "args": "Launch Args",
+      "argsEmpty": "None",
+      "bindAccount": "Bound Account",
+      "unbound": "Unbound",
+      "quota": "Quota",
+      "lastLaunched": "Last Launched"
+    },
+    "columns": {
+      "instance": "Instance",
+      "email": "Account",
+      "quota": "Quota",
+      "actions": "Actions"
+    },
+    "empty": {
+      "title": "No instances yet",
+      "desc": "Create an isolated profile to quickly spin up multiple instances."
+    },
+    "modal": {
+      "createTitle": "New Instance",
+      "editTitle": "Edit Instance"
+    },
+    "form": {
+      "name": "Instance Name",
+      "namePlaceholder": "e.g. Work Account",
+      "path": "Instance Directory",
+      "pathPlaceholder": "Select instance directory",
+      "pathReadOnly": "Path cannot be changed when editing",
+      "pathAutoHint": "Path auto-updates when name changes, or select manually",
+      "copyLogin": "Copy current login state",
+      "copyLoginDesc": "Copy settings and login data from the default directory",
+      "copySource": "Copy source instance",
+      "copySourceDesc": "Copy configuration and login data from the selected instance",
+      "copySourcePlaceholder": "Select a source instance",
+      "copySourceRequired": "Please select a source instance",
+      "copySourceRunningHint": "The source instance is running. It's recommended to close it first to avoid inconsistent data.",
+      "bindInject": "Bind account",
+      "followCurrent": "Follow current account",
+      "selectAccount": "Select account",
+      "bindAccount": "Bind account",
+      "unbound": "Unbound",
+      "extraArgs": "Custom launch args",
+      "extraArgsPlaceholder": "e.g. --disable-gpu --log-level=2",
+      "extraArgsDesc": "Separate args with spaces, quotes supported",
+      "nameRequired": "Please enter an instance name",
+      "pathRequired": "Please select an instance directory",
+      "bindRequired": "Please select an account to bind"
+    },
+    "quota": {
+      "unbound": "No bound account",
+      "accountMissing": "Account not found",
+      "empty": "No cached quota"
+    },
+    "messages": {
+      "created": "Instance created",
+      "updated": "Instance updated",
+      "deleted": "Instance deleted",
+      "started": "Instance started",
+      "stopped": "Instance stopped",
+      "startedAll": "Started all stopped instances",
+      "restartedAll": "Restarted running instances",
+      "closedAll": "Closed all instances",
+      "allAlreadyRunning": "All instances are already running",
+      "noneRunning": "No running instances found"
+    },
+    "runningDialog": {
+      "title": "Instance already running",
+      "desc": "This instance is already running. You can go to the window or restart with the current strategy.",
+      "current": "Current strategy: {{name}}",
+      "pathLabel": "Instance directory",
+      "go": "Go now",
+      "restart": "Close & restart"
+    },
+    "restartStrategy": {
+      "button": "Restart strategy",
+      "title": "Restart strategy",
+      "desc": "Choose how instances are restarted. Each option affects scope and stability.",
+      "recommended": "Recommended",
+      "labels": {
+        "principle": "Principle",
+        "command": "Command",
+        "pros": "Pros",
+        "cons": "Cons"
+      },
+      "safe": {
+        "title": "Safe restart (recommended)",
+        "principle": "Send SIGTERM to the target instance processes so the app can save and exit, then relaunch that instance (force kill if needed).",
+        "commandMac": "macOS/Linux: kill -15 <pid> (matching --user-data-dir)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (matching --user-data-dir)",
+        "pros": "Closer to a normal exit, less likely to trigger crash prompts, safer for data.",
+        "cons": "May take longer while waiting for a graceful shutdown."
+      },
+      "force": {
+        "title": "Force restart",
+        "principle": "Match processes by --user-data-dir and terminate them forcibly (SIGKILL / taskkill /F), then relaunch the target instance.",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (matching --user-data-dir)",
+        "pros": "Can precisely restart a single instance.",
+        "cons": "May trigger “unexpected quit” prompts and risk losing unsaved data."
+      }
+    },
+    "stop": {
+      "title": "Force close instance",
+      "message": "A termination signal (SIGTERM) will be sent to force close this instance, which may cause data loss. Continue?"
+    },
+    "delete": {
+      "title": "Delete Instance",
+      "message": "Delete instance {{name}}? This will remove the config and delete the instance folder."
+    }
   },
   "settings": {
     "title": "Settings",
@@ -407,7 +547,7 @@
   },
   "wakeup": {
     "title": "Wakeup Tasks",
-    "subtitle": "Manage multiple automatic wakeup tasks with independent controls.",
+    "subtitle": "Manage wakeup tasks with per-task control and a global switch.",
     "globalToggle": "Global Wakeup Switch",
     "newTask": "New Task",
     "runTest": "Run Test",
@@ -583,7 +723,32 @@
   },
   "codex": {
     "title": "Codex Account Management",
-    "subtitle": "Manage your OpenAI Codex accounts",
+    "subtitle": "Real-time monitoring of all Codex account model quotas.",
+    "instances": {
+      "subtitle": "Independent configuration per instance, parallel operation with multiple accounts.",
+      "comingSoon": "Multi-Instance Coming Soon",
+      "comingSoonDesc": "Run multiple Codex.app instances with different accounts simultaneously, stay tuned.",
+      "unsupported": {
+        "title": "Unsupported on this system",
+        "desc": "Codex multi-instance is currently available only on macOS."
+      },
+      "quota": {
+        "hourly": "5h",
+        "weekly": "Weekly"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "Send SIGTERM to the target Codex process so the app can save and exit, then relaunch that instance (force kill if needed).",
+          "commandMac": "macOS: kill -15 <pid> (match CODEX_HOME)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (match CODEX_HOME)"
+        },
+        "force": {
+          "principle": "Match processes by CODEX_HOME and terminate them forcibly (SIGKILL / taskkill /F), then relaunch the target instance.",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (match CODEX_HOME)"
+        }
+      }
+    },
     "addAccount": "Add Account",
     "refreshAll": "Refresh All",
     "refreshQuota": "Refresh Quota",
@@ -664,6 +829,7 @@
     },
     "search": "Search accounts...",
     "view": {
+      "compact": "Compact view",
       "list": "List view",
       "grid": "Card view"
     },
@@ -757,5 +923,15 @@
     "noRecommendation": "No better recommendation",
     "noData": "No data",
     "viewAllAccounts": "View all accounts"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "File Read Failed",
+      "description": "File {{fileName}} is corrupted and cannot be parsed.",
+      "errorInfo": "Error Details",
+      "filePath": "File Location",
+      "helpText": "Please open the folder to repair manually or delete the file, then restart the application.",
+      "openFolder": "Open Folder"
+    }
   }
 }

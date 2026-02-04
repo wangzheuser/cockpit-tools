@@ -57,8 +57,13 @@ pub fn load_account_index() -> Result<AccountIndex, String> {
         return Ok(AccountIndex::new());
     }
     
-    serde_json::from_str(&content)
-        .map_err(|e| format!("解析账号索引失败: {}", e))
+    serde_json::from_str(&content).map_err(|e| {
+        crate::error::file_corrupted_error(
+            ACCOUNTS_INDEX,
+            &index_path.to_string_lossy(),
+            &e.to_string(),
+        )
+    })
 }
 
 /// 保存账号索引
@@ -675,19 +680,8 @@ pub async fn switch_account_internal(account_id: &str) -> Result<Account, String
     modules::logger::log_info("[Switch] 开始切换账号");
     
     // 1. 加载并验证账号存在
-    let mut account = load_account(account_id)?;
+    let mut account = prepare_account_for_injection(account_id).await?;
     modules::logger::log_info("[Switch] 正在切换到账号");
-    
-    // 2. 确保 Token 有效（自动刷新过期的 Token）
-    let fresh_token = modules::oauth::ensure_fresh_token(&account.token).await
-        .map_err(|e| format!("Token 刷新失败: {}", e))?;
-    
-    // 如果 Token 更新了，保存回账号文件
-    if fresh_token.access_token != account.token.access_token {
-        modules::logger::log_info("[Switch] Token 已刷新");
-        account.token = fresh_token.clone();
-        save_account(&account)?;
-    }
     
     // 3. 关闭 Antigravity（等待最多 20 秒）
     if modules::process::is_antigravity_running() {
@@ -742,5 +736,19 @@ pub async fn switch_account_internal(account_id: &str) -> Result<Account, String
     }
     
     modules::logger::log_info("[Switch] 账号切换完成");
+    Ok(account)
+}
+
+/// 准备账号注入：确保 Token 新鲜并落盘
+pub async fn prepare_account_for_injection(account_id: &str) -> Result<Account, String> {
+    let mut account = load_account(account_id)?;
+    let fresh_token = modules::oauth::ensure_fresh_token(&account.token)
+        .await
+        .map_err(|e| format!("Token 刷新失败: {}", e))?;
+    if fresh_token.access_token != account.token.access_token {
+        modules::logger::log_info("[Account] Token 已刷新");
+        account.token = fresh_token.clone();
+        save_account(&account)?;
+    }
     Ok(account)
 }

@@ -20,6 +20,9 @@ pub mod codex_quota;
 pub mod codex_oauth;
 pub mod opencode_auth;
 pub mod tray;
+pub mod instance_store;
+pub mod instance;
+pub mod codex_instance;
 
 // 重新导出常用函数
 pub use account::*;

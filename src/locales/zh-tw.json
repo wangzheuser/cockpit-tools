@@ -29,7 +29,8 @@
     "fingerprints": "裝置指纹",
     "settings": "設定",
     "codex": "Codex 帳號",
-    "dashboard": "儀表板"
+    "dashboard": "儀表板",
+    "instances": "多開實例"
   },
   "settings": {
     "title": "應用程式設定",
@@ -707,7 +708,32 @@
     "filterTagsCount": "標籤",
     "noAvailableTags": "目前沒有可用標籤",
     "clearFilter": "清除篩選",
-    "editTags": "編輯標籤"
+    "editTags": "編輯標籤",
+    "instances": {
+      "subtitle": "多實例獨立配置，多帳號並行運行。",
+      "comingSoon": "多開實例功能即將上線",
+      "comingSoonDesc": "支援以不同帳號同時運行多個 Codex.app 實例，敬請期待。",
+      "unsupported": {
+        "title": "暫不支援目前系統",
+        "desc": "Codex 多開實例僅支援 macOS，請在 macOS 上使用。"
+      },
+      "quota": {
+        "hourly": "5小時",
+        "weekly": "週"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "向所有 Codex 進程發送 SIGTERM 信號，請求程序保存數據並退出，隨後啟動目標實例（必要時強制結束）。",
+          "commandMac": "macOS: kill -15 <pid>（全體 Codex）",
+          "commandWin": "Windows: taskkill /F /PID <pid>（全體 Codex）"
+        },
+        "force": {
+          "principle": "通過 CODEX_HOME 識別進程並強制關閉（SIGKILL / taskkill /F），隨後啟動目標實例。",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid>（匹配 CODEX_HOME）"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "帳號儀表板",
@@ -758,5 +784,154 @@
     "noRecommendation": "暫無更佳推薦",
     "noData": "暫無資料",
     "viewAllAccounts": "查看所有帳號"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "檔案讀取失敗",
+      "description": "檔案 {{fileName}} 已損壞，無法解析。",
+      "errorInfo": "錯誤資訊",
+      "filePath": "檔案位置",
+      "helpText": "請開啟資料夾手動修復或刪除該檔案，然後重新啟動應用程式。",
+      "openFolder": "開啟資料夾"
+    }
+  },
+  "instances": {
+    "title": "多實例管理",
+    "subtitle": "為多個帳號分配獨立的環境配置，實現多開並行。",
+    "defaultName": "默認實例",
+    "search": "搜尋實例",
+    "actions": {
+      "create": "新建實例",
+      "refresh": "刷新",
+      "startAll": "啟動全部",
+      "restartAll": "重啟全部",
+      "stopAll": "停止全部",
+      "start": "啟動",
+      "stop": "停止",
+      "openFolder": "打開目錄",
+      "edit": "編輯",
+      "openRootDir": "打開目錄",
+      "selectPath": "選擇路徑"
+    },
+    "bulkConfirm": {
+      "startAll": "是否啟動所有已停止的實例？",
+      "restartAll": "是否重啟所有正在運行的實例？",
+      "stopAll": "是否關閉所有實例？"
+    },
+    "status": {
+      "running": "運行中",
+      "stopped": "已停止",
+      "restarting": "正在重啟"
+    },
+    "labels": {
+      "path": "數據目錄",
+      "args": "啟動參數",
+      "argsEmpty": "無",
+      "bindAccount": "綁定帳號",
+      "unbound": "未綁定",
+      "quota": "額度狀態",
+      "lastLaunched": "最近啟動"
+    },
+    "columns": {
+      "instance": "實例",
+      "email": "帳號",
+      "quota": "額度狀態",
+      "actions": "操作"
+    },
+    "empty": {
+      "title": "暫無實例",
+      "desc": "通過創建獨立的配置目錄，快速啟動多個實例環境。"
+    },
+    "form": {
+      "name": "實例名稱",
+      "namePlaceholder": "例如：工作帳號",
+      "path": "實例目錄",
+      "pathPlaceholder": "請選擇目錄",
+      "pathReadOnly": "編輯時不可修改路徑",
+      "pathAutoHint": "修改名稱會自動更新路徑（或手動選擇）",
+      "copyLogin": "複製當前登錄狀態",
+      "copyLoginDesc": "從默認目錄複製配置和登錄數據",
+      "copySource": "複製來源實例",
+      "copySourceDesc": "從選中實例複製配置和登錄數據",
+      "copySourcePlaceholder": "請選擇來源實例",
+      "copySourceRequired": "請選擇一個來源實例",
+      "copySourceRunningHint": "來源實例正在運行，建議先關閉以避免數據不一致。",
+      "bindInject": "注入帳號綁定",
+      "followCurrent": "跟隨當前主帳號",
+      "selectAccount": "選擇帳號",
+      "bindAccount": "綁定帳號",
+      "unbound": "未綁定",
+      "extraArgs": "自定義啟動參數",
+      "extraArgsPlaceholder": "例如：--disable-gpu --log-level=2",
+      "extraArgsDesc": "多個參數請用空格分隔，支持引號",
+      "nameRequired": "請輸入實例名稱",
+      "pathRequired": "請選擇實例目錄",
+      "bindRequired": "請選擇要綁定的帳號"
+    },
+    "quota": {
+      "unbound": "未綁定帳號",
+      "accountMissing": "未找到帳號",
+      "empty": "暫無緩存額度"
+    },
+    "messages": {
+      "created": "實例已創建",
+      "updated": "實例已更新",
+      "deleted": "實例已刪除",
+      "started": "實例已啟動",
+      "stopped": "實例已停止",
+      "startedAll": "已啟動所有停止的實例",
+      "restartedAll": "已重啟運行中的實例",
+      "closedAll": "已停止所有實例",
+      "allAlreadyRunning": "所有實例均已在運行中",
+      "noneRunning": "未找到正在運行的實例"
+    },
+    "runningDialog": {
+      "title": "實例已在運行",
+      "desc": "該實例已經啟動，您可以切換窗口，或根據當前策略重啟。",
+      "current": "當前策略：{{name}}",
+      "pathLabel": "實例目錄",
+      "go": "立即切換",
+      "restart": "關閉並重啟"
+    },
+    "restartStrategy": {
+      "button": "重啟策略",
+      "title": "重啟策略設置",
+      "desc": "選擇重啟實例時採用的方式，不同的選項會影響影響範圍和穩定性。",
+      "recommended": "推薦",
+      "labels": {
+        "principle": "技術原理",
+        "command": "核心指令",
+        "pros": "優點",
+        "cons": "缺點"
+      },
+      "safe": {
+        "title": "安全重啟（推薦）",
+        "principle": "向所有 Antigravity 進程發送 SIGTERM 信號，請求程序保存數據並退出，隨後啟動目標實例（必要時強制結束）。",
+        "commandMac": "macOS/Linux: kill -15 <pid>（全體 Antigravity）",
+        "commandWin": "Windows: taskkill /F /PID <pid>（全體 Antigravity）",
+        "pros": "最接近正常關閉，不易觸發錯誤提示，數據安全性高。",
+        "cons": "僅支持全局重啟所有實例。"
+      },
+      "force": {
+        "title": "精準強啟",
+        "principle": "通過 --user-data-dir 識別進程並強制關閉（SIGKILL / taskkill /F），隨後啟動目標實例。",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid>（匹配 --user-data-dir）",
+        "pros": "可以精準地僅重啟單個實例。",
+        "cons": "可能導致「意外關閉」警告，存在未保存數據丟失風險。"
+      }
+    },
+    "stop": {
+      "title": "強制停止實例",
+      "message": "將向實例進程發送結束信號 (SIGTERM)，未保存的數據可能會丟失。是否繼續？"
+    },
+    "delete": {
+      "title": "刪除實例",
+      "message": "是否刪除實例 {{name}}？這將移除配置並刪除實例目錄。"
+    },
+    "modal": {
+      "createTitle": "新增實例",
+      "editTitle": "編輯實例"
+    }
   }
 }

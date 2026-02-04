@@ -29,7 +29,8 @@
     "fingerprints": "Parmak İzleri",
     "settings": "Ayarlar",
     "codex": "Codex Hesapları",
-    "dashboard": "Gösterge Paneli"
+    "dashboard": "Gösterge Paneli",
+    "instances": "Çoklu Örnek"
   },
   "settings": {
     "title": "Uygulama Ayarları",
@@ -707,7 +708,32 @@
     "filterTagsCount": "Etiketler",
     "noAvailableTags": "Kullanılabilir etiket yok",
     "clearFilter": "Filtreyi temizle",
-    "editTags": "Etiketleri düzenle"
+    "editTags": "Etiketleri düzenle",
+    "instances": {
+      "subtitle": "Örnek başına bağımsız yapılandırma, birden fazla hesapla paralel çalışma.",
+      "comingSoon": "Çoklu Örnek Yakında",
+      "comingSoonDesc": "Farklı hesaplarla birden fazla Codex.app örneğini aynı anda çalıştırın.",
+      "unsupported": {
+        "title": "Bu sistemde desteklenmiyor",
+        "desc": "Codex çoklu örnek şu anda yalnızca macOS'ta kullanılabilir."
+      },
+      "quota": {
+        "hourly": "5sa",
+        "weekly": "Haftalık"
+      },
+      "restartStrategy": {
+        "safe": {
+          "principle": "Tüm Codex işlemlerine SIGTERM sinyali göndererek uygulamanın verileri kaydedip kapanmasını ister, ardından hedef oturumu başlatır (gerekirse kapanmaya zorlar).",
+          "commandMac": "macOS: kill -15 <pid> (tüm Codex işlemleri)",
+          "commandWin": "Windows: taskkill /F /PID <pid> (tüm Codex işlemleri)"
+        },
+        "force": {
+          "principle": "İşlemleri CODEX_HOME aracılığıyla tanımlar ve zorla kapatır (SIGKILL / taskkill /F), ardından hedef oturumu başlatır.",
+          "commandMac": "macOS: pkill -9 -f \"CODEX_HOME=<dir>\"",
+          "commandWin": "Windows: taskkill /F /PID <pid> (CODEX_HOME ile eşleşen)"
+        }
+      }
+    }
   },
   "dashboard": {
     "title": "Hesap Gösterge Paneli",
@@ -758,5 +784,154 @@
     "noRecommendation": "Daha iyi öneri yok",
     "noData": "Veri yok",
     "viewAllAccounts": "Tüm hesapları görüntüle"
+  },
+  "error": {
+    "fileCorrupted": {
+      "title": "Dosya Okuma Hatası",
+      "description": "{{fileName}} dosyası bozuk ve ayrıştırılamıyor.",
+      "errorInfo": "Hata Aytıntıları",
+      "filePath": "Dosya Konumu",
+      "helpText": "Lütfen dosyayı manuel olarak onarmak veya silmek için klasörü açın, ardından uygulamayı yeniden başlatın.",
+      "openFolder": "Klasörü Aç"
+    }
+  },
+  "instances": {
+    "title": "Çoklu Oturum",
+    "subtitle": "Birden fazla hesabın paralel çalışması için izole edilmiş profiller.",
+    "defaultName": "Varsayılan oturum",
+    "search": "Oturum ara",
+    "actions": {
+      "create": "Yeni oturum",
+      "refresh": "Yenile",
+      "startAll": "Tümünü başlat",
+      "restartAll": "Tümünü yeniden başlat",
+      "stopAll": "Tümünü durdur",
+      "start": "Başlat",
+      "stop": "Durdur",
+      "openFolder": "Klasörü aç",
+      "edit": "Düzenle",
+      "openRootDir": "Klasörü aç",
+      "selectPath": "Yol seç"
+    },
+    "bulkConfirm": {
+      "startAll": "Tüm durdurulmuş oturumlar başlatılsın mı?",
+      "restartAll": "Tüm çalışan oturumlar yeniden başlatılsın mı?",
+      "stopAll": "Tüm oturumlar kapatılsın mı?"
+    },
+    "status": {
+      "running": "Çalışıyor",
+      "stopped": "Durduruldu",
+      "restarting": "Yeniden başlatılıyor"
+    },
+    "labels": {
+      "path": "Dizin",
+      "args": "Başlatma parametreleri",
+      "argsEmpty": "Yok",
+      "bindAccount": "Bağlı hesap",
+      "unbound": "Bağlı değil",
+      "quota": "Kota",
+      "lastLaunched": "Son başlatma"
+    },
+    "columns": {
+      "instance": "Oturum",
+      "email": "Hesap",
+      "quota": "Kota durumu",
+      "actions": "İşlemler"
+    },
+    "empty": {
+      "title": "Oturum bulunamadı",
+      "desc": "Birden fazla oturumu hızlıca başlatmak için izole edilmiş bir yapılandırma dizini oluşturun."
+    },
+    "form": {
+      "name": "Oturum adı",
+      "namePlaceholder": "ör: İş hesabı",
+      "path": "Oturum dizini",
+      "pathPlaceholder": "Dizin seçin",
+      "pathReadOnly": "Düzenleme sırasında yol değiştirilemez",
+      "pathAutoHint": "İsim değiştirildiğinde yol otomatik olarak güncellenir (veya manuel olarak seçin)",
+      "copyLogin": "Mevcut giriş durumunu kopyala",
+      "copyLoginDesc": "Yapılandırma ve giriş verilerini varsayılan dizinden kopyala",
+      "copySource": "Kaynak oturumu kopyala",
+      "copySourceDesc": "Yapılandırma ve giriş verilerini seçilen oturumdan kopyala",
+      "copySourcePlaceholder": "Kaynak oturumu seçin",
+      "copySourceRequired": "Lütfen bir kaynak oturumu seçin",
+      "copySourceRunningHint": "Kaynak oturum çalışıyor. Veri tutarsızlığını önlemek için önce kapatılması önerilir.",
+      "bindInject": "Hesabı bağla",
+      "followCurrent": "Mevcut hesabı takip et",
+      "selectAccount": "Hesap seç",
+      "bindAccount": "Hesabı bağla",
+      "unbound": "Bağlı değil",
+      "extraArgs": "Özel başlatma parametreleri",
+      "extraArgsPlaceholder": "ör: --disable-gpu --log-level=2",
+      "extraArgsDesc": "Parametreleri boşlukla ayırın, tırnak işaretleri desteklenir",
+      "nameRequired": "Lütfen bir oturum adı girin",
+      "pathRequired": "Lütfen bir oturum dizini seçin",
+      "bindRequired": "Lütfen bağlanacak bir hesap seçin"
+    },
+    "quota": {
+      "unbound": "Hesap bağlı değil",
+      "accountMissing": "Hesap bulunamadı",
+      "empty": "Önbelleğe alınmış kota yok"
+    },
+    "messages": {
+      "created": "Oturum oluşturuldu",
+      "updated": "Oturum güncellendi",
+      "deleted": "Oturum silindi",
+      "started": "Oturum başlatıldı",
+      "stopped": "Oturum durduruldu",
+      "startedAll": "Tüm durdurulmuş oturumlar başlatıldı",
+      "restartedAll": "Çalışan oturumlar yeniden başlatıldı",
+      "closedAll": "Tüm oturumlar durduruldu",
+      "allAlreadyRunning": "Tüm oturumlar zaten çalışıyor",
+      "noneRunning": "Çalışan oturum bulunamadı"
+    },
+    "runningDialog": {
+      "title": "Oturum zaten çalışıyor",
+      "desc": "Bu oturum zaten başlatıldı. Pencereye geçiş yapabilir veya mevcut stratejiye göre yeniden başlatabilirsiniz.",
+      "current": "Mevcut strateji: {{name}}",
+      "pathLabel": "Oturum dizini",
+      "go": "Şimdi geçiş yap",
+      "restart": "Kapat ve yeniden başlat"
+    },
+    "restartStrategy": {
+      "button": "Yeniden başlatma stratejisi",
+      "title": "Yeniden başlatma stratejisi",
+      "desc": "Oturumu yeniden başlatma yöntemini seçin. Her seçenek kapsamı ve kararlılığı etkiler.",
+      "recommended": "Önerilen",
+      "labels": {
+        "principle": "Teknik prensip",
+        "command": "Komut",
+        "pros": "Artılar",
+        "cons": "Eksiler"
+      },
+      "safe": {
+        "title": "Güvenli yeniden başlatma (Önerilen)",
+        "principle": "Tüm Antigravity işlemlerine SIGTERM sinyali göndererek uygulamanın verileri kaydedip kapanmasını ister, ardından hedef oturumu başlatır (gerekirse kapanmaya zorlar).",
+        "commandMac": "macOS/Linux: kill -15 <pid> (tüm Antigravity işlemleri)",
+        "commandWin": "Windows: taskkill /F /PID <pid> (tüm Antigravity işlemleri)",
+        "pros": "Normal kapanmaya en yakın yöntem, hata uyarısı olasılığı düşük, veriler daha güvenli.",
+        "cons": "Sadece tüm oturumların genel olarak yeniden başlatılmasını destekler."
+      },
+      "force": {
+        "title": "Zorunlu yeniden başlatma",
+        "principle": "İşlemleri --user-data-dir aracılığıyla tanımlar ve zorla kapatır (SIGKILL / taskkill /F), ardından hedef oturumu başlatır.",
+        "commandMac": "macOS/Linux: pkill -9 -f \"--user-data-dir <dir>\"",
+        "commandWin": "Windows: taskkill /F /PID <pid> (--user-data-dir ile eşleşen)",
+        "pros": "Tek bir oturumu hassas bir şekilde yeniden başlatabilir.",
+        "cons": "Beklenmedik kapanma uyarısına neden olabilir, kaydedilmemiş veri kaybı riski vardır."
+      }
+    },
+    "stop": {
+      "title": "Oturumu durdurmaya zorla",
+      "message": "Oturum işlemine durdurma sinyali (SIGTERM) gönderir. Kaydedilmemiş veriler kaybolabilir. Devam edilsin mi?"
+    },
+    "delete": {
+      "title": "Oturumu sil",
+      "message": "{{name}} oturumu silinsin mi? Bu işlem yapılandırmayı kaldıracak ve oturum klasörünü silecektir."
+    },
+    "modal": {
+      "createTitle": "Yeni örnek",
+      "editTitle": "Örneği düzenle"
+    }
   }
 }
