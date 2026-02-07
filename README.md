@@ -106,6 +106,19 @@ brew install --cask cockpit-tools
 brew install --cask --no-quarantine cockpit-tools
 ```
 
+如果提示已存在应用（例如：`already an App at '/Applications/Cockpit Tools.app'`），请先删除旧版本再安装：
+
+```bash
+rm -rf "/Applications/Cockpit Tools.app"
+brew install --cask cockpit-tools
+```
+
+或者直接强制覆盖安装：
+
+```bash
+brew install --cask --force cockpit-tools
+```
+
 ### 🛠️ 常见问题排查 (Troubleshooting)
 
 #### macOS 提示“应用已损坏，无法打开”？

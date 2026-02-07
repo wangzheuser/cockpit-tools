@@ -109,6 +109,19 @@ If you hit the macOS "App is damaged" warning, you can also install with `--no-q
 brew install --cask --no-quarantine cockpit-tools
 ```
 
+If Homebrew says the app already exists (e.g. `already an App at '/Applications/Cockpit Tools.app'`), remove the old app and install again:
+
+```bash
+rm -rf "/Applications/Cockpit Tools.app"
+brew install --cask cockpit-tools
+```
+
+Or force overwrite the existing app:
+
+```bash
+brew install --cask --force cockpit-tools
+```
+
 ### 🛠️ Troubleshooting
 
 #### macOS says "App is damaged and can't be opened"?
