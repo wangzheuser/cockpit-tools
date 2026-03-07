@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",
@@ -627,7 +627,10 @@
       "importProgress": "Importing {{current}}/{{total}}...",
       "importSuccess": "Imported {{count}} accounts",
       "importPartial": "Imported {{success}} accounts, failed {{fail}}",
-      "importFailed": "Import failed, please check refresh_token"
+      "importFailed": "Import failed, please check refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -730,6 +733,9 @@
       "fpLabel": "Fingerprint:",
       "generateFailed": "Generate failed",
       "importFailed": "Import failed",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "Importing...",
       "loadFailed": "Failed to load fingerprint list",
       "processing": "Processing...",
@@ -766,7 +772,10 @@
       "importingTools": "Importing from Antigravity Tools...",
       "importingLocal": "Importing local account...",
       "importingExtension": "Importing plugin account...",
-      "noAccountsFound": "No importable accounts found"
+      "noAccountsFound": "No importable accounts found",
+      "fromFiles": "Import from Local Files",
+      "fromFilesDesc": "Select JSON files to import accounts (multiple formats supported)",
+      "importingFiles": "Importing {{count}} file(s)..."
     },
     "fingerprint": {
       "title": "Select Fingerprint",
@@ -806,6 +815,9 @@
     "importSuccess": "Successfully imported {{count}} accounts",
     "importLocalSuccess": "Successfully imported account: {{email}}",
     "importFailed": "Import failed: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Export failed: {{error}}",
     "bindFailed": "Bind failed: {{error}}",
     "jsonRequired": "Please enter or paste JSON content",

@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Xác nhận",
     "cancel": "Hủy",
@@ -627,7 +627,10 @@
       "importProgress": "Đang nhập {{current}}/{{total}}...",
       "importSuccess": "Đã nhập {{count}} tài khoản",
       "importPartial": "Đã nhập thành công {{success}} tài khoản, thất bại {{fail}}",
-      "importFailed": "Nhập thất bại, vui lòng kiểm tra refresh_token"
+      "importFailed": "Nhập thất bại, vui lòng kiểm tra refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "Dấu vân tay:",
       "generateFailed": "Tạo thất bại",
       "importFailed": "Nhập thất bại",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "Đang nhập...",
       "loadFailed": "Không thể tải danh sách vân tay",
       "processing": "Đang xử lý...",
@@ -766,7 +772,10 @@
       "importingTools": "Đang nhập từ Antigravity Tools...",
       "importingLocal": "Đang nhập tài khoản cục bộ...",
       "importingExtension": "Đang nhập tài khoản plugin...",
-      "noAccountsFound": "Không tìm thấy tài khoản để nhập"
+      "noAccountsFound": "Không tìm thấy tài khoản để nhập",
+      "fromFiles": "Nhập từ tệp cục bộ",
+      "fromFilesDesc": "Chọn tệp JSON để nhập tài khoản (hỗ trợ nhiều định dạng)",
+      "importingFiles": "Đang nhập {{count}} tệp..."
     },
     "fingerprint": {
       "title": "Chọn vân tay",
@@ -806,6 +815,9 @@
     "importSuccess": "Nhập thành công {{count}} tài khoản",
     "importLocalSuccess": "Nhập thành công tài khoản: {{email}}",
     "importFailed": "Nhập thất bại: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Xuất thất bại: {{error}}",
     "bindFailed": "Liên kết thất bại: {{error}}",
     "jsonRequired": "Vui lòng nhập hoặc dán nội dung JSON",

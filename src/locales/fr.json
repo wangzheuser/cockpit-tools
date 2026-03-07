@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Confirmer",
     "cancel": "Annuler",
@@ -627,7 +627,10 @@
       "importProgress": "Importation {{current}}/{{total}}...",
       "importSuccess": "Importé {{count}} comptes",
       "importPartial": "Importé {{success}} comptes, échec {{fail}}",
-      "importFailed": "Échec de l'import, vérifiez refresh_token"
+      "importFailed": "Échec de l'import, vérifiez refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "Empreinte :",
       "generateFailed": "Échec de la génération",
       "importFailed": "Échec de l'importation",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "Importation en cours...",
       "loadFailed": "Échec du chargement de la liste d'empreintes",
       "processing": "Traitement en cours...",
@@ -766,7 +772,10 @@
       "importingTools": "Importation depuis Antigravity Tools...",
       "importingLocal": "Importation du compte local...",
       "importingExtension": "Importation du compte de l'extension...",
-      "noAccountsFound": "Aucun compte importable trouvé"
+      "noAccountsFound": "Aucun compte importable trouvé",
+      "fromFiles": "Importer depuis des fichiers locaux",
+      "fromFilesDesc": "Sélectionnez des fichiers JSON pour importer des comptes (formats multiples pris en charge)",
+      "importingFiles": "Importation de {{count}} fichier(s)..."
     },
     "fingerprint": {
       "title": "Sélectionner empreinte",
@@ -806,6 +815,9 @@
     "importSuccess": "{{count}} comptes importés avec succès",
     "importLocalSuccess": "Compte importé avec succès : {{email}}",
     "importFailed": "Échec de l'importation : {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Échec de l'exportation : {{error}}",
     "bindFailed": "Échec de la liaison : {{error}}",
     "jsonRequired": "Veuillez entrer ou coller le contenu JSON",

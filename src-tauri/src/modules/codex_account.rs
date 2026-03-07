@@ -604,6 +604,164 @@ pub fn export_accounts(account_ids: &[String]) -> Result<String, String> {
     serde_json::to_string_pretty(&accounts).map_err(|e| format!("序列化失败: {}", e))
 }
 
+#[derive(serde::Serialize, Clone)]
+pub struct CodexFileImportResult {
+    pub imported: Vec<CodexAccount>,
+    pub failed: Vec<CodexFileImportFailure>,
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct CodexFileImportFailure {
+    pub email: String,
+    pub error: String,
+}
+
+/// 从单个 JSON 值中提取 CodexTokens
+fn extract_codex_tokens_from_value(obj: &serde_json::Value) -> Option<(CodexTokens, Option<String>)> {
+    let obj = obj.as_object()?;
+
+    // 格式1: 顶层 access_token + id_token（用户导出格式）
+    if let (Some(id_token), Some(access_token)) = (
+        obj.get("id_token").and_then(|v| v.as_str()),
+        obj.get("access_token").and_then(|v| v.as_str()),
+    ) {
+        let refresh_token = obj.get("refresh_token").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let account_id_hint = obj.get("account_id").and_then(|v| v.as_str()).map(|s| s.to_string());
+        return Some((
+            CodexTokens {
+                id_token: id_token.to_string(),
+                access_token: access_token.to_string(),
+                refresh_token,
+            },
+            account_id_hint,
+        ));
+    }
+
+    // 格式2: 嵌套 tokens 对象（CodexAuthFile 或 CodexAccount 格式）
+    if let Some(tokens_obj) = obj.get("tokens").and_then(|v| v.as_object()) {
+        if let (Some(id_token), Some(access_token)) = (
+            tokens_obj.get("id_token").and_then(|v| v.as_str()),
+            tokens_obj.get("access_token").and_then(|v| v.as_str()),
+        ) {
+            let refresh_token = tokens_obj.get("refresh_token").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let account_id_hint = tokens_obj.get("account_id").and_then(|v| v.as_str())
+                .or_else(|| obj.get("account_id").and_then(|v| v.as_str()))
+                .map(|s| s.to_string());
+            return Some((
+                CodexTokens {
+                    id_token: id_token.to_string(),
+                    access_token: access_token.to_string(),
+                    refresh_token,
+                },
+                account_id_hint,
+            ));
+        }
+    }
+
+    None
+}
+
+/// 从本地文件导入 Codex 账号（支持多种 JSON 格式）
+pub fn import_from_files(file_paths: Vec<String>) -> Result<CodexFileImportResult, String> {
+    use std::path::Path;
+
+    if file_paths.is_empty() {
+        return Err("未选择任何文件".to_string());
+    }
+
+    logger::log_info(&format!("Codex: 开始从 {} 个文件导入账号...", file_paths.len()));
+
+    // 收集所有候选: (CodexTokens, account_id_hint, label)
+    let mut candidates: Vec<(CodexTokens, Option<String>, String)> = Vec::new();
+
+    for file_path in &file_paths {
+        let path = Path::new(file_path);
+        let content = match fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                logger::log_error(&format!("读取文件失败 {:?}: {}", file_path, e));
+                continue;
+            }
+        };
+
+        // 从文件名推断 email 作为 label
+        let filename_label = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        let parsed: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(v) => v,
+            Err(e) => {
+                logger::log_error(&format!("解析 JSON 失败 {:?}: {}", file_path, e));
+                continue;
+            }
+        };
+
+        match &parsed {
+            serde_json::Value::Object(_) => {
+                if let Some((tokens, hint)) = extract_codex_tokens_from_value(&parsed) {
+                    candidates.push((tokens, hint, filename_label));
+                } else {
+                    logger::log_error(&format!("未找到有效 Token {:?}", file_path));
+                }
+            }
+            serde_json::Value::Array(arr) => {
+                for item in arr {
+                    if let Some((tokens, hint)) = extract_codex_tokens_from_value(item) {
+                        let label = item.get("email")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(&filename_label)
+                            .to_string();
+                        candidates.push((tokens, hint, label));
+                    }
+                }
+            }
+            _ => {
+                logger::log_error(&format!("不支持的 JSON 格式 {:?}", file_path));
+            }
+        }
+    }
+
+    if candidates.is_empty() {
+        return Err("未找到有效的 Codex Token（需要 id_token 和 access_token）".to_string());
+    }
+
+    logger::log_info(&format!("Codex: 发现 {} 个候选账号，开始导入...", candidates.len()));
+
+    let mut imported = Vec::new();
+    let mut failed: Vec<CodexFileImportFailure> = Vec::new();
+    let total = candidates.len();
+
+    for (index, (tokens, account_id_hint, label)) in candidates.into_iter().enumerate() {
+        // 发送进度事件
+        if let Some(app_handle) = crate::get_app_handle() {
+            use tauri::Emitter;
+            let _ = app_handle.emit("codex:file-import-progress", serde_json::json!({
+                "current": index + 1,
+                "total": total,
+                "email": &label,
+            }));
+        }
+
+        match upsert_account_with_hints(tokens, account_id_hint, None) {
+            Ok(account) => {
+                logger::log_info(&format!("Codex 导入成功: {}", account.email));
+                imported.push(account);
+            }
+            Err(e) => {
+                logger::log_error(&format!("Codex 导入失败 {}: {}", label, e));
+                failed.push(CodexFileImportFailure { email: label, error: e });
+            }
+        }
+    }
+
+    logger::log_info(&format!("Codex 文件导入完成，成功 {} 个，失败 {} 个", imported.len(), failed.len()));
+
+    Ok(CodexFileImportResult { imported, failed })
+}
+
 pub fn update_account_tags(account_id: &str, tags: Vec<String>) -> Result<CodexAccount, String> {
     let mut account =
         load_account(account_id).ok_or_else(|| format!("账号不存在: {}", account_id))?;

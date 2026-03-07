@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Potvrdit",
     "cancel": "Zrušit",
@@ -627,7 +627,10 @@
       "importProgress": "Importuji {{current}}/{{total}}...",
       "importSuccess": "Importováno {{count}} účtů",
       "importPartial": "Importováno {{success}} účtů, {{fail}} neúspěšných",
-      "importFailed": "Import selhal, zkontrolujte refresh_token"
+      "importFailed": "Import selhal, zkontrolujte refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "Otisk:",
       "generateFailed": "Vytvoření se nezdařilo",
       "importFailed": "Import se nezdařil",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "Probíhá import...",
       "loadFailed": "Nepodařilo se načíst seznam otisků",
       "processing": "Zpracování...",
@@ -766,7 +772,10 @@
       "importingTools": "Importuji z Antigravity Tools...",
       "importingLocal": "Importuji lokální účet...",
       "importingExtension": "Importuji účet pluginu...",
-      "noAccountsFound": "Nenalezeny žádné účty k importu"
+      "noAccountsFound": "Nenalezeny žádné účty k importu",
+      "fromFiles": "Import z lokálních souborů",
+      "fromFilesDesc": "Vyberte soubory JSON pro import účtů (podporováno více formátů)",
+      "importingFiles": "Importuje se {{count}} soubor(ů)..."
     },
     "fingerprint": {
       "title": "Vybrat otisk",
@@ -806,6 +815,9 @@
     "importSuccess": "Úspěšně importováno {{count}} účtů",
     "importLocalSuccess": "Úspěšně importován účet: {{email}}",
     "importFailed": "Import selhal: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Export selhal: {{error}}",
     "bindFailed": "Vázání selhalo: {{error}}",
     "jsonRequired": "Zadejte nebo vložte obsah JSON",

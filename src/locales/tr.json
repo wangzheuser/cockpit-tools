@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Onayla",
     "cancel": "İptal",
@@ -627,7 +627,10 @@
       "importProgress": "{{current}}/{{total}} içe aktarılıyor...",
       "importSuccess": "{{count}} hesap içe aktarıldı",
       "importPartial": "{{success}} hesap başarıyla içe aktarıldı, {{fail}} hata",
-      "importFailed": "İçe aktarma başarısız, lütfen refresh_token'ı kontrol edin"
+      "importFailed": "İçe aktarma başarısız, lütfen refresh_token'ı kontrol edin",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "Parmak izi:",
       "generateFailed": "Oluşturma başarısız",
       "importFailed": "İçe aktarma başarısız",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "İçe aktarılıyor...",
       "loadFailed": "Parmak izi listesi yüklenemedi",
       "processing": "İşleniyor...",
@@ -766,7 +772,10 @@
       "importingTools": "Antigravity Tools'tan içe aktarılıyor...",
       "importingLocal": "Yerel hesap içe aktarılıyor...",
       "importingExtension": "Eklenti hesabı içe aktarılıyor...",
-      "noAccountsFound": "İçe aktarılabilir hesap bulunamadı"
+      "noAccountsFound": "İçe aktarılabilir hesap bulunamadı",
+      "fromFiles": "Yerel dosyalardan içe aktar",
+      "fromFilesDesc": "Hesapları içe aktarmak için JSON dosyalarını seçin (birden fazla format desteklenir)",
+      "importingFiles": "{{count}} dosya içe aktarılıyor..."
     },
     "fingerprint": {
       "title": "Parmak İzini Seç",
@@ -806,6 +815,9 @@
     "importSuccess": "{{count}} hesap başarıyla içe aktarıldı",
     "importLocalSuccess": "Hesap başarıyla içe aktarıldı: {{email}}",
     "importFailed": "İçe aktarma hatası: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Dışa aktarma hatası: {{error}}",
     "bindFailed": "Bağlama hatası: {{error}}",
     "jsonRequired": "Lütfen JSON içeriğini girin veya yapıştırın",

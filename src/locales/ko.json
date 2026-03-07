@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "확인",
     "cancel": "취소",
@@ -627,7 +627,10 @@
       "importProgress": "{{current}}/{{total}} 가져오는 중...",
       "importSuccess": "{{count}}개 계정 가져옴",
       "importPartial": "{{success}}개 성공, {{fail}}개 실패",
-      "importFailed": "가져오기 실패, refresh_token을 확인하세요"
+      "importFailed": "가져오기 실패, refresh_token을 확인하세요",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "지문:",
       "generateFailed": "생성 실패",
       "importFailed": "가져오기 실패",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "가져오는 중...",
       "loadFailed": "지문 목록 불러오기 실패",
       "processing": "처리 중...",
@@ -766,7 +772,10 @@
       "importingTools": "Antigravity Tools에서 가져오는 중...",
       "importingLocal": "로컬 계정 가져오는 중...",
       "importingExtension": "플러그인 계정 가져오는 중...",
-      "noAccountsFound": "가져올 계정이 없습니다"
+      "noAccountsFound": "가져올 계정이 없습니다",
+      "fromFiles": "로컬 파일에서 가져오기",
+      "fromFilesDesc": "JSON 파일을 선택하여 계정 가져오기 (다양한 형식 지원)",
+      "importingFiles": "{{count}}개 파일 가져오는 중..."
     },
     "fingerprint": {
       "title": "지문 선택",
@@ -806,6 +815,9 @@
     "importSuccess": "{{count}}개 계정을 성공적으로 가져왔습니다",
     "importLocalSuccess": "계정을 가져왔습니다: {{email}}",
     "importFailed": "가져오기 실패: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "내보내기 실패: {{error}}",
     "bindFailed": "연결 실패: {{error}}",
     "jsonRequired": "JSON 내용을 입력하거나 붙여넣으십시오",

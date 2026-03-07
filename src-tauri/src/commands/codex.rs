@@ -129,6 +129,12 @@ pub fn export_codex_accounts(account_ids: Vec<String>) -> Result<String, String>
     codex_account::export_accounts(&account_ids)
 }
 
+/// 从本地文件导入 Codex 账号
+#[tauri::command]
+pub fn import_codex_from_files(file_paths: Vec<String>) -> Result<codex_account::CodexFileImportResult, String> {
+    codex_account::import_from_files(file_paths)
+}
+
 /// 刷新单个账号配额
 #[tauri::command]
 pub async fn refresh_codex_quota(app: AppHandle, account_id: String) -> Result<CodexQuota, String> {

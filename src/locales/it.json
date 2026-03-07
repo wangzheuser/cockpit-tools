@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Conferma",
     "cancel": "Annulla",
@@ -627,7 +627,10 @@
       "importProgress": "Importazione {{current}}/{{total}}...",
       "importSuccess": "Importati {{count}} account",
       "importPartial": "Importati {{success}} account, falliti {{fail}}",
-      "importFailed": "Importazione non riuscita, controlla refresh_token"
+      "importFailed": "Importazione non riuscita, controlla refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "Impronta:",
       "generateFailed": "Generazione non riuscita",
       "importFailed": "Importazione non riuscita",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "Importazione in corso...",
       "loadFailed": "Impossibile caricare l'elenco delle impronte",
       "processing": "Elaborazione in corso...",
@@ -766,7 +772,10 @@
       "importingTools": "Importazione da Antigravity Tools...",
       "importingLocal": "Importazione account locale...",
       "importingExtension": "Importazione account plugin...",
-      "noAccountsFound": "Nessun account importabile trovato"
+      "noAccountsFound": "Nessun account importabile trovato",
+      "fromFiles": "Importa da file locali",
+      "fromFilesDesc": "Seleziona file JSON per importare account (formati multipli supportati)",
+      "importingFiles": "Importazione di {{count}} file..."
     },
     "fingerprint": {
       "title": "Seleziona Impronta",
@@ -806,6 +815,9 @@
     "importSuccess": "{{count}} account importati con successo",
     "importLocalSuccess": "Account importato con successo: {{email}}",
     "importFailed": "Importazione fallita: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Esportazione fallita: {{error}}",
     "bindFailed": "Collegamento fallito: {{error}}",
     "jsonRequired": "Inserisci o incolla il contenuto JSON",

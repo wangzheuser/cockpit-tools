@@ -31,7 +31,8 @@ import {
   Eye,
   EyeOff,
   Tag,
-  BookOpen
+  BookOpen,
+  FileUp
 } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
 import { useAccountStore } from '../stores/useAccountStore'
@@ -45,6 +46,7 @@ import {
   getSubscriptionTier,
 } from '../utils/account'
 import { listen, UnlistenFn } from '@tauri-apps/api/event'
+import { open as openFileDialog } from '@tauri-apps/plugin-dialog'
 import { GroupSettingsModal } from '../components/GroupSettingsModal'
 import { TagEditModal } from '../components/TagEditModal'
 import { ExportJsonModal } from '../components/ExportJsonModal'
@@ -368,7 +370,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const availableTags = useMemo(() => {
     const set = new Set<string>()
     accounts.forEach((account) => {
-      ;(account.tags || []).forEach((tag) => {
+      ; (account.tags || []).forEach((tag) => {
         const normalized = normalizeTag(tag)
         if (normalized) set.add(normalized)
       })
@@ -741,7 +743,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   useEffect(() => {
     if (showAddModal && addTab === 'oauth') return
     if (!oauthUrl) return
-    accountService.cancelOAuthLogin().catch(() => {})
+    accountService.cancelOAuthLogin().catch(() => { })
     setOauthUrl('')
     setOauthUrlCopied(false)
   }, [showAddModal, addTab, oauthUrl])
@@ -837,7 +839,7 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
   const closeAddModal = () => {
     // 允许用户随时关闭弹窗，取消正在进行的 OAuth 流程
     if (addStatus === 'loading') {
-      accountService.cancelOAuthLogin().catch(() => {})
+      accountService.cancelOAuthLogin().catch(() => { })
     }
     setShowAddModal(false)
     resetAddModalState()
@@ -954,6 +956,64 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
       setAddMessage(t('messages.importFailed', { error: String(e) }))
     }
     setImporting(false)
+  }
+
+  const handleImportFromFiles = async () => {
+    let unlistenProgress: UnlistenFn | undefined
+    try {
+      const selected = await openFileDialog({
+        multiple: true,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+      })
+      if (!selected || (Array.isArray(selected) && selected.length === 0)) return
+      const paths = Array.isArray(selected) ? selected : [selected]
+      setImporting(true)
+      setAddStatus('loading')
+      setAddMessage(t('modals.import.importingFiles', { count: paths.length }))
+
+      unlistenProgress = await listen<{ current: number; total: number; email: string }>(
+        'accounts:file-import-progress',
+        (event) => {
+          const { current, total, email } = event.payload ?? {}
+          if (current > 0 && total > 0) {
+            const label = email ? ` ${email}` : ''
+            setAddMessage(`${t('modals.import.importingFiles', { count: total })} ${current}/${total}${label}`)
+          }
+        }
+      )
+
+      const result = await accountService.importFromFiles(paths)
+      const { imported, failed } = result
+      await fetchAccounts()
+      await Promise.allSettled(imported.map((acc) => refreshQuota(acc.id)))
+      await fetchAccounts()
+      if (imported.length === 0 && failed.length === 0) {
+        setAddStatus('error')
+        setAddMessage(t('modals.import.noAccountsFound'))
+      } else if (failed.length > 0) {
+        // 有失败的，显示失败列表，不自动关闭弹窗
+        const failedList = failed.map((f) => f.email).join(', ')
+        setAddStatus(imported.length > 0 ? 'success' : 'error')
+        setAddMessage(
+          `${t('messages.importSuccess', { count: imported.length })}，${t('messages.importPartialFailed', { failCount: failed.length, failList: failedList })}`
+        )
+      } else {
+        setAddStatus('success')
+        setAddMessage(t('messages.importSuccess', { count: imported.length }))
+        setTimeout(() => {
+          setShowAddModal(false)
+          resetAddModalState()
+        }, 1200)
+      }
+    } catch (e) {
+      setAddStatus('error')
+      setAddMessage(t('messages.importFailed', { error: String(e) }))
+    } finally {
+      if (unlistenProgress) {
+        unlistenProgress()
+      }
+      setImporting(false)
+    }
   }
 
   const handleImportFromExtension = async () => {
@@ -1590,56 +1650,56 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
 
     const renderCompactCards = (items: Account[]) =>
       items.map((account) => {
-          const isCurrent = currentAccount?.id === account.id
-          const tierBadge = getAntigravityTierBadge(account.quota)
-          const quotas = getAccountQuotas(account)
-          const overallQuota = calculateOverallQuota(quotas)
-          const isSelected = selected.has(account.id)
-          const isDisabled = account.disabled
-          const isForbidden = Boolean(account.quota?.is_forbidden)
-          const warning = refreshWarnings[account.email]
-          const warningLabel =
-            warning?.kind === 'auth'
-              ? t('accounts.status.authInvalid')
-              : t('accounts.status.refreshFailed')
-          const warningTitle = warning?.message || ''
-          const forbiddenTitle = t('accounts.status.forbidden_tooltip')
-          const disabledTitle = isDisabled
-            ? `${t('accounts.status.disabled')}${account.disabled_reason ? `: ${account.disabled_reason}` : ''}`
-            : ''
-          const statusHints = []
-          if (warning) statusHints.push(warningTitle || warningLabel)
-          if (isDisabled) statusHints.push(disabledTitle || t('accounts.status.disabled'))
-          if (isForbidden) statusHints.push(forbiddenTitle)
-          const statusTitle = statusHints.join(' / ')
+        const isCurrent = currentAccount?.id === account.id
+        const tierBadge = getAntigravityTierBadge(account.quota)
+        const quotas = getAccountQuotas(account)
+        const overallQuota = calculateOverallQuota(quotas)
+        const isSelected = selected.has(account.id)
+        const isDisabled = account.disabled
+        const isForbidden = Boolean(account.quota?.is_forbidden)
+        const warning = refreshWarnings[account.email]
+        const warningLabel =
+          warning?.kind === 'auth'
+            ? t('accounts.status.authInvalid')
+            : t('accounts.status.refreshFailed')
+        const warningTitle = warning?.message || ''
+        const forbiddenTitle = t('accounts.status.forbidden_tooltip')
+        const disabledTitle = isDisabled
+          ? `${t('accounts.status.disabled')}${account.disabled_reason ? `: ${account.disabled_reason}` : ''}`
+          : ''
+        const statusHints = []
+        if (warning) statusHints.push(warningTitle || warningLabel)
+        if (isDisabled) statusHints.push(disabledTitle || t('accounts.status.disabled'))
+        if (isForbidden) statusHints.push(forbiddenTitle)
+        const statusTitle = statusHints.join(' / ')
 
-          // 获取可见分组的配额（按排序后的顺序，排除隐藏的和无配额数据的）
-          const groupQuotas = visibleGroups
-            .map((group) => {
-              const colorIdx = getGroupColorIndex(
-                group.id,
-                orderedGroups.findIndex((g) => g.id === group.id) % 8
-              )
-              const percentage = calculateGroupQuota(
-                group.id,
-                quotas,
-                groupSettings
-              )
-              return {
-                id: group.id,
-                name: group.name,
-                percentage,
-                color: colorOptions[colorIdx]?.color || colorOptions[0].color
-              }
-            })
-            .filter((gq) => gq.percentage !== null) as Array<{
+        // 获取可见分组的配额（按排序后的顺序，排除隐藏的和无配额数据的）
+        const groupQuotas = visibleGroups
+          .map((group) => {
+            const colorIdx = getGroupColorIndex(
+              group.id,
+              orderedGroups.findIndex((g) => g.id === group.id) % 8
+            )
+            const percentage = calculateGroupQuota(
+              group.id,
+              quotas,
+              groupSettings
+            )
+            return {
+              id: group.id,
+              name: group.name,
+              percentage,
+              color: colorOptions[colorIdx]?.color || colorOptions[0].color
+            }
+          })
+          .filter((gq) => gq.percentage !== null) as Array<{
             id: string
             name: string
             percentage: number
             color: string
           }>
 
-          const isSwitching = switching === account.id
+        const isSwitching = switching === account.id
 
         return (
           <div
@@ -1723,127 +1783,127 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
     return (
       <>
         <div className={styles.container}>
-        {/* 图例 - 支持拖拽排序、颜色选择、显示/隐藏 */}
-        {orderedGroups.length > 0 && (
-          <div
-            className={styles.legend}
-            onMouseUp={handleDragEnd}
-            onMouseLeave={handleDragEnd}
-          >
-            {orderedGroups.map((group, index) => {
-              const colorIdx = getGroupColorIndex(group.id, index % 8)
-              const isHidden = hiddenGroups.has(group.id)
-              const isPickerOpen = showColorPicker === group.id
+          {/* 图例 - 支持拖拽排序、颜色选择、显示/隐藏 */}
+          {orderedGroups.length > 0 && (
+            <div
+              className={styles.legend}
+              onMouseUp={handleDragEnd}
+              onMouseLeave={handleDragEnd}
+            >
+              {orderedGroups.map((group, index) => {
+                const colorIdx = getGroupColorIndex(group.id, index % 8)
+                const isHidden = hiddenGroups.has(group.id)
+                const isPickerOpen = showColorPicker === group.id
 
-              return (
-                <span
-                  key={group.id}
-                  className={`${styles.legendItem} ${draggedGroupId === group.id ? styles.legendItemDragging : ''} ${draggedGroupId && draggedGroupId !== group.id ? styles.legendItemDropTarget : ''} ${isHidden ? styles.legendItemHidden : ''}`}
-                  onMouseEnter={() => handleDragMove(group.id)}
-                >
-                  {/* 拖拽手柄 - 只有这里触发拖拽 */}
-                  <GripVertical
-                    size={12}
-                    className={styles.gripIcon}
-                    onMouseDown={(e) => handleDragStart(e, group.id)}
-                  />
-
-                  {/* 颜色点 - 点击打开颜色选择器 */}
+                return (
                   <span
-                    className={styles.legendDotWrapper}
-                    onClick={(e) => openColorPicker(e, group.id, isPickerOpen)}
+                    key={group.id}
+                    className={`${styles.legendItem} ${draggedGroupId === group.id ? styles.legendItemDragging : ''} ${draggedGroupId && draggedGroupId !== group.id ? styles.legendItemDropTarget : ''} ${isHidden ? styles.legendItemHidden : ''}`}
+                    onMouseEnter={() => handleDragMove(group.id)}
                   >
-                    <span
-                      className={styles.legendDot}
-                      style={{
-                        background:
-                          colorOptions[colorIdx]?.color || colorOptions[0].color
-                      }}
+                    {/* 拖拽手柄 - 只有这里触发拖拽 */}
+                    <GripVertical
+                      size={12}
+                      className={styles.gripIcon}
+                      onMouseDown={(e) => handleDragStart(e, group.id)}
                     />
-                  </span>
 
-                  <span className={styles.legendName}>{group.name}</span>
+                    {/* 颜色点 - 点击打开颜色选择器 */}
+                    <span
+                      className={styles.legendDotWrapper}
+                      onClick={(e) => openColorPicker(e, group.id, isPickerOpen)}
+                    >
+                      <span
+                        className={styles.legendDot}
+                        style={{
+                          background:
+                            colorOptions[colorIdx]?.color || colorOptions[0].color
+                        }}
+                      />
+                    </span>
 
-                  {/* 显示/隐藏切换 */}
-                  <button
-                    className={styles.visibilityBtn}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggleGroupVisibility(group.id)
-                    }}
-                    title={
-                      isHidden
-                        ? t('accounts.compact.show', '显示')
-                        : t('accounts.compact.hide', '隐藏')
-                    }
-                  >
-                    {isHidden ? <EyeOff size={12} /> : <Eye size={12} />}
-                  </button>
-                </span>
-              )
-            })}
-          </div>
-        )}
+                    <span className={styles.legendName}>{group.name}</span>
 
-        {/* 账号列表 */}
-        {groupByTag ? (
-          <div className="tag-group-list">
-            {groupedAccounts.map(([groupKey, groupAccounts]) => (
-              <div key={groupKey} className="tag-group-section">
-                <div className="tag-group-header">
-                  <span className="tag-group-title">
-                    {resolveGroupLabel(groupKey)}
+                    {/* 显示/隐藏切换 */}
+                    <button
+                      className={styles.visibilityBtn}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleGroupVisibility(group.id)
+                      }}
+                      title={
+                        isHidden
+                          ? t('accounts.compact.show', '显示')
+                          : t('accounts.compact.hide', '隐藏')
+                      }
+                    >
+                      {isHidden ? <EyeOff size={12} /> : <Eye size={12} />}
+                    </button>
                   </span>
-                  <span className="tag-group-count">
-                    {groupAccounts.length}
-                  </span>
+                )
+              })}
+            </div>
+          )}
+
+          {/* 账号列表 */}
+          {groupByTag ? (
+            <div className="tag-group-list">
+              {groupedAccounts.map(([groupKey, groupAccounts]) => (
+                <div key={groupKey} className="tag-group-section">
+                  <div className="tag-group-header">
+                    <span className="tag-group-title">
+                      {resolveGroupLabel(groupKey)}
+                    </span>
+                    <span className="tag-group-count">
+                      {groupAccounts.length}
+                    </span>
+                  </div>
+                  <div className={`tag-group-grid ${styles.grid}`}>
+                    {renderCompactCards(groupAccounts)}
+                  </div>
                 </div>
-                <div className={`tag-group-grid ${styles.grid}`}>
-                  {renderCompactCards(groupAccounts)}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className={styles.grid}>{renderCompactCards(filteredAccounts)}</div>
-        )}
-      </div>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.grid}>{renderCompactCards(filteredAccounts)}</div>
+          )}
+        </div>
 
-      {/* Color Picker Portal - rendered to body */}
-      {showColorPicker &&
-        colorPickerPos &&
-        createPortal(
-          <div
-            ref={colorPickerRef}
-            className={styles.colorPickerPortal}
-            style={{
-              position: 'fixed',
-              top: colorPickerPos.top,
-              left: colorPickerPos.left,
-              transform: 'translateX(-50%)',
-              zIndex: 9999
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {colorOptions.map((opt) => {
-              const groupId = showColorPicker
-              const currentColorIdx = getGroupColorIndex(
-                groupId,
-                orderedGroups.findIndex((g) => g.id === groupId) % 8
-              )
-              return (
-                <span
-                  key={opt.index}
-                  className={`${styles.colorOption} ${currentColorIdx === opt.index ? styles.colorOptionActive : ''}`}
-                  style={{ background: opt.color }}
-                  onClick={() => setGroupColor(groupId, opt.index)}
-                  title={opt.name}
-                />
-              )
-            })}
-          </div>,
-          document.body
-        )}
+        {/* Color Picker Portal - rendered to body */}
+        {showColorPicker &&
+          colorPickerPos &&
+          createPortal(
+            <div
+              ref={colorPickerRef}
+              className={styles.colorPickerPortal}
+              style={{
+                position: 'fixed',
+                top: colorPickerPos.top,
+                left: colorPickerPos.left,
+                transform: 'translateX(-50%)',
+                zIndex: 9999
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {colorOptions.map((opt) => {
+                const groupId = showColorPicker
+                const currentColorIdx = getGroupColorIndex(
+                  groupId,
+                  orderedGroups.findIndex((g) => g.id === groupId) % 8
+                )
+                return (
+                  <span
+                    key={opt.index}
+                    className={`${styles.colorOption} ${currentColorIdx === opt.index ? styles.colorOptionActive : ''}`}
+                    style={{ background: opt.color }}
+                    onClick={() => setGroupColor(groupId, opt.index)}
+                    title={opt.name}
+                  />
+                )
+              })}
+            </div>,
+            document.body
+          )}
       </>
     )
   }
@@ -2069,20 +2129,20 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
         <tbody>
           {groupByTag
             ? groupedAccounts.map(([groupKey, groupAccounts]) => (
-                <Fragment key={groupKey}>
-                  <tr className="tag-group-row">
-                    <td colSpan={5}>
-                      <div className="tag-group-header">
-                        <span className="tag-group-title">
-                          {resolveGroupLabel(groupKey)}
-                        </span>
-                        <span className="tag-group-count">{groupAccounts.length}</span>
-                      </div>
-                    </td>
-                  </tr>
-                  {renderListRows(groupAccounts, groupKey)}
-                </Fragment>
-              ))
+              <Fragment key={groupKey}>
+                <tr className="tag-group-row">
+                  <td colSpan={5}>
+                    <div className="tag-group-header">
+                      <span className="tag-group-title">
+                        {resolveGroupLabel(groupKey)}
+                      </span>
+                      <span className="tag-group-count">{groupAccounts.length}</span>
+                    </div>
+                  </td>
+                </tr>
+                {renderListRows(groupAccounts, groupKey)}
+              </Fragment>
+            ))
             : renderListRows(filteredAccounts)}
         </tbody>
       </table>
@@ -2600,6 +2660,24 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                         </div>
                       </div>
                     </button>
+
+                    <button
+                      className="import-option"
+                      onClick={handleImportFromFiles}
+                      disabled={importing || addStatus === 'loading'}
+                    >
+                      <div className="import-option-icon">
+                        <FileUp size={20} />
+                      </div>
+                      <div className="import-option-content">
+                        <div className="import-option-title">
+                          {t('modals.import.fromFiles')}
+                        </div>
+                        <div className="import-option-desc">
+                          {t('modals.import.fromFilesDesc')}
+                        </div>
+                      </div>
+                    </button>
                   </div>
                 </div>
               )}
@@ -2859,34 +2937,34 @@ export function AccountsPage({ onNavigate }: AccountsPageProps) {
                       )
                     }
                     return (
-                    <div className="quota-list">
-                      {quotaDisplayItems.map((item) => (
-                        <div key={item.key} className="quota-card">
-                          <h4>{item.label}</h4>
-                          <div className="quota-value-row">
-                            <span
-                              className={`quota-value ${getQuotaClass(item.percentage)}`}
-                            >
-                              {item.percentage}%
-                            </span>
+                      <div className="quota-list">
+                        {quotaDisplayItems.map((item) => (
+                          <div key={item.key} className="quota-card">
+                            <h4>{item.label}</h4>
+                            <div className="quota-value-row">
+                              <span
+                                className={`quota-value ${getQuotaClass(item.percentage)}`}
+                              >
+                                {item.percentage}%
+                              </span>
+                            </div>
+                            <div className="quota-bar">
+                              <div
+                                className={`quota-fill ${getQuotaClass(item.percentage)}`}
+                                style={{
+                                  width: `${Math.min(100, item.percentage)}%`
+                                }}
+                              ></div>
+                            </div>
+                            <div className="quota-reset-info">
+                              <p>
+                                <strong>{t('modals.quota.resetTime')}:</strong>{' '}
+                                {formatResetTimeDisplay(item.resetTime, t)}
+                              </p>
+                            </div>
                           </div>
-                          <div className="quota-bar">
-                            <div
-                              className={`quota-fill ${getQuotaClass(item.percentage)}`}
-                              style={{
-                                width: `${Math.min(100, item.percentage)}%`
-                              }}
-                            ></div>
-                          </div>
-                          <div className="quota-reset-info">
-                            <p>
-                              <strong>{t('modals.quota.resetTime')}:</strong>{' '}
-                              {formatResetTimeDisplay(item.resetTime, t)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
                     )
                   })()}
 

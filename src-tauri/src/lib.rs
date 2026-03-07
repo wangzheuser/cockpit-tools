@@ -215,6 +215,7 @@ pub fn run() {
             commands::import::import_fingerprints_from_json,
             commands::import::import_from_local,
             commands::import::import_from_json,
+            commands::import::import_from_files,
             commands::import::export_accounts,
             // System Commands
             commands::system::open_data_folder,
@@ -274,6 +275,7 @@ pub fn run() {
             commands::codex::import_codex_from_local,
             commands::codex::import_codex_from_json,
             commands::codex::export_codex_accounts,
+            commands::codex::import_codex_from_files,
             commands::codex::refresh_codex_quota,
             commands::codex::refresh_all_codex_quotas,
             commands::codex::refresh_current_codex_quota,

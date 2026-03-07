@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Confirmar",
     "cancel": "Cancelar",
@@ -627,7 +627,10 @@
       "importProgress": "Importando {{current}}/{{total}}...",
       "importSuccess": "Importadas {{count}} contas",
       "importPartial": "Importadas {{success}} contas, falharam {{fail}}",
-      "importFailed": "Falha na importação, verifique refresh_token"
+      "importFailed": "Falha na importação, verifique refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "Impressão digital:",
       "generateFailed": "Falha ao gerar",
       "importFailed": "Falha ao importar",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "Importando...",
       "loadFailed": "Falha ao carregar a lista de impressões digitais",
       "processing": "Processando...",
@@ -766,7 +772,10 @@
       "importingTools": "Importando do Antigravity Tools...",
       "importingLocal": "Importando conta local...",
       "importingExtension": "Importando conta do plugin...",
-      "noAccountsFound": "Nenhuma conta importável encontrada"
+      "noAccountsFound": "Nenhuma conta importável encontrada",
+      "fromFiles": "Importar de arquivos locais",
+      "fromFilesDesc": "Selecione arquivos JSON para importar contas (múltiplos formatos suportados)",
+      "importingFiles": "Importando {{count}} arquivo(s)..."
     },
     "fingerprint": {
       "title": "Selecionar Impressão",
@@ -806,6 +815,9 @@
     "importSuccess": "Importadas com sucesso {{count}} contas",
     "importLocalSuccess": "Conta importada com sucesso: {{email}}",
     "importFailed": "Falha na importação: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Falha na exportação: {{error}}",
     "bindFailed": "Falha na vinculação: {{error}}",
     "jsonRequired": "Por favor, digite ou cole o conteúdo JSON",

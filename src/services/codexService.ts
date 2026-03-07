@@ -46,6 +46,16 @@ export async function exportCodexAccounts(accountIds: string[]): Promise<string>
   return await invoke('export_codex_accounts', { accountIds });
 }
 
+export interface CodexFileImportResult {
+  imported: CodexAccount[];
+  failed: { email: string; error: string }[];
+}
+
+/** 从本地文件导入 Codex 账号 */
+export async function importCodexFromFiles(filePaths: string[]): Promise<CodexFileImportResult> {
+  return await invoke('import_codex_from_files', { filePaths });
+}
+
 /** 刷新单个账号配额 */
 export async function refreshCodexQuota(accountId: string): Promise<CodexQuota> {
   return await invoke('refresh_codex_quota', { accountId });

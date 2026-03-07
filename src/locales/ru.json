@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Подтвердить",
     "cancel": "Отмена",
@@ -627,7 +627,10 @@
       "importProgress": "Импорт {{current}}/{{total}}...",
       "importSuccess": "Импортировано аккаунтов: {{count}}",
       "importPartial": "Импортировано {{success}}, ошибка {{fail}}",
-      "importFailed": "Импорт не удался, проверьте refresh_token"
+      "importFailed": "Импорт не удался, проверьте refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "Отпечаток:",
       "generateFailed": "Не удалось создать",
       "importFailed": "Не удалось импортировать",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "Импорт...",
       "loadFailed": "Не удалось загрузить список отпечатков",
       "processing": "Обработка...",
@@ -766,7 +772,10 @@
       "importingTools": "Импорт из Antigravity Tools...",
       "importingLocal": "Импорт локального аккаунта...",
       "importingExtension": "Импорт аккаунта из плагина...",
-      "noAccountsFound": "Аккаунты для импорта не найдены"
+      "noAccountsFound": "Аккаунты для импорта не найдены",
+      "fromFiles": "Импорт из локальных файлов",
+      "fromFilesDesc": "Выберите JSON-файлы для импорта аккаунтов (поддерживаются различные форматы)",
+      "importingFiles": "Импорт {{count}} файл(ов)..."
     },
     "fingerprint": {
       "title": "Выбрать отпечаток",
@@ -806,6 +815,9 @@
     "importSuccess": "Успешно импортировано {{count}} аккаунтов",
     "importLocalSuccess": "Аккаунт успешно импортирован: {{email}}",
     "importFailed": "Ошибка импорта: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Ошибка экспорта: {{error}}",
     "bindFailed": "Ошибка привязки: {{error}}",
     "jsonRequired": "Пожалуйста, введите или вставьте JSON-содержимое",

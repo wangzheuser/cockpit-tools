@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "確認",
     "cancel": "取消",
@@ -627,7 +627,10 @@
       "importProgress": "匯入中 {{current}}/{{total}}...",
       "importSuccess": "匯入成功 {{count}} 個帳號",
       "importPartial": "匯入成功 {{success}} 個，失敗 {{fail}} 個",
-      "importFailed": "匯入失敗，請檢查 refresh_token"
+      "importFailed": "匯入失敗，請檢查 refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "指紋：",
       "generateFailed": "產生失敗",
       "importFailed": "匯入失敗",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "匯入中...",
       "loadFailed": "載入指紋列表失敗",
       "processing": "處理中...",
@@ -766,7 +772,10 @@
       "importingTools": "正從 Antigravity Tools 匯入...",
       "importingLocal": "正在匯入本地帳號...",
       "importingExtension": "正在匯入插件帳號...",
-      "noAccountsFound": "未找到可匯入的帳號"
+      "noAccountsFound": "未找到可匯入的帳號",
+      "fromFiles": "從本地檔案匯入",
+      "fromFilesDesc": "選擇 JSON 檔案匯入帳號（支援多種格式）",
+      "importingFiles": "正在匯入 {{count}} 個檔案..."
     },
     "fingerprint": {
       "title": "選擇指紋",
@@ -806,6 +815,9 @@
     "importSuccess": "成功匯入 {{count}} 個帳號",
     "importLocalSuccess": "成功匯入帳號: {{email}}",
     "importFailed": "匯入失敗: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "匯出失敗: {{error}}",
     "bindFailed": "綁定失敗: {{error}}",
     "jsonRequired": "請輸入或貼上 JSON 内容",

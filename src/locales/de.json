@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Bestätigen",
     "cancel": "Abbrechen",
@@ -627,7 +627,10 @@
       "importProgress": "Importiere {{current}}/{{total}}...",
       "importSuccess": "{{count}} Konten importiert",
       "importPartial": "{{success}} Konten importiert, {{fail}} fehlgeschlagen",
-      "importFailed": "Import fehlgeschlagen, refresh_token prüfen"
+      "importFailed": "Import fehlgeschlagen, refresh_token prüfen",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "Fingerabdruck:",
       "generateFailed": "Erstellung fehlgeschlagen",
       "importFailed": "Import fehlgeschlagen",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "Importieren...",
       "loadFailed": "Fingerabdruckliste konnte nicht geladen werden",
       "processing": "Wird verarbeitet...",
@@ -766,7 +772,10 @@
       "importingTools": "Importiere von Antigravity Tools...",
       "importingLocal": "Lokales Konto wird importiert...",
       "importingExtension": "Plugin-Konto wird importiert...",
-      "noAccountsFound": "Keine importierbaren Konten gefunden"
+      "noAccountsFound": "Keine importierbaren Konten gefunden",
+      "fromFiles": "Aus lokalen Dateien importieren",
+      "fromFilesDesc": "JSON-Dateien zum Importieren von Konten auswählen (mehrere Formate unterstützt)",
+      "importingFiles": "{{count}} Datei(en) werden importiert..."
     },
     "fingerprint": {
       "title": "Fingerabdruck wählen",
@@ -806,6 +815,9 @@
     "importSuccess": "{{count}} Konten erfolgreich importiert",
     "importLocalSuccess": "Konto erfolgreich importiert: {{email}}",
     "importFailed": "Import fehlgeschlagen: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Export fehlgeschlagen: {{error}}",
     "bindFailed": "Verbindung fehlgeschlagen: {{error}}",
     "jsonRequired": "Bitte geben Sie den JSON-Inhalt ein oder fügen Sie ihn ein",

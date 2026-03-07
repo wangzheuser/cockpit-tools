@@ -130,6 +130,15 @@ export async function importFromJson(jsonContent: string): Promise<Account[]> {
     return await invoke('import_from_json', { jsonContent });
 }
 
+export interface FileImportResult {
+    imported: Account[];
+    failed: { email: string; error: string }[];
+}
+
+export async function importFromFiles(filePaths: string[]): Promise<FileImportResult> {
+    return await invoke('import_from_files', { filePaths });
+}
+
 export async function exportAccounts(accountIds: string[]): Promise<string> {
     return await invoke('export_accounts', { accountIds });
 }

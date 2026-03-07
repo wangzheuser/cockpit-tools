@@ -766,7 +766,10 @@
       "importingTools": "Importing from Antigravity Tools...",
       "importingLocal": "Importing local account...",
       "importingExtension": "Importing plugin account...",
-      "noAccountsFound": "No importable accounts found"
+      "noAccountsFound": "No importable accounts found",
+      "fromFiles": "Import from Local Files",
+      "fromFilesDesc": "Select JSON files to import accounts (multiple formats supported)",
+      "importingFiles": "Importing {{count}} file(s)..."
     },
     "fingerprint": {
       "title": "Select Fingerprint",
@@ -806,6 +809,9 @@
     "importSuccess": "Successfully imported {{count}} accounts",
     "importLocalSuccess": "Successfully imported account: {{email}}",
     "importFailed": "Import failed: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog, refresh continues in background)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Export failed: {{error}}",
     "bindFailed": "Bind failed: {{error}}",
     "jsonRequired": "Please enter or paste JSON content",

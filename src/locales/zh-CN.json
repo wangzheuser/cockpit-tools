@@ -766,7 +766,10 @@
       "importingTools": "导入 Antigravity Tools...",
       "importingLocal": "导入本地账号...",
       "importingExtension": "导入插件账号...",
-      "noAccountsFound": "未发现可导入账号"
+      "noAccountsFound": "未发现可导入账号",
+      "fromFiles": "从本地文件导入",
+      "fromFilesDesc": "选择 JSON 文件导入账号（支持多种格式）",
+      "importingFiles": "正在导入 {{count}} 个文件..."
     },
     "fingerprint": {
       "title": "选择指纹",
@@ -806,6 +809,9 @@
     "importSuccess": "成功导入 {{count}} 个账号",
     "importLocalSuccess": "成功导入账号: {{email}}",
     "importFailed": "导入失败: {{error}}",
+    "importPartialFailed": "{{failCount}} 个失败: {{failList}}",
+    "refreshingQuota": "刷新配额中 {{done}}/{{total}}（可关闭此弹窗，后台继续刷新）",
+    "quotaRefreshDone": "配额刷新完成",
     "exportFailed": "导出失败: {{error}}",
     "bindFailed": "绑定失败: {{error}}",
     "jsonRequired": "请输入或粘贴 JSON 内容",

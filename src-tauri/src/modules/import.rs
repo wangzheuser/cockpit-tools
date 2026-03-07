@@ -912,6 +912,191 @@ pub async fn import_from_json_logic(json_content: String) -> Result<Vec<models::
     Ok(imported)
 }
 
+#[derive(serde::Serialize, Clone)]
+pub struct FileImportResult {
+    pub imported: Vec<models::Account>,
+    pub failed: Vec<FileImportFailure>,
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct FileImportFailure {
+    pub email: String,
+    pub error: String,
+}
+
+/// 从本地文件导入账号（支持多种 JSON 格式）
+pub async fn import_from_files_logic(file_paths: Vec<String>) -> Result<FileImportResult, String> {
+    use std::fs;
+    use std::path::Path;
+
+    if file_paths.is_empty() {
+        return Err("未选择任何文件".to_string());
+    }
+
+    modules::logger::log_info(&format!("开始从 {} 个文件导入账号...", file_paths.len()));
+
+    // 收集所有候选条目: (email, refresh_token)
+    let mut candidates: Vec<(Option<String>, String)> = Vec::new();
+
+    for file_path in &file_paths {
+        let path = Path::new(file_path);
+        let content = match fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                modules::logger::log_error(&format!("读取文件失败 {:?}: {}", file_path, e));
+                continue;
+            }
+        };
+
+        let trimmed = content.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // 从文件名推断 email
+        let filename_email = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(|s| s.replace("_at_", "@").replace("_AT_", "@"))
+            .filter(|s| s.contains('@'));
+
+        // 尝试解析为 JSON
+        let parsed: serde_json::Value = match serde_json::from_str(trimmed) {
+            Ok(v) => v,
+            Err(e) => {
+                modules::logger::log_error(&format!("JSON 解析失败 {:?}: {}", file_path, e));
+                continue;
+            }
+        };
+
+        match parsed {
+            serde_json::Value::Array(arr) => {
+                // Format B: JSON 数组
+                for item in arr {
+                    if let Some(entry) = extract_import_entry(&item, &filename_email) {
+                        candidates.push(entry);
+                    }
+                }
+            }
+            serde_json::Value::Object(_) => {
+                // Format A / D: 单个对象
+                if let Some(entry) = extract_import_entry(&parsed, &filename_email) {
+                    candidates.push(entry);
+                }
+            }
+            _ => {
+                modules::logger::log_error(&format!("不支持的 JSON 格式 {:?}", file_path));
+            }
+        }
+    }
+
+    if candidates.is_empty() {
+        return Err("未找到有效的 refresh_token".to_string());
+    }
+
+    modules::logger::log_info(&format!("发现 {} 个候选账号，开始导入...", candidates.len()));
+
+    let mut imported = Vec::new();
+    let mut failed: Vec<FileImportFailure> = Vec::new();
+    let total = candidates.len();
+
+    for (index, (email_opt, refresh_token)) in candidates.into_iter().enumerate() {
+        // 发送进度事件
+        if let Some(app_handle) = crate::get_app_handle() {
+            let _ = app_handle.emit("accounts:file-import-progress", serde_json::json!({
+                "current": index + 1,
+                "total": total,
+                "email": email_opt.as_deref().unwrap_or(""),
+            }));
+        }
+
+        // 使用 refresh_token 获取 access_token
+        match modules::oauth::refresh_access_token(&refresh_token).await {
+            Ok(token_response) => {
+                // 尝试获取用户信息以确定 email
+                let email = if let Some(ref e) = email_opt {
+                    e.clone()
+                } else {
+                    match modules::oauth::get_user_info(&token_response.access_token).await {
+                        Ok(info) => info.email,
+                        Err(e) => {
+                            modules::logger::log_error(&format!(
+                                "获取用户信息失败，跳过此条目: {}", e
+                            ));
+                            continue;
+                        }
+                    }
+                };
+
+                let token = models::TokenData::new(
+                    token_response.access_token,
+                    token_response.refresh_token.unwrap_or(refresh_token),
+                    token_response.expires_in,
+                    Some(email.clone()),
+                    None,
+                    None,
+                );
+
+                match modules::upsert_account(email.clone(), None, token) {
+                    Ok(new_account) => {
+                        modules::logger::log_info(&format!("导入账号成功: {}", new_account.email));
+                        imported.push(new_account);
+                    }
+                    Err(e) => {
+                        let msg = format!("保存失败: {}", e);
+                        modules::logger::log_error(&format!("保存账号失败 {}: {}", email, msg));
+                        failed.push(FileImportFailure { email, error: msg });
+                    }
+                }
+            }
+            Err(e) => {
+                let label = email_opt.as_deref().unwrap_or("unknown").to_string();
+                let msg = format!("Token 刷新失败: {}", e);
+                modules::logger::log_error(&format!("{}: {}", label, msg));
+                failed.push(FileImportFailure { email: label, error: msg });
+            }
+        }
+    }
+
+    modules::logger::log_info(&format!("文件导入完成，成功 {} 个，失败 {} 个", imported.len(), failed.len()));
+
+    if !imported.is_empty() {
+        modules::websocket::broadcast_data_changed("import_from_files");
+    }
+
+    Ok(FileImportResult { imported, failed })
+}
+
+/// 从 JSON 值中提取 (email, refresh_token)
+fn extract_import_entry(
+    value: &serde_json::Value,
+    fallback_email: &Option<String>,
+) -> Option<(Option<String>, String)> {
+    let obj = value.as_object()?;
+
+    // 提取 refresh_token：顶层 或 token.refresh_token
+    let refresh_token = obj
+        .get("refresh_token")
+        .and_then(|v| v.as_str())
+        .or_else(|| {
+            obj.get("token")
+                .and_then(|t| t.get("refresh_token"))
+                .and_then(|v| v.as_str())
+        })
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())?;
+
+    // 提取 email：顶层
+    let email = obj
+        .get("email")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| fallback_email.clone());
+
+    Some((email, refresh_token))
+}
+
 /// 从 VS Code SecretStorage 导入插件账号
 pub async fn import_from_extension_credentials(app: Option<&tauri::AppHandle>) -> Result<usize, String> {
     let parsed_accounts = load_extension_credentials_from_secret_storage()?;

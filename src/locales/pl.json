@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "Potwierdź",
     "cancel": "Anuluj",
@@ -627,7 +627,10 @@
       "importProgress": "Importowanie {{current}}/{{total}}...",
       "importSuccess": "Zaimportowano {{count}} kont",
       "importPartial": "Zaimportowano {{success}} kont, nieudane {{fail}}",
-      "importFailed": "Import nie powiódł się, sprawdź refresh_token"
+      "importFailed": "Import nie powiódł się, sprawdź refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "Odcisk:",
       "generateFailed": "Generowanie nieudane",
       "importFailed": "Import nieudany",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "Importowanie...",
       "loadFailed": "Nie udało się wczytać listy odcisków",
       "processing": "Przetwarzanie...",
@@ -766,7 +772,10 @@
       "importingTools": "Importowanie z Antigravity Tools...",
       "importingLocal": "Importowanie lokalnego konta...",
       "importingExtension": "Importowanie konta z wtyczki...",
-      "noAccountsFound": "Nie znaleziono kont do importu"
+      "noAccountsFound": "Nie znaleziono kont do importu",
+      "fromFiles": "Importuj z plików lokalnych",
+      "fromFilesDesc": "Wybierz pliki JSON do importu kont (obsługiwane wiele formatów)",
+      "importingFiles": "Importowanie {{count}} pliku(ów)..."
     },
     "fingerprint": {
       "title": "Wybierz odcisk palca",
@@ -806,6 +815,9 @@
     "importSuccess": "Pomyślnie zaimportowano {{count}} kont",
     "importLocalSuccess": "Pomyślnie zaimportowano konto: {{email}}",
     "importFailed": "Błąd importu: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "Błąd eksportu: {{error}}",
     "bindFailed": "Błąd powiązania: {{error}}",
     "jsonRequired": "Wprowadź lub wklej treść JSON",

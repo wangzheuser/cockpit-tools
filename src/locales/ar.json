@@ -1,4 +1,4 @@
-{
+﻿{
   "common": {
     "confirm": "تأكيد",
     "cancel": "إلغاء",
@@ -627,7 +627,10 @@
       "importProgress": "جارِ الاستيراد {{current}}/{{total}}...",
       "importSuccess": "تم استيراد {{count}} حسابات",
       "importPartial": "تم استيراد {{success}} حسابات، فشل {{fail}}",
-      "importFailed": "فشل الاستيراد، يرجى التحقق من refresh_token"
+      "importFailed": "فشل الاستيراد، يرجى التحقق من refresh_token",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete"
     }
   },
   "overview": {
@@ -727,6 +730,9 @@
       "fpLabel": "البصمة:",
       "generateFailed": "فشل الإنشاء",
       "importFailed": "فشل الاستيراد",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
       "importing": "جارٍ الاستيراد...",
       "loadFailed": "فشل تحميل قائمة البصمات",
       "processing": "جارٍ المعالجة...",
@@ -766,7 +772,10 @@
       "importingTools": "جارِ الاستيراد من Antigravity Tools...",
       "importingLocal": "جارِ استيراد الحساب المحلي...",
       "importingExtension": "جارِ استيراد حساب الملحق...",
-      "noAccountsFound": "لم يتم العثور على حسابات قابلة للاستيراد"
+      "noAccountsFound": "لم يتم العثور على حسابات قابلة للاستيراد",
+      "fromFiles": "استيراد من ملفات محلية",
+      "fromFilesDesc": "اختر ملفات JSON لاستيراد الحسابات (تنسيقات متعددة مدعومة)",
+      "importingFiles": "جاري استيراد {{count}} ملف(ات)..."
     },
     "fingerprint": {
       "title": "اختر البصمة",
@@ -806,6 +815,9 @@
     "importSuccess": "تم استيراد {{count}} حسابات بنجاح",
     "importLocalSuccess": "تم استيراد الحساب بنجاح: {{email}}",
     "importFailed": "فشل الاستيراد: {{error}}",
+    "importPartialFailed": "{{failCount}} failed: {{failList}}",
+    "refreshingQuota": "Refreshing quota {{done}}/{{total}} (you may close this dialog)",
+    "quotaRefreshDone": "Quota refresh complete",
     "exportFailed": "فشل التصدير: {{error}}",
     "bindFailed": "فشل الربط: {{error}}",
     "jsonRequired": "يرجى إدخال أو لصق محتوى JSON",
