@@ -5708,13 +5708,12 @@ pub fn start_codex_default() -> Result<u32, String> {
         let launch_path = resolve_codex_launch_path()?;
         let mut cmd = Command::new(&launch_path);
         if should_detach_child() {
-            cmd.creation_flags(0x08000000 | CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS);
+            cmd.creation_flags(CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS);
             cmd.stdin(Stdio::null())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
-        } else {
-            cmd.creation_flags(0x08000000);
         }
+        // Codex 是 GUI 应用，不设置 CREATE_NO_WINDOW，否则会导致其内部 spawn CLI 子进程失败
 
         let child =
             spawn_command_with_trace(&mut cmd).map_err(|e| format!("启动 Codex 失败: {}", e))?;
