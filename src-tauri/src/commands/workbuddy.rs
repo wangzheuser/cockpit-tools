@@ -2,10 +2,10 @@ use std::time::Instant;
 
 use tauri::{AppHandle, Emitter};
 
-use crate::models::codebuddy::{CodebuddyAccount, CodebuddyOAuthStartResponse};
-use crate::modules::{codebuddy_cn_account, codebuddy_cn_oauth, logger};
+use crate::models::workbuddy::{WorkbuddyAccount, WorkbuddyOAuthStartResponse};
+use crate::modules::{workbuddy_account, workbuddy_oauth, logger};
 
-fn build_session_json(account: &CodebuddyAccount) -> String {
+fn build_session_json(account: &WorkbuddyAccount) -> String {
     let uid = account.uid.as_deref().unwrap_or("");
     let nickname = account.nickname.as_deref().unwrap_or("");
     let enterprise_id = account.enterprise_id.as_deref().unwrap_or("");
@@ -48,13 +48,13 @@ fn build_session_json(account: &CodebuddyAccount) -> String {
     session.to_string()
 }
 
-async fn refresh_codebuddy_cn_account_after_login(account: CodebuddyAccount) -> CodebuddyAccount {
+async fn refresh_workbuddy_account_after_login(account: WorkbuddyAccount) -> WorkbuddyAccount {
     let account_id = account.id.clone();
-    match codebuddy_cn_account::refresh_account_token(&account_id).await {
+    match workbuddy_account::refresh_account_token(&account_id).await {
         Ok(refreshed) => refreshed,
         Err(e) => {
             logger::log_warn(&format!(
-                "[CodeBuddy CN OAuth] 登录后刷新失败，保留原账号信息: account_id={}, error={}",
+                "[WorkBuddy OAuth] 登录后刷新失败，保留原账号信息：account_id={}, error={}",
                 account_id, e
             ));
             account
@@ -63,37 +63,37 @@ async fn refresh_codebuddy_cn_account_after_login(account: CodebuddyAccount) -> 
 }
 
 #[tauri::command]
-pub fn list_codebuddy_cn_accounts() -> Result<Vec<CodebuddyAccount>, String> {
-    Ok(codebuddy_cn_account::list_accounts())
+pub fn list_workbuddy_accounts() -> Result<Vec<WorkbuddyAccount>, String> {
+    Ok(workbuddy_account::list_accounts())
 }
 
 #[tauri::command]
-pub fn delete_codebuddy_cn_account(account_id: String) -> Result<(), String> {
-    codebuddy_cn_account::remove_account(&account_id)
+pub fn delete_workbuddy_account(account_id: String) -> Result<(), String> {
+    workbuddy_account::remove_account(&account_id)
 }
 
 #[tauri::command]
-pub fn delete_codebuddy_cn_accounts(account_ids: Vec<String>) -> Result<(), String> {
-    codebuddy_cn_account::remove_accounts(&account_ids)
+pub fn delete_workbuddy_accounts(account_ids: Vec<String>) -> Result<(), String> {
+    workbuddy_account::remove_accounts(&account_ids)
 }
 
 #[tauri::command]
-pub fn import_codebuddy_cn_from_json(
+pub fn import_workbuddy_from_json(
     json_content: String,
-) -> Result<Vec<CodebuddyAccount>, String> {
-    codebuddy_cn_account::import_from_json(&json_content)
+) -> Result<Vec<WorkbuddyAccount>, String> {
+    workbuddy_account::import_from_json(&json_content)
 }
 
 #[tauri::command]
-pub async fn import_codebuddy_cn_from_local(
+pub async fn import_workbuddy_from_local(
     app: AppHandle,
-) -> Result<Vec<CodebuddyAccount>, String> {
-    let mut local_payload = match codebuddy_cn_account::import_payload_from_local()? {
+) -> Result<Vec<WorkbuddyAccount>, String> {
+    let mut local_payload = match workbuddy_account::import_payload_from_local()? {
         Some(payload) => payload,
-        None => return Err("未在本机 CodeBuddy 客户端中找到登录信息".to_string()),
+        None => return Err("未在本机 WorkBuddy 客户端中找到登录信息".to_string()),
     };
 
-    match codebuddy_cn_oauth::build_payload_from_token(&local_payload.access_token).await {
+    match workbuddy_oauth::build_payload_from_token(&local_payload.access_token).await {
         Ok(mut payload) => {
             if payload.uid.is_none() {
                 payload.uid = local_payload.uid.clone();
@@ -126,16 +126,15 @@ pub async fn import_codebuddy_cn_from_local(
         }
         Err(err) => {
             logger::log_warn(&format!(
-                "[CodeBuddy CN Import Local] 拉取账号资料失败，将保留本地导入结果: {}",
+                "[WorkBuddy Import Local] 拉取账号资料失败，将保留本地导入结果：{}",
                 err
             ));
         }
     }
 
-    let mut account = codebuddy_cn_account::upsert_account(local_payload.clone())?;
+    let mut account = workbuddy_account::upsert_account(local_payload.clone())?;
 
-    // 历史版本本地导入会先写入 unknown 占位账号；这里按同 token 清理旧占位记录。
-    for existing in codebuddy_cn_account::list_accounts() {
+    for existing in workbuddy_account::list_accounts() {
         if existing.id == account.id {
             continue;
         }
@@ -150,44 +149,44 @@ pub async fn import_codebuddy_cn_from_local(
                 .map(|s| s.trim().is_empty())
                 .unwrap_or(true);
         if is_placeholder {
-            if let Err(err) = codebuddy_cn_account::remove_account(&existing.id) {
+            if let Err(err) = workbuddy_account::remove_account(&existing.id) {
                 logger::log_warn(&format!(
-                    "[CodeBuddy CN Import Local] 清理占位账号失败: id={}, error={}",
+                    "[WorkBuddy Import Local] 清理占位账号失败：id={}, error={}",
                     existing.id, err
                 ));
             }
         }
     }
 
-    account = refresh_codebuddy_cn_account_after_login(account).await;
+    account = refresh_workbuddy_account_after_login(account).await;
     let _ = crate::modules::tray::update_tray_menu(&app);
     Ok(vec![account])
 }
 
 #[tauri::command]
-pub fn export_codebuddy_cn_accounts(account_ids: Vec<String>) -> Result<String, String> {
-    codebuddy_cn_account::export_accounts(&account_ids)
+pub fn export_workbuddy_accounts(account_ids: Vec<String>) -> Result<String, String> {
+    workbuddy_account::export_accounts(&account_ids)
 }
 
 #[tauri::command]
-pub async fn refresh_codebuddy_cn_token(
+pub async fn refresh_workbuddy_token(
     app: AppHandle,
     account_id: String,
-) -> Result<CodebuddyAccount, String> {
+) -> Result<WorkbuddyAccount, String> {
     let started_at = Instant::now();
     logger::log_info(&format!(
-        "[CodeBuddy CN Command] 手动刷新账号开始: account_id={}",
+        "[WorkBuddy Command] 手动刷新账号开始：account_id={}",
         account_id
     ));
 
-    match codebuddy_cn_account::refresh_account_token(&account_id).await {
+    match workbuddy_account::refresh_account_token(&account_id).await {
         Ok(account) => {
-            if let Err(e) = codebuddy_cn_account::run_quota_alert_if_needed() {
-                logger::log_warn(&format!("[QuotaAlert][CodeBuddy CN] 预警检查失败: {}", e));
+            if let Err(e) = workbuddy_account::run_quota_alert_if_needed() {
+                logger::log_warn(&format!("[QuotaAlert][WorkBuddy] 预警检查失败：{}", e));
             }
             let _ = crate::modules::tray::update_tray_menu(&app);
             logger::log_info(&format!(
-                "[CodeBuddy CN Command] 手动刷新账号完成: account_id={}, email={}, elapsed={}ms",
+                "[WorkBuddy Command] 手动刷新账号完成：account_id={}, email={}, elapsed={}ms",
                 account.id,
                 account.email,
                 started_at.elapsed().as_millis()
@@ -196,7 +195,7 @@ pub async fn refresh_codebuddy_cn_token(
         }
         Err(err) => {
             logger::log_warn(&format!(
-                "[CodeBuddy CN Command] 手动刷新账号失败: account_id={}, elapsed={}ms, error={}",
+                "[WorkBuddy Command] 手动刷新账号失败：account_id={}, elapsed={}ms, error={}",
                 account_id,
                 started_at.elapsed().as_millis(),
                 err
@@ -207,25 +206,25 @@ pub async fn refresh_codebuddy_cn_token(
 }
 
 #[tauri::command]
-pub async fn refresh_all_codebuddy_cn_tokens(app: AppHandle) -> Result<i32, String> {
+pub async fn refresh_all_workbuddy_tokens(app: AppHandle) -> Result<i32, String> {
     let started_at = Instant::now();
-    logger::log_info("[CodeBuddy CN Command] 手动批量刷新开始");
+    logger::log_info("[WorkBuddy Command] 手动批量刷新开始");
 
-    let results = codebuddy_cn_account::refresh_all_tokens().await?;
+    let results = workbuddy_account::refresh_all_tokens().await?;
     let success_count = results.iter().filter(|(_, item)| item.is_ok()).count();
     let failed_count = results.len().saturating_sub(success_count);
 
     logger::log_info(&format!(
-        "[CodeBuddy CN Command] 手动批量刷新完成: success={}, failed={}, elapsed={}ms",
+        "[WorkBuddy Command] 手动批量刷新完成：success={}, failed={}, elapsed={}ms",
         success_count,
         failed_count,
         started_at.elapsed().as_millis()
     ));
 
     if success_count > 0 {
-        if let Err(e) = codebuddy_cn_account::run_quota_alert_if_needed() {
+        if let Err(e) = workbuddy_account::run_quota_alert_if_needed() {
             logger::log_warn(&format!(
-                "[QuotaAlert][CodeBuddy CN] 全量刷新后预警检查失败: {}",
+                "[QuotaAlert][WorkBuddy] 全量刷新后预警检查失败：{}",
                 e
             ));
         }
@@ -236,105 +235,105 @@ pub async fn refresh_all_codebuddy_cn_tokens(app: AppHandle) -> Result<i32, Stri
 }
 
 #[tauri::command]
-pub async fn codebuddy_cn_oauth_login_start() -> Result<CodebuddyOAuthStartResponse, String> {
-    logger::log_info("CodeBuddy CN OAuth start 命令触发");
-    codebuddy_cn_oauth::start_login().await
+pub async fn workbuddy_oauth_login_start() -> Result<WorkbuddyOAuthStartResponse, String> {
+    logger::log_info("WorkBuddy OAuth start 命令触发");
+    workbuddy_oauth::start_login().await
 }
 
 #[tauri::command]
-pub async fn codebuddy_cn_oauth_login_complete(
+pub async fn workbuddy_oauth_login_complete(
     app: AppHandle,
     login_id: String,
-) -> Result<CodebuddyAccount, String> {
+) -> Result<WorkbuddyAccount, String> {
     logger::log_info(&format!(
-        "CodeBuddy CN OAuth complete 命令触发: login_id={}",
+        "WorkBuddy OAuth complete 命令触发：login_id={}",
         login_id
     ));
 
-    let result: Result<CodebuddyAccount, String> = async {
-        let payload = codebuddy_cn_oauth::complete_login(&login_id).await?;
-        let mut account = codebuddy_cn_account::upsert_account(payload)?;
-        account = refresh_codebuddy_cn_account_after_login(account).await;
+    let result: Result<WorkbuddyAccount, String> = async {
+        let payload = workbuddy_oauth::complete_login(&login_id).await?;
+        let mut account = workbuddy_account::upsert_account(payload)?;
+        account = refresh_workbuddy_account_after_login(account).await;
         Ok(account)
     }
     .await;
 
-    if let Err(err) = codebuddy_cn_oauth::clear_pending_oauth_login(&login_id) {
+    if let Err(err) = workbuddy_oauth::clear_pending_oauth_login(&login_id) {
         logger::log_warn(&format!(
-            "[CodeBuddy CN OAuth] 清理待处理登录状态失败: login_id={}, error={}",
+            "[WorkBuddy OAuth] 清理待处理登录状态失败：login_id={}, error={}",
             login_id, err
         ));
     }
 
     let account = result?;
-    if let Err(err) = codebuddy_cn_account::run_quota_alert_if_needed() {
+    if let Err(err) = workbuddy_account::run_quota_alert_if_needed() {
         logger::log_warn(&format!(
-            "[QuotaAlert][CodeBuddy CN] 登录后预警检查失败: {}",
+            "[QuotaAlert][WorkBuddy] 登录后预警检查失败：{}",
             err
         ));
     }
     let _ = crate::modules::tray::update_tray_menu(&app);
 
     logger::log_info(&format!(
-        "CodeBuddy CN OAuth complete 成功: account_id={}, email={}",
+        "WorkBuddy OAuth complete 成功：account_id={}, email={}",
         account.id, account.email
     ));
     Ok(account)
 }
 
 #[tauri::command]
-pub fn codebuddy_cn_oauth_login_cancel(login_id: Option<String>) -> Result<(), String> {
+pub fn workbuddy_oauth_login_cancel(login_id: Option<String>) -> Result<(), String> {
     logger::log_info(&format!(
-        "CodeBuddy CN OAuth cancel 命令触发: login_id={}",
+        "WorkBuddy OAuth cancel 命令触发：login_id={}",
         login_id.as_deref().unwrap_or("<none>")
     ));
-    codebuddy_cn_oauth::cancel_login(login_id.as_deref())
+    workbuddy_oauth::cancel_login(login_id.as_deref())
 }
 
 #[tauri::command]
-pub async fn add_codebuddy_cn_account_with_token(
+pub async fn add_workbuddy_account_with_token(
     app: AppHandle,
     access_token: String,
-) -> Result<CodebuddyAccount, String> {
-    let payload = codebuddy_cn_oauth::build_payload_from_token(&access_token).await?;
-    let account = codebuddy_cn_account::upsert_account(payload)?;
+) -> Result<WorkbuddyAccount, String> {
+    let payload = workbuddy_oauth::build_payload_from_token(&access_token).await?;
+    let account = workbuddy_account::upsert_account(payload)?;
     let _ = crate::modules::tray::update_tray_menu(&app);
     Ok(account)
 }
 
 #[tauri::command]
-pub async fn update_codebuddy_cn_account_tags(
+pub async fn update_workbuddy_account_tags(
     account_id: String,
     tags: Vec<String>,
-) -> Result<CodebuddyAccount, String> {
-    codebuddy_cn_account::update_account_tags(&account_id, tags)
+) -> Result<WorkbuddyAccount, String> {
+    workbuddy_account::update_account_tags(&account_id, tags)
 }
 
 #[tauri::command]
-pub fn get_codebuddy_cn_accounts_index_path() -> Result<String, String> {
-    codebuddy_cn_account::accounts_index_path_string()
+pub fn get_workbuddy_accounts_index_path() -> Result<String, String> {
+    workbuddy_account::accounts_index_path_string()
 }
 
 #[tauri::command]
-pub async fn inject_codebuddy_cn_to_vscode(
+pub async fn inject_workbuddy_to_vscode(
     app: AppHandle,
     account_id: String,
 ) -> Result<String, String> {
     let started_at = Instant::now();
     logger::log_info(&format!(
-        "[CodeBuddy CN Switch] 开始切换账号: account_id={}",
+        "[WorkBuddy Switch] 开始切换账号：account_id={}",
         account_id
     ));
 
-    let account = codebuddy_cn_account::load_account(&account_id)
-        .ok_or_else(|| format!("CodeBuddy CN account not found: {}", account_id))?;
+    let account = workbuddy_account::load_account(&account_id)
+        .ok_or_else(|| format!("WorkBuddy account not found: {}", account_id))?;
 
-    let state_db_path = codebuddy_cn_account::get_default_codebuddy_cn_state_db_path()
-        .ok_or_else(|| "无法获取 CodeBuddy CN state.vscdb 路径".to_string())?;
+    let state_db_path = workbuddy_account::get_default_workbuddy_state_db_path()
+        .ok_or_else(|| "无法获取 WorkBuddy state.vscdb 路径".to_string())?;
 
     if !state_db_path.exists() {
         return Err(format!(
-            "CodeBuddy CN state.vscdb 不存在: {}",
+            "WorkBuddy state.vscdb 不存在：{}",
             state_db_path.display()
         ));
     }
@@ -343,7 +342,7 @@ pub async fn inject_codebuddy_cn_to_vscode(
     let secret_key = r#"{"extensionId":"tencent-cloud.coding-copilot","key":"planning-genie.new.accessTokencn"}"#;
     let db_key = format!("secret://{}", secret_key);
 
-    if let Err(err) = crate::modules::vscode_inject::inject_secret_to_state_db_for_codebuddy_cn(
+    if let Err(err) = crate::modules::vscode_inject::inject_secret_to_state_db_for_workbuddy(
         &state_db_path,
         &db_key,
         &session_json,
@@ -354,9 +353,9 @@ pub async fn inject_codebuddy_cn_to_vscode(
         {
             format!(
                 "注入登录状态失败：{}\n\n可能的原因：\n\
-                1. CodeBuddy CN 从未登录过，请先手动打开 CodeBuddy CN 并登录一次\n\
+                1. WorkBuddy 从未登录过，请先手动打开 WorkBuddy 并登录一次\n\
                 2. macOS Keychain 中缺少加密密钥条目\n\n\
-                请尝试：打开 CodeBuddy CN → 登录任意账号 → 退出 → 再使用切号功能",
+                请尝试：打开 WorkBuddy → 登录任意账号 → 退出 → 再使用切号功能",
                 err
             )
         } else {
@@ -365,28 +364,28 @@ pub async fn inject_codebuddy_cn_to_vscode(
         return Err(friendly_err);
     }
 
-    if let Err(err) = crate::modules::codebuddy_cn_instance::update_default_settings(
+    if let Err(err) = crate::modules::workbuddy_instance::update_default_settings(
         Some(Some(account_id.clone())),
         None,
         Some(false),
     ) {
-        logger::log_warn(&format!("更新 CodeBuddy CN 默认实例绑定账号失败: {}", err));
+        logger::log_warn(&format!("更新 WorkBuddy 默认实例绑定账号失败：{}", err));
     }
 
-    let launch_warning = match crate::commands::codebuddy_cn_instance::codebuddy_cn_start_instance(
+    let launch_warning = match crate::commands::workbuddy_instance::workbuddy_start_instance(
         "__default__".to_string(),
     )
     .await
     {
         Ok(_) => None,
         Err(err) => {
-            if err.starts_with("APP_PATH_NOT_FOUND:") || err.contains("启动 CodeBuddy CN 失败")
+            if err.starts_with("APP_PATH_NOT_FOUND:") || err.contains("启动 WorkBuddy 失败")
             {
-                logger::log_warn(&format!("CodeBuddy CN 默认实例启动失败: {}", err));
+                logger::log_warn(&format!("WorkBuddy 默认实例启动失败：{}", err));
                 if err.starts_with("APP_PATH_NOT_FOUND:") || err.contains("APP_PATH_NOT_FOUND:") {
                     let _ = app.emit(
                         "app:path_missing",
-                        serde_json::json!({ "app": "codebuddy_cn", "retry": { "kind": "default" } }),
+                        serde_json::json!({ "app": "workbuddy", "retry": { "kind": "default" } }),
                     );
                 }
                 Some(err)
@@ -400,35 +399,35 @@ pub async fn inject_codebuddy_cn_to_vscode(
 
     if let Some(err) = launch_warning {
         logger::log_warn(&format!(
-            "[CodeBuddy CN Switch] 切号完成但启动失败: account_id={}, email={}, elapsed={}ms, error={}",
+            "[WorkBuddy Switch] 切号完成但启动失败：account_id={}, email={}, elapsed={}ms, error={}",
             account.id,
             account.email,
             started_at.elapsed().as_millis(),
             err
         ));
-        Ok(format!("切换完成，但 CodeBuddy CN 启动失败: {}", err))
+        Ok(format!("切换完成，但 WorkBuddy 启动失败：{}", err))
     } else {
         logger::log_info(&format!(
-            "[CodeBuddy CN Switch] 切号成功: account_id={}, email={}, elapsed={}ms",
+            "[WorkBuddy Switch] 切号成功：account_id={}, email={}, elapsed={}ms",
             account.id,
             account.email,
             started_at.elapsed().as_millis()
         ));
-        Ok(format!("切换完成: {}", account.email))
+        Ok(format!("切换完成：{}", account.email))
     }
 }
 
 #[tauri::command]
-pub async fn sync_codebuddy_cn_to_workbuddy(app: AppHandle) -> Result<i32, String> {
+pub async fn sync_workbuddy_to_codebuddy_cn(app: AppHandle) -> Result<i32, String> {
     let started_at = Instant::now();
-    logger::log_info("[CodeBuddy CN -> WorkBuddy] 开始同步账号");
+    logger::log_info("[WorkBuddy -> CodeBuddy CN] 开始同步账号");
 
-    let synced_count = codebuddy_cn_account::sync_accounts_to_workbuddy()?;
+    let synced_count = workbuddy_account::sync_accounts_to_codebuddy_cn()?;
 
     let _ = crate::modules::tray::update_tray_menu(&app);
 
     logger::log_info(&format!(
-        "[CodeBuddy CN -> WorkBuddy] 同步完成: count={}, elapsed={}ms",
+        "[WorkBuddy -> CodeBuddy CN] 同步完成: count={}, elapsed={}ms",
         synced_count,
         started_at.elapsed().as_millis()
     ));

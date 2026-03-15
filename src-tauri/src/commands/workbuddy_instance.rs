@@ -6,18 +6,49 @@ use crate::modules;
 
 const DEFAULT_INSTANCE_ID: &str = "__default__";
 
-fn is_profile_initialized(user_data_dir: &str) -> bool {
-    let path = Path::new(user_data_dir);
-    if !path.exists() {
-        return false;
+fn ensure_workbuddy_state_db_path(user_data_dir: &str) -> Result<PathBuf, String> {
+    let root = Path::new(user_data_dir);
+    let candidates = vec![
+        root.join("User").join("globalStorage").join("state.vscdb"),
+        root.join("globalStorage").join("state.vscdb"),
+        root.join("state.vscdb"),
+    ];
+
+    if let Some(path) = candidates.iter().find(|path| path.exists()) {
+        return Ok(path.clone());
     }
-    match std::fs::read_dir(path) {
-        Ok(mut iter) => iter.next().is_some(),
-        Err(_) => false,
+
+    let preferred = root.join("User").join("globalStorage").join("state.vscdb");
+    if let Some(parent) = preferred.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("创建 globalStorage 目录失败：{}", e))?;
     }
+
+    if let Some(default_db) = modules::workbuddy_account::get_default_workbuddy_state_db_path() {
+        if default_db.exists() && default_db != preferred {
+            match fs::copy(&default_db, &preferred) {
+                Ok(_) => {
+                    modules::logger::log_info(&format!(
+                        "[WorkBuddy Instance] 已回退复制默认 state.vscdb: from={}, to={}",
+                        default_db.to_string_lossy(),
+                        preferred.to_string_lossy()
+                    ));
+                }
+                Err(err) => {
+                    modules::logger::log_warn(&format!(
+                        "[WorkBuddy Instance] 复制默认 state.vscdb 失败，改为写入新库：from={}, to={}, error={}",
+                        default_db.to_string_lossy(),
+                        preferred.to_string_lossy(),
+                        err
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(preferred)
 }
 
-fn build_session_json(account: &crate::models::codebuddy::CodebuddyAccount) -> String {
+fn build_session_json(account: &crate::models::workbuddy::WorkbuddyAccount) -> String {
     let uid = account.uid.as_deref().unwrap_or("");
     let nickname = account.nickname.as_deref().unwrap_or("");
     let enterprise_id = account.enterprise_id.as_deref().unwrap_or("");
@@ -27,7 +58,7 @@ fn build_session_json(account: &crate::models::codebuddy::CodebuddyAccount) -> S
     let expires_at = account.expires_at.unwrap_or(0);
 
     let session = serde_json::json!({
-        "id": "Tencent-Cloud.genie-ide",
+        "id": "Tencent-Cloud.genie-ide-cn",
         "token": account.access_token,
         "refreshToken": refresh_token,
         "expiresAt": expires_at,
@@ -71,21 +102,19 @@ fn inject_bound_account_for_instance_start(
         return Ok(());
     };
 
-    let account = modules::codebuddy_account::load_account(bind_id)
+    let account = modules::workbuddy_account::load_account(bind_id)
         .ok_or_else(|| format!("绑定账号不存在: {}", bind_id))?;
     modules::logger::log_info(&format!(
-        "实例启动检测到绑定 CodeBuddy 账号，准备注入: bind_account_id={}, email={}, user_data_dir={}",
+        "[WorkBuddy Instance] 实例启动检测到绑定账号，准备注入: bind_account_id={}, email={}, user_data_dir={}",
         bind_id, account.email, user_data_dir
     ));
 
-    let state_db_path = ensure_codebuddy_state_db_path(user_data_dir)?;
-
+    let state_db_path = ensure_workbuddy_state_db_path(user_data_dir)?;
     let session_json = build_session_json(&account);
-    let secret_key =
-        r#"{"extensionId":"tencent-cloud.coding-copilot","key":"planning-genie.new.accessToken"}"#;
+    let secret_key = r#"{"extensionId":"tencent-cloud.coding-copilot","key":"planning-genie.new.accessTokencn"}"#;
     let db_key = format!("secret://{}", secret_key);
 
-    if let Err(err) = modules::vscode_inject::inject_secret_to_state_db_for_codebuddy(
+    if let Err(err) = modules::vscode_inject::inject_secret_to_state_db_for_workbuddy(
         &state_db_path,
         &db_key,
         &session_json,
@@ -96,9 +125,9 @@ fn inject_bound_account_for_instance_start(
         {
             format!(
                 "注入登录状态失败：{}\n\n可能的原因：\n\
-                1. CodeBuddy 从未登录过，请先手动打开 CodeBuddy 并登录一次\n\
+                1. WorkBuddy 从未登录过，请先手动打开 WorkBuddy 并登录一次\n\
                 2. macOS Keychain 中缺少加密密钥条目\n\n\
-                请尝试：打开 CodeBuddy → 登录任意账号 → 退出 → 再使用切号功能",
+                请尝试：打开 WorkBuddy → 登录任意账号 → 退出 → 再使用切号功能",
                 err
             )
         } else {
@@ -109,54 +138,12 @@ fn inject_bound_account_for_instance_start(
     verify_state_db_injection(&state_db_path, &db_key)?;
 
     modules::logger::log_info(&format!(
-        "CodeBuddy 账号注入完成: email={}, db={}",
+        "[WorkBuddy Instance] 账号注入完成: email={}, db={}",
         account.email,
         state_db_path.to_string_lossy()
     ));
 
     Ok(())
-}
-
-fn ensure_codebuddy_state_db_path(user_data_dir: &str) -> Result<PathBuf, String> {
-    let root = Path::new(user_data_dir);
-    let candidates = vec![
-        root.join("User").join("globalStorage").join("state.vscdb"),
-        root.join("globalStorage").join("state.vscdb"),
-        root.join("state.vscdb"),
-    ];
-
-    if let Some(path) = candidates.iter().find(|path| path.exists()) {
-        return Ok(path.clone());
-    }
-
-    let preferred = root.join("User").join("globalStorage").join("state.vscdb");
-    if let Some(parent) = preferred.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("创建 globalStorage 目录失败: {}", e))?;
-    }
-
-    if let Some(default_db) = modules::codebuddy_account::get_default_codebuddy_state_db_path() {
-        if default_db.exists() && default_db != preferred {
-            match fs::copy(&default_db, &preferred) {
-                Ok(_) => {
-                    modules::logger::log_info(&format!(
-                        "[CodeBuddy Inject] 已回退复制默认 state.vscdb: from={}, to={}",
-                        default_db.to_string_lossy(),
-                        preferred.to_string_lossy()
-                    ));
-                }
-                Err(err) => {
-                    modules::logger::log_warn(&format!(
-                        "[CodeBuddy Inject] 复制默认 state.vscdb 失败，改为写入新库: from={}, to={}, error={}",
-                        default_db.to_string_lossy(),
-                        preferred.to_string_lossy(),
-                        err
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(preferred)
 }
 
 fn verify_state_db_injection(state_db_path: &Path, db_key: &str) -> Result<(), String> {
@@ -180,44 +167,48 @@ fn verify_state_db_injection(state_db_path: &Path, db_key: &str) -> Result<(), S
     }
 }
 
-#[tauri::command]
-pub async fn codebuddy_get_instance_defaults() -> Result<modules::instance::InstanceDefaults, String>
-{
-    modules::codebuddy_instance::get_instance_defaults()
+fn is_profile_initialized(user_data_dir: &str) -> bool {
+    let path = Path::new(user_data_dir);
+    if !path.exists() {
+        return false;
+    }
+    match std::fs::read_dir(path) {
+        Ok(mut iter) => iter.next().is_some(),
+        Err(_) => false,
+    }
+}
+
+fn resolve_running_pid(last_pid: Option<u32>, user_data_dir: Option<&str>) -> Option<u32> {
+    modules::process::resolve_workbuddy_pid(last_pid, user_data_dir)
 }
 
 #[tauri::command]
-pub async fn codebuddy_list_instances() -> Result<Vec<InstanceProfileView>, String> {
-    let store = modules::codebuddy_instance::load_instance_store()?;
-    let default_dir = modules::codebuddy_instance::get_default_codebuddy_user_data_dir()?;
+pub async fn workbuddy_get_instance_defaults() -> Result<modules::instance::InstanceDefaults, String> {
+    modules::workbuddy_instance::get_instance_defaults()
+}
+
+#[tauri::command]
+pub async fn workbuddy_list_instances() -> Result<Vec<InstanceProfileView>, String> {
+    let store = modules::workbuddy_instance::load_instance_store()?;
+    let default_dir = modules::workbuddy_instance::get_default_workbuddy_user_data_dir()?;
     let default_dir_str = default_dir.to_string_lossy().to_string();
 
     let default_settings = store.default_settings.clone();
-    let process_entries = modules::process::collect_codebuddy_process_entries();
 
     let mut result: Vec<InstanceProfileView> = store
         .instances
         .into_iter()
         .map(|instance| {
-            let resolved_pid = modules::process::resolve_codebuddy_pid_from_entries(
-                instance.last_pid,
-                Some(&instance.user_data_dir),
-                &process_entries,
-            );
-            let running = resolved_pid.is_some();
+            let running_pid = resolve_running_pid(instance.last_pid, Some(&instance.user_data_dir));
+            let running = running_pid.is_some();
             let initialized = is_profile_initialized(&instance.user_data_dir);
             let mut view = InstanceProfileView::from_profile(instance, running, initialized);
-            view.last_pid = resolved_pid;
+            view.last_pid = running_pid;
             view
         })
         .collect();
 
-    let default_pid = modules::process::resolve_codebuddy_pid_from_entries(
-        default_settings.last_pid,
-        None,
-        &process_entries,
-    );
-
+    let default_pid = resolve_running_pid(default_settings.last_pid, None);
     result.push(InstanceProfileView {
         id: DEFAULT_INSTANCE_ID.to_string(),
         name: String::new(),
@@ -237,7 +228,7 @@ pub async fn codebuddy_list_instances() -> Result<Vec<InstanceProfileView>, Stri
 }
 
 #[tauri::command]
-pub async fn codebuddy_create_instance(
+pub async fn workbuddy_create_instance(
     name: String,
     user_data_dir: String,
     extra_args: Option<String>,
@@ -245,8 +236,8 @@ pub async fn codebuddy_create_instance(
     copy_source_instance_id: Option<String>,
     init_mode: Option<String>,
 ) -> Result<InstanceProfileView, String> {
-    let instance = modules::codebuddy_instance::create_instance(
-        modules::codebuddy_instance::CreateInstanceParams {
+    let instance = modules::workbuddy_instance::create_instance(
+        modules::workbuddy_instance::CreateInstanceParams {
             name,
             user_data_dir,
             extra_args: extra_args.unwrap_or_default(),
@@ -265,7 +256,7 @@ pub async fn codebuddy_create_instance(
 }
 
 #[tauri::command]
-pub async fn codebuddy_update_instance(
+pub async fn workbuddy_update_instance(
     instance_id: String,
     name: Option<String>,
     extra_args: Option<String>,
@@ -273,17 +264,14 @@ pub async fn codebuddy_update_instance(
     follow_local_account: Option<bool>,
 ) -> Result<InstanceProfileView, String> {
     if instance_id == DEFAULT_INSTANCE_ID {
-        let default_dir = modules::codebuddy_instance::get_default_codebuddy_user_data_dir()?;
+        let default_dir = modules::workbuddy_instance::get_default_workbuddy_user_data_dir()?;
         let default_dir_str = default_dir.to_string_lossy().to_string();
-        let updated = modules::codebuddy_instance::update_default_settings(
+        let updated = modules::workbuddy_instance::update_default_settings(
             bind_account_id,
             extra_args,
             follow_local_account,
         )?;
-        let running = updated
-            .last_pid
-            .and_then(|pid| modules::process::resolve_codebuddy_pid(Some(pid), None))
-            .is_some();
+        let running_pid = resolve_running_pid(updated.last_pid, None);
         return Ok(InstanceProfileView {
             id: DEFAULT_INSTANCE_ID.to_string(),
             name: String::new(),
@@ -292,32 +280,16 @@ pub async fn codebuddy_update_instance(
             bind_account_id: updated.bind_account_id,
             created_at: 0,
             last_launched_at: None,
-            last_pid: updated.last_pid,
-            running,
+            last_pid: running_pid,
+            running: running_pid.is_some(),
             initialized: is_profile_initialized(&default_dir.to_string_lossy()),
             is_default: true,
             follow_local_account: false,
         });
     }
 
-    let wants_bind = bind_account_id
-        .as_ref()
-        .and_then(|next| next.as_ref())
-        .is_some();
-    if wants_bind {
-        let store = modules::codebuddy_instance::load_instance_store()?;
-        if let Some(target) = store.instances.iter().find(|item| item.id == instance_id) {
-            if !is_profile_initialized(&target.user_data_dir) {
-                return Err(
-                    "INSTANCE_NOT_INITIALIZED:请先启动一次实例创建数据后，再进行账号绑定"
-                        .to_string(),
-                );
-            }
-        }
-    }
-
-    let instance = modules::codebuddy_instance::update_instance(
-        modules::codebuddy_instance::UpdateInstanceParams {
+    let instance = modules::workbuddy_instance::update_instance(
+        modules::workbuddy_instance::UpdateInstanceParams {
             instance_id,
             name,
             extra_args,
@@ -325,50 +297,51 @@ pub async fn codebuddy_update_instance(
         },
     )?;
 
-    let running = instance
-        .last_pid
-        .and_then(|pid| {
-            modules::process::resolve_codebuddy_pid(Some(pid), Some(&instance.user_data_dir))
-        })
-        .is_some();
+    let running_pid = resolve_running_pid(instance.last_pid, Some(&instance.user_data_dir));
+    let running = running_pid.is_some();
     let initialized = is_profile_initialized(&instance.user_data_dir);
-    Ok(InstanceProfileView::from_profile(
-        instance,
-        running,
-        initialized,
-    ))
+    let mut view = InstanceProfileView::from_profile(instance, running, initialized);
+    view.last_pid = running_pid;
+    Ok(view)
 }
 
 #[tauri::command]
-pub async fn codebuddy_delete_instance(instance_id: String) -> Result<(), String> {
+pub async fn workbuddy_delete_instance(instance_id: String) -> Result<(), String> {
     if instance_id == DEFAULT_INSTANCE_ID {
         return Err("默认实例不可删除".to_string());
     }
-    modules::codebuddy_instance::delete_instance(&instance_id)
+    modules::workbuddy_instance::delete_instance(&instance_id)
 }
 
 #[tauri::command]
-pub async fn codebuddy_start_instance(instance_id: String) -> Result<InstanceProfileView, String> {
-    modules::process::ensure_codebuddy_launch_path_configured()?;
+pub async fn workbuddy_start_instance(
+    instance_id: String,
+) -> Result<InstanceProfileView, String> {
+    modules::process::ensure_workbuddy_launch_path_configured()?;
 
     if instance_id == DEFAULT_INSTANCE_ID {
-        let default_dir = modules::codebuddy_instance::get_default_codebuddy_user_data_dir()?;
+        let default_dir = modules::workbuddy_instance::get_default_workbuddy_user_data_dir()?;
         let default_dir_str = default_dir.to_string_lossy().to_string();
-        let default_settings = modules::codebuddy_instance::load_default_settings()?;
-        if let Some(pid) = modules::process::resolve_codebuddy_pid(default_settings.last_pid, None)
-        {
+        let default_settings = modules::workbuddy_instance::load_default_settings()?;
+
+        if let Some(pid) = resolve_running_pid(default_settings.last_pid, None) {
             modules::process::close_pid(pid, 20)?;
-            let _ = modules::codebuddy_instance::update_default_pid(None)?;
+            let _ = modules::workbuddy_instance::update_default_pid(None)?;
         }
+
         inject_bound_account_for_instance_start(
             &default_dir_str,
             default_settings.bind_account_id.as_deref(),
         )?;
+
         let extra_args = modules::process::parse_extra_args(&default_settings.extra_args);
-        let pid =
-            modules::process::start_codebuddy_default_with_args_with_new_window(&extra_args, true)?;
-        let _ = modules::codebuddy_instance::update_default_pid(Some(pid))?;
-        let running = modules::process::resolve_codebuddy_pid(Some(pid), None).is_some();
+        let pid = modules::process::start_workbuddy_default_with_args_with_new_window(
+            &extra_args,
+            true,
+        )?;
+        let _ = modules::workbuddy_instance::update_default_pid(Some(pid))?;
+        let running_pid = resolve_running_pid(Some(pid), None);
+
         return Ok(InstanceProfileView {
             id: DEFAULT_INSTANCE_ID.to_string(),
             name: String::new(),
@@ -377,61 +350,58 @@ pub async fn codebuddy_start_instance(instance_id: String) -> Result<InstancePro
             bind_account_id: default_settings.bind_account_id,
             created_at: 0,
             last_launched_at: None,
-            last_pid: Some(pid),
-            running,
+            last_pid: running_pid,
+            running: running_pid.is_some(),
             initialized: is_profile_initialized(&default_dir.to_string_lossy()),
             is_default: true,
             follow_local_account: false,
         });
     }
 
-    let store = modules::codebuddy_instance::load_instance_store()?;
+    let store = modules::workbuddy_instance::load_instance_store()?;
     let instance = store
         .instances
         .into_iter()
         .find(|item| item.id == instance_id)
         .ok_or("实例不存在")?;
 
-    if let Some(pid) =
-        modules::process::resolve_codebuddy_pid(instance.last_pid, Some(&instance.user_data_dir))
-    {
+    if let Some(pid) = resolve_running_pid(instance.last_pid, Some(&instance.user_data_dir)) {
         modules::process::close_pid(pid, 20)?;
-        let _ = modules::codebuddy_instance::update_instance_pid(&instance.id, None)?;
+        let _ = modules::workbuddy_instance::update_instance_pid(&instance.id, None)?;
     }
 
     inject_bound_account_for_instance_start(
         &instance.user_data_dir,
         instance.bind_account_id.as_deref(),
     )?;
+
     let extra_args = modules::process::parse_extra_args(&instance.extra_args);
-    let pid = modules::process::start_codebuddy_with_args_with_new_window(
+    let pid = modules::process::start_workbuddy_with_args_with_new_window(
         &instance.user_data_dir,
         &extra_args,
         true,
     )?;
 
-    let updated = modules::codebuddy_instance::update_instance_after_start(&instance.id, pid)?;
-    let running =
-        modules::process::resolve_codebuddy_pid(Some(pid), Some(&updated.user_data_dir)).is_some();
+    let updated = modules::workbuddy_instance::update_instance_after_start(&instance.id, pid)?;
+    let running_pid = resolve_running_pid(Some(pid), Some(&updated.user_data_dir));
     let initialized = is_profile_initialized(&updated.user_data_dir);
-    Ok(InstanceProfileView::from_profile(
-        updated,
-        running,
-        initialized,
-    ))
+    let mut view = InstanceProfileView::from_profile(updated, running_pid.is_some(), initialized);
+    view.last_pid = running_pid;
+    Ok(view)
 }
 
 #[tauri::command]
-pub async fn codebuddy_stop_instance(instance_id: String) -> Result<InstanceProfileView, String> {
+pub async fn workbuddy_stop_instance(
+    instance_id: String,
+) -> Result<InstanceProfileView, String> {
     if instance_id == DEFAULT_INSTANCE_ID {
-        let default_dir = modules::codebuddy_instance::get_default_codebuddy_user_data_dir()?;
+        let default_dir = modules::workbuddy_instance::get_default_workbuddy_user_data_dir()?;
         let default_dir_str = default_dir.to_string_lossy().to_string();
-        let default_settings = modules::codebuddy_instance::load_default_settings()?;
-        if let Some(pid) = modules::process::resolve_codebuddy_pid(default_settings.last_pid, None)
-        {
+        let default_settings = modules::workbuddy_instance::load_default_settings()?;
+        if let Some(pid) = resolve_running_pid(default_settings.last_pid, None) {
             modules::process::close_pid(pid, 20)?;
         }
-        let _ = modules::codebuddy_instance::update_default_pid(None)?;
+        let _ = modules::workbuddy_instance::update_default_pid(None)?;
         return Ok(InstanceProfileView {
             id: DEFAULT_INSTANCE_ID.to_string(),
             name: String::new(),
@@ -448,19 +418,17 @@ pub async fn codebuddy_stop_instance(instance_id: String) -> Result<InstanceProf
         });
     }
 
-    let store = modules::codebuddy_instance::load_instance_store()?;
+    let store = modules::workbuddy_instance::load_instance_store()?;
     let instance = store
         .instances
         .into_iter()
         .find(|item| item.id == instance_id)
         .ok_or("实例不存在")?;
 
-    if let Some(pid) =
-        modules::process::resolve_codebuddy_pid(instance.last_pid, Some(&instance.user_data_dir))
-    {
+    if let Some(pid) = resolve_running_pid(instance.last_pid, Some(&instance.user_data_dir)) {
         modules::process::close_pid(pid, 20)?;
     }
-    let updated = modules::codebuddy_instance::update_instance_pid(&instance.id, None)?;
+    let updated = modules::workbuddy_instance::update_instance_pid(&instance.id, None)?;
     let initialized = is_profile_initialized(&updated.user_data_dir);
     Ok(InstanceProfileView::from_profile(
         updated,
@@ -470,29 +438,27 @@ pub async fn codebuddy_stop_instance(instance_id: String) -> Result<InstanceProf
 }
 
 #[tauri::command]
-pub async fn codebuddy_open_instance_window(instance_id: String) -> Result<(), String> {
+pub async fn workbuddy_open_instance_window(instance_id: String) -> Result<(), String> {
     if instance_id == DEFAULT_INSTANCE_ID {
-        let default_settings = modules::codebuddy_instance::load_default_settings()?;
-        let pid = modules::process::resolve_codebuddy_pid(default_settings.last_pid, None)
-            .ok_or("默认实例未运行")?;
+        let default_settings = modules::workbuddy_instance::load_default_settings()?;
+        let pid = resolve_running_pid(default_settings.last_pid, None).ok_or("默认实例未运行")?;
         modules::process::focus_process_pid(pid)
-            .map_err(|err| format!("定位 CodeBuddy 默认实例窗口失败: {}", err))?;
+            .map_err(|err| format!("定位 WorkBuddy 默认实例窗口失败：{}", err))?;
         return Ok(());
     }
 
-    let store = modules::codebuddy_instance::load_instance_store()?;
+    let store = modules::workbuddy_instance::load_instance_store()?;
     let instance = store
         .instances
         .into_iter()
         .find(|item| item.id == instance_id)
         .ok_or("实例不存在")?;
-    let pid =
-        modules::process::resolve_codebuddy_pid(instance.last_pid, Some(&instance.user_data_dir))
-            .ok_or("实例未运行")?;
+    let pid = resolve_running_pid(instance.last_pid, Some(&instance.user_data_dir))
+        .ok_or("实例未运行")?;
 
     modules::process::focus_process_pid(pid).map_err(|err| {
         format!(
-            "定位 CodeBuddy 实例窗口失败: instance_id={}, err={}",
+            "定位 WorkBuddy 实例窗口失败：instance_id={}, err={}",
             instance.id, err
         )
     })?;
@@ -500,23 +466,20 @@ pub async fn codebuddy_open_instance_window(instance_id: String) -> Result<(), S
 }
 
 #[tauri::command]
-pub async fn codebuddy_close_all_instances() -> Result<(), String> {
-    let store = modules::codebuddy_instance::load_instance_store()?;
-    let default_settings = modules::codebuddy_instance::load_default_settings()?;
+pub async fn workbuddy_close_all_instances() -> Result<(), String> {
+    let store = modules::workbuddy_instance::load_instance_store()?;
+    let default_settings = modules::workbuddy_instance::load_default_settings()?;
 
-    if let Some(pid) = modules::process::resolve_codebuddy_pid(default_settings.last_pid, None) {
+    if let Some(pid) = resolve_running_pid(default_settings.last_pid, None) {
         let _ = modules::process::close_pid(pid, 20);
     }
 
     for instance in &store.instances {
-        if let Some(pid) = modules::process::resolve_codebuddy_pid(
-            instance.last_pid,
-            Some(&instance.user_data_dir),
-        ) {
+        if let Some(pid) = resolve_running_pid(instance.last_pid, Some(&instance.user_data_dir)) {
             let _ = modules::process::close_pid(pid, 20);
         }
     }
 
-    let _ = modules::codebuddy_instance::clear_all_pids();
+    let _ = modules::workbuddy_instance::clear_all_pids();
     Ok(())
 }

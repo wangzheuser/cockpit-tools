@@ -1,12 +1,12 @@
 use serde_json::{json, Value};
 use std::sync::{Arc, Mutex};
 
-use crate::models::codebuddy::{CodebuddyOAuthCompletePayload, CodebuddyOAuthStartResponse};
+use crate::models::workbuddy::{WorkbuddyOAuthCompletePayload, WorkbuddyOAuthStartResponse};
 use crate::modules::logger;
 
-const CODEBUDDY_API_ENDPOINT: &str = "https://www.codebuddy.cn";
-const CODEBUDDY_API_PREFIX: &str = "/v2/plugin";
-const CODEBUDDY_PLATFORM: &str = "ide";
+const WORKBUDDY_API_ENDPOINT: &str = "https://www.codebuddy.cn";
+const WORKBUDDY_API_PREFIX: &str = "/v2/plugin";
+const WORKBUDDY_PLATFORM: &str = "workbuddy";
 const OAUTH_TIMEOUT_SECONDS: u64 = 600;
 const OAUTH_POLL_INTERVAL_MS: u64 = 1500;
 
@@ -31,7 +31,7 @@ fn generate_login_id() -> String {
     let mut rng = rand::thread_rng();
     let bytes: Vec<u8> = (0..16).map(|_| rng.gen::<u8>()).collect();
     format!(
-        "cb_{}",
+        "wb_{}",
         bytes
             .iter()
             .map(|b| format!("{:02x}", b))
@@ -43,7 +43,7 @@ fn build_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
-        .map_err(|e| format!("创建 HTTP 客户端失败: {}", e))
+        .map_err(|e| format!("创建 HTTP 客户端失败:{}", e))
 }
 
 fn normalize_non_empty(value: Option<&str>) -> Option<String> {
@@ -94,30 +94,30 @@ pub fn clear_pending_oauth_login(login_id: &str) -> Result<(), String> {
     clear_pending_login(login_id)
 }
 
-async fn start_login_with_platform(platform: &str) -> Result<CodebuddyOAuthStartResponse, String> {
+async fn start_login_with_platform(platform: &str) -> Result<WorkbuddyOAuthStartResponse, String> {
     let client = build_client()?;
     let url = format!(
         "{}{}/auth/state?platform={}",
-        CODEBUDDY_API_ENDPOINT, CODEBUDDY_API_PREFIX, platform
+        WORKBUDDY_API_ENDPOINT, WORKBUDDY_API_PREFIX, platform
     );
 
-    logger::log_info(&format!("[CodeBuddy OAuth] 请求 auth/state: {}", url));
+    logger::log_info(&format!("[WorkBuddy OAuth] 请求 auth/state: {}", url));
 
     let resp = client
         .post(&url)
         .json(&json!({}))
         .send()
         .await
-        .map_err(|e| format!("请求 auth/state 失败: {}", e))?;
+        .map_err(|e| format!("请求 auth/state 失败:{}", e))?;
 
     let body: Value = resp
         .json()
         .await
-        .map_err(|e| format!("解析 auth/state 响应失败: {}", e))?;
+        .map_err(|e| format!("解析 auth/state 响应失败:{}", e))?;
 
     let data = body
         .get("data")
-        .ok_or_else(|| format!("auth/state 响应缺少 data 字段: {}", body))?;
+        .ok_or_else(|| format!("auth/state 响应缺少 data 字段:{}", body))?;
 
     let state = data
         .get("state")
@@ -136,7 +136,7 @@ async fn start_login_with_platform(platform: &str) -> Result<CodebuddyOAuthStart
     let login_id = generate_login_id();
 
     let verification_uri = if auth_url.is_empty() {
-        format!("{}/login?state={}", CODEBUDDY_API_ENDPOINT, state)
+        format!("{}/login?state={}", WORKBUDDY_API_ENDPOINT, state)
     } else {
         auth_url.clone()
     };
@@ -154,11 +154,11 @@ async fn start_login_with_platform(platform: &str) -> Result<CodebuddyOAuthStart
     }
 
     logger::log_info(&format!(
-        "[CodeBuddy OAuth] 登录已启动: login_id={}, state={}",
+        "[WorkBuddy OAuth] 登录已启动: login_id={}, state={}",
         login_id, state
     ));
 
-    Ok(CodebuddyOAuthStartResponse {
+    Ok(WorkbuddyOAuthStartResponse {
         login_id,
         verification_uri: verification_uri.clone(),
         verification_uri_complete: Some(verification_uri),
@@ -167,11 +167,11 @@ async fn start_login_with_platform(platform: &str) -> Result<CodebuddyOAuthStart
     })
 }
 
-pub async fn start_login() -> Result<CodebuddyOAuthStartResponse, String> {
-    start_login_with_platform(CODEBUDDY_PLATFORM).await
+pub async fn start_login() -> Result<WorkbuddyOAuthStartResponse, String> {
+    start_login_with_platform(WORKBUDDY_PLATFORM).await
 }
 
-pub async fn complete_login(login_id: &str) -> Result<CodebuddyOAuthCompletePayload, String> {
+pub async fn complete_login(login_id: &str) -> Result<WorkbuddyOAuthCompletePayload, String> {
     let client = build_client()?;
     let start = now_timestamp();
 
@@ -199,7 +199,7 @@ pub async fn complete_login(login_id: &str) -> Result<CodebuddyOAuthCompletePayl
 
         let url = format!(
             "{}{}/auth/token?state={}",
-            CODEBUDDY_API_ENDPOINT, CODEBUDDY_API_PREFIX, state_info.state
+            WORKBUDDY_API_ENDPOINT, WORKBUDDY_API_PREFIX, state_info.state
         );
 
         match client.get(&url).send().await {
@@ -217,7 +217,7 @@ pub async fn complete_login(login_id: &str) -> Result<CodebuddyOAuthCompletePayl
                                 .to_string();
 
                             if !access_token.is_empty() {
-                                logger::log_info("[CodeBuddy OAuth] 获取 token 成功");
+                                logger::log_info("[WorkBuddy OAuth] 获取 token 成功");
 
                                 let refresh_token = data
                                     .get("refreshToken")
@@ -262,14 +262,14 @@ pub async fn complete_login(login_id: &str) -> Result<CodebuddyOAuthCompletePayl
                                     Ok(info) => info,
                                     Err(e) => {
                                         logger::log_warn(&format!(
-                                            "[CodeBuddy OAuth] 获取账号信息失败: {}",
+                                            "[WorkBuddy OAuth] 获取账号信息失败:{}",
                                             e
                                         ));
                                         (None, None, String::new(), None, None, None)
                                     }
                                 };
 
-                                return Ok(CodebuddyOAuthCompletePayload {
+                                return Ok(WorkbuddyOAuthCompletePayload {
                                     email,
                                     uid,
                                     nickname,
@@ -298,7 +298,7 @@ pub async fn complete_login(login_id: &str) -> Result<CodebuddyOAuthCompletePayl
                 }
             }
             Err(e) => {
-                logger::log_warn(&format!("[CodeBuddy OAuth] 轮询 token 请求失败: {}", e));
+                logger::log_warn(&format!("[WorkBuddy OAuth] 轮询 token 请求失败:{}", e));
             }
         }
 
@@ -345,7 +345,7 @@ async fn fetch_account_info(
 > {
     let url = format!(
         "{}{}/login/account?state={}",
-        CODEBUDDY_API_ENDPOINT, CODEBUDDY_API_PREFIX, state
+        WORKBUDDY_API_ENDPOINT, WORKBUDDY_API_PREFIX, state
     );
 
     let mut req = client
@@ -359,12 +359,12 @@ async fn fetch_account_info(
     let resp = req
         .send()
         .await
-        .map_err(|e| format!("请求 login/account 失败: {}", e))?;
+        .map_err(|e| format!("请求 login/account 失败:{}", e))?;
 
     let body: Value = resp
         .json()
         .await
-        .map_err(|e| format!("解析 login/account 响应失败: {}", e))?;
+        .map_err(|e| format!("解析 login/account 响应失败:{}", e))?;
 
     let data = body.get("data").cloned().unwrap_or(json!({}));
 
@@ -420,7 +420,7 @@ pub async fn refresh_token(
     let client = build_client()?;
     let url = format!(
         "{}{}/auth/token/refresh",
-        CODEBUDDY_API_ENDPOINT, CODEBUDDY_API_PREFIX
+        WORKBUDDY_API_ENDPOINT, WORKBUDDY_API_PREFIX
     );
 
     let mut req = client
@@ -436,12 +436,12 @@ pub async fn refresh_token(
     let resp = req
         .send()
         .await
-        .map_err(|e| format!("刷新 token 失败: {}", e))?;
+        .map_err(|e| format!("刷新 token 失败:{}", e))?;
 
     let body: Value = resp
         .json()
         .await
-        .map_err(|e| format!("解析刷新响应失败: {}", e))?;
+        .map_err(|e| format!("解析刷新响应失败:{}", e))?;
 
     let code = body.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
     if code != 0 && code != 200 {
@@ -467,7 +467,7 @@ pub async fn fetch_dosage_notify(
     let client = build_client()?;
     let url = format!(
         "{}/v2/billing/meter/get-dosage-notify",
-        CODEBUDDY_API_ENDPOINT
+        WORKBUDDY_API_ENDPOINT
     );
 
     let mut req = client
@@ -489,12 +489,12 @@ pub async fn fetch_dosage_notify(
     let resp = req
         .send()
         .await
-        .map_err(|e| format!("请求 dosage notify 失败: {}", e))?;
+        .map_err(|e| format!("请求 dosage notify 失败:{}", e))?;
 
     let body: Value = resp
         .json()
         .await
-        .map_err(|e| format!("解析 dosage 响应失败: {}", e))?;
+        .map_err(|e| format!("解析 dosage 响应失败:{}", e))?;
 
     Ok(body)
 }
@@ -508,7 +508,7 @@ pub async fn fetch_payment_type(
     let client = build_client()?;
     let url = format!(
         "{}/v2/billing/meter/get-payment-type",
-        CODEBUDDY_API_ENDPOINT
+        WORKBUDDY_API_ENDPOINT
     );
 
     let mut req = client
@@ -530,12 +530,12 @@ pub async fn fetch_payment_type(
     let resp = req
         .send()
         .await
-        .map_err(|e| format!("请求 payment type 失败: {}", e))?;
+        .map_err(|e| format!("请求 payment type 失败:{}", e))?;
 
     let body: Value = resp
         .json()
         .await
-        .map_err(|e| format!("解析 payment type 响应失败: {}", e))?;
+        .map_err(|e| format!("解析 payment type 响应失败:{}", e))?;
 
     Ok(body)
 }
@@ -553,7 +553,7 @@ pub async fn fetch_user_resource_with_access_token(
     page_size: i32,
 ) -> Result<Value, String> {
     let client = build_client()?;
-    let url = format!("{}/v2/billing/meter/get-user-resource", CODEBUDDY_API_ENDPOINT);
+    let url = format!("{}/v2/billing/meter/get-user-resource", WORKBUDDY_API_ENDPOINT);
 
     let body = json!({
         "PageNumber": page_number,
@@ -586,7 +586,7 @@ pub async fn fetch_user_resource_with_access_token(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("请求 user resource（Token）失败: {}", e))?;
+        .map_err(|e| format!("请求 user resource（Token）失败:{}", e))?;
 
     let status_code = resp.status();
     let content_type = resp
@@ -606,7 +606,7 @@ pub async fn fetch_user_resource_with_access_token(
         .await
         .map_err(|e| {
             format!(
-                "解析 user resource（Token）响应失败: {} (http={}, url={}, has_uid={}, has_enterprise_id={}, content_type={}, content_encoding={})",
+                "解析 user resource（Token）响应失败:{} (http={}, url={}, has_uid={}, has_enterprise_id={}, content_type={}, content_encoding={})",
                 e,
                 status_code.as_u16(),
                 url,
@@ -673,9 +673,9 @@ async fn fetch_user_resource_with_access_token_default(
 }
 
 async fn refresh_payload_for_account_inner(
-    account: &crate::models::codebuddy::CodebuddyAccount,
+    account: &crate::models::workbuddy::WorkbuddyAccount,
     require_user_resource: bool,
-) -> Result<(CodebuddyOAuthCompletePayload, Option<String>), String> {
+) -> Result<(WorkbuddyOAuthCompletePayload, Option<String>), String> {
     let mut new_access_token = account.access_token.clone();
     let mut new_refresh_token = account.refresh_token.clone();
     let mut new_expires_at = account.expires_at;
@@ -712,7 +712,7 @@ async fn refresh_payload_for_account_inner(
             }
             Err(e) => {
                 logger::log_warn(&format!(
-                    "[CodeBuddy] Token 刷新失败，将使用现有 token 查询配额: {}",
+                    "[WorkBuddy] Token 刷新失败，将使用现有 token 查询配额:{}",
                     e
                 ));
             }
@@ -747,7 +747,7 @@ async fn refresh_payload_for_account_inner(
 
     let mut quota_refresh_error: Option<String> = None;
     logger::log_info(&format!(
-        "[CodeBuddy][IDE Token] 尝试刷新 user_resource: has_uid={}, has_enterprise_id={}, has_domain={}",
+        "[WorkBuddy][IDE Token] 尝试刷新 user_resource: has_uid={}, has_enterprise_id={}, has_domain={}",
         resolved_uid.is_some(),
         resolved_enterprise_id.is_some(),
         new_domain.is_some()
@@ -761,12 +761,12 @@ async fn refresh_payload_for_account_inner(
     .await
     {
         Ok(payload) => {
-            logger::log_info("[CodeBuddy][IDE Token] 刷新 user_resource 成功");
+            logger::log_info("[WorkBuddy][IDE Token] 刷新 user_resource 成功");
             Some(payload)
         }
         Err(err) => {
             logger::log_warn(&format!(
-                "[CodeBuddy][IDE Token] 刷新 user_resource 失败: {}",
+                "[WorkBuddy][IDE Token] 刷新 user_resource 失败:{}",
                 err
             ));
             quota_refresh_error = Some(err.clone());
@@ -829,7 +829,7 @@ async fn refresh_payload_for_account_inner(
         normalize_non_empty(Some(resolved_email.as_str())).unwrap_or_else(|| account.email.clone());
 
     Ok((
-        CodebuddyOAuthCompletePayload {
+        WorkbuddyOAuthCompletePayload {
             email: final_email,
             uid: resolved_uid,
             nickname: resolved_nickname,
@@ -857,19 +857,19 @@ async fn refresh_payload_for_account_inner(
 }
 
 pub async fn refresh_payload_for_account(
-    account: &crate::models::codebuddy::CodebuddyAccount,
-) -> Result<(CodebuddyOAuthCompletePayload, Option<String>), String> {
+    account: &crate::models::workbuddy::WorkbuddyAccount,
+) -> Result<(WorkbuddyOAuthCompletePayload, Option<String>), String> {
     refresh_payload_for_account_inner(account, false).await
 }
 
 pub async fn build_payload_from_token(
     access_token: &str,
-) -> Result<CodebuddyOAuthCompletePayload, String> {
+) -> Result<WorkbuddyOAuthCompletePayload, String> {
     let client = build_client()?;
 
     let url = format!(
         "{}{}/accounts",
-        CODEBUDDY_API_ENDPOINT, CODEBUDDY_API_PREFIX
+        WORKBUDDY_API_ENDPOINT, WORKBUDDY_API_PREFIX
     );
 
     let resp = client
@@ -882,7 +882,7 @@ pub async fn build_payload_from_token(
     let body: Value = resp
         .json()
         .await
-        .map_err(|e| format!("解析 accounts 响应失败: {}", e))?;
+        .map_err(|e| format!("解析 accounts 响应失败:{}", e))?;
 
     let accounts = body
         .get("data")
@@ -1009,7 +1009,7 @@ pub async fn build_payload_from_token(
         email
     };
 
-    Ok(CodebuddyOAuthCompletePayload {
+    Ok(WorkbuddyOAuthCompletePayload {
         email: email_final,
         uid,
         nickname,
