@@ -4,9 +4,9 @@ use std::sync::{Arc, Mutex};
 use crate::models::workbuddy::{WorkbuddyOAuthCompletePayload, WorkbuddyOAuthStartResponse};
 use crate::modules::logger;
 
-const WORKBUDDY_API_ENDPOINT: &str = "https://copilot.tencent.com";
+const WORKBUDDY_API_ENDPOINT: &str = "https://www.codebuddy.cn";
 const WORKBUDDY_API_PREFIX: &str = "/v2/plugin";
-const WORKBUDDY_PLATFORM: &str = "ide";
+const WORKBUDDY_PLATFORM: &str = "workbuddy";
 const OAUTH_TIMEOUT_SECONDS: u64 = 600;
 const OAUTH_POLL_INTERVAL_MS: u64 = 1500;
 

@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use crate::models::codebuddy::{CodebuddyOAuthCompletePayload, CodebuddyOAuthStartResponse};
 use crate::modules::logger;
 
-const CODEBUDDY_API_ENDPOINT: &str = "https://copilot.tencent.com";
+const CODEBUDDY_API_ENDPOINT: &str = "https://www.codebuddy.cn";
 const CODEBUDDY_API_PREFIX: &str = "/v2/plugin";
 const CODEBUDDY_PLATFORM: &str = "ide";
 const OAUTH_TIMEOUT_SECONDS: u64 = 600;
