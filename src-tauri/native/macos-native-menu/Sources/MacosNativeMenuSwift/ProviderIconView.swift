@@ -27,6 +27,8 @@ struct ProviderIconResource {
 }
 
 enum ProviderIconRegistry {
+    private static let bundledIconDirectory = "native-menu-icons"
+
     static func resource(for platformId: String) -> ProviderIconResource? {
         switch platformId {
         case "antigravity":
@@ -60,7 +62,11 @@ enum ProviderIconRegistry {
 
     static func image(for platformId: String) -> (image: NSImage, resource: ProviderIconResource)? {
         guard let resource = self.resource(for: platformId),
-              let url = Bundle.module.url(forResource: resource.name, withExtension: resource.ext),
+              let url = Bundle.main.url(
+                  forResource: resource.name,
+                  withExtension: resource.ext,
+                  subdirectory: Self.bundledIconDirectory
+              ),
               let data = try? Data(contentsOf: url),
               let image = NSImage(data: data)
         else {

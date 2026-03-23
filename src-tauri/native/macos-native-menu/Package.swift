@@ -16,8 +16,8 @@ let package = Package(
     targets: [
         .target(
             name: "MacosNativeMenuSwift",
-            resources: [
-                .process("Resources"),
+            exclude: [
+                "Resources",
             ]
         ),
     ]

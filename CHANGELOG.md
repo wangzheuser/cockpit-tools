@@ -7,6 +7,12 @@ All notable changes to Cockpit Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
+## [0.19.1] - 2026-03-23
+
+### Fixed
+- **Bundled macOS menu-bar builds no longer crash when opening the native Swift tray menu**: native menu provider icons are now bundled into the main app resources and loaded from the packaged app bundle, so clicking the menu-bar entry in the released `.app` no longer triggers a missing-resource assertion in `Bundle.module`.
+
+---
 ## [0.19.0] - 2026-03-23
 
 ### Added
