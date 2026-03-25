@@ -686,7 +686,7 @@
   border: 1px solid var(--border-light);
   border-left: none;
   border-radius: 0 10px 10px 0;
-  background: var(--bg-surface);
+  background: transparent;
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;

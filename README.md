@@ -381,6 +381,16 @@ npm run tauri build
 
 ---
 
+## 💬 交流群
+
+QQ交流群 或者加我微信 拉微信群
+
+| QQ 群 | 微信（个人） |
+| :---: | :---: |
+| <img src="docs/images/qq_group.png" width="200" /> | <img src="docs/images/wechat_info.jpg" width="200" /> |
+
+---
+
 ## ☕ 赞助项目
 
 如果不介意，请 [☕ 赞赏支持一下](docs/DONATE.md)

@@ -1695,14 +1695,11 @@ function MainApp() {
       }
     };
 
-    const timer = setTimeout(() => {
-      void checkUpdates('startup');
-      intervalId = window.setInterval(() => {
-        void checkUpdates('hourly');
-      }, UPDATE_POLL_INTERVAL_MS);
-    }, 8000);
+    void checkUpdates('startup');
+    intervalId = window.setInterval(() => {
+      void checkUpdates('hourly');
+    }, UPDATE_POLL_INTERVAL_MS);
     return () => {
-      clearTimeout(timer);
       if (intervalId !== undefined) {
         window.clearInterval(intervalId);
       }
