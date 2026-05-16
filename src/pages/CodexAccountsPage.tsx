@@ -9248,6 +9248,12 @@ export function CodexAccountsPage() {
                                         >
                                           {emailText}
                                         </span>
+                                        <span
+                                          className={`tier-badge codex-oauth-binding-row-plan ${presentation.planClass || "unknown"}`}
+                                          title={presentation.planLabel}
+                                        >
+                                          {presentation.planLabel}
+                                        </span>
                                       </div>
                                     </label>
                                   );
