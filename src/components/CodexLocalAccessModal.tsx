@@ -1409,7 +1409,7 @@ export function CodexLocalAccessModal({
                           disabled={saving || testing || starting}
                           placeholder={t(
                             'codex.localAccess.upstreamProxyUrlPlaceholder',
-                            'API 代理地址',
+                            '留空用全局代理',
                           )}
                           aria-label={t(
                             'codex.localAccess.upstreamProxyLabel',

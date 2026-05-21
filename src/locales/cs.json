@@ -1923,7 +1923,7 @@
       "customRoutingSaveSuccess": "Vlastní směrování služby API bylo aktualizováno",
       "upstreamProxyLabel": "Adresa API proxy",
       "upstreamProxySaveSuccess": "Adresa API proxy byla aktualizována",
-      "upstreamProxyUrlPlaceholder": "Adresa API proxy",
+      "upstreamProxyUrlPlaceholder": "Prázdné = globální proxy",
       "upstreamProxySaveAction": "Uložit proxy"
     },
     "local": {
