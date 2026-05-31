@@ -269,10 +269,64 @@ fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> 
 fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
 
+    fn escape_powershell_single_quoted(value: &str) -> String {
+        value.replace('\'', "''")
+    }
+
+    fn quote_cmd_arg(value: &Path) -> String {
+        format!("\"{}\"", value.to_string_lossy().replace('"', "\"\""))
+    }
+
+    fn output_detail(stdout: &[u8], stderr: &[u8]) -> String {
+        let stdout = String::from_utf8_lossy(stdout);
+        let stderr = String::from_utf8_lossy(stderr);
+        [stdout.trim(), stderr.trim()]
+            .into_iter()
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>()
+            .join("; ")
+    }
+
+    let source_text = source.to_string_lossy();
+    let target_text = target.to_string_lossy();
+    let script = format!(
+        "$ErrorActionPreference='Stop';\n\
+         [Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false);\n\
+         $target='{}';\n\
+         $source='{}';\n\
+         New-Item -ItemType Junction -Path $target -Target $source -ErrorAction Stop | Out-Null",
+        escape_powershell_single_quoted(&target_text),
+        escape_powershell_single_quoted(&source_text)
+    );
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            &script,
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| format!("创建目录共享联接失败: {}", e))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+    let powershell_status = output.status;
+    let powershell_detail = output_detail(&output.stdout, &output.stderr);
+
+    let mklink_command = format!(
+        "mklink /J {} {}",
+        quote_cmd_arg(target),
+        quote_cmd_arg(source)
+    );
     let output = Command::new("cmd")
-        .args(["/C", "mklink", "/J"])
-        .arg(target)
-        .arg(source)
+        .args(["/D", "/C", &mklink_command])
         .creation_flags(CREATE_NO_WINDOW)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -284,16 +338,15 @@ fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> 
         return Ok(());
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let detail = [stdout.trim(), stderr.trim()]
-        .into_iter()
-        .filter(|value| !value.is_empty())
-        .collect::<Vec<_>>()
-        .join("; ");
+    let mklink_detail = output_detail(&output.stdout, &output.stderr);
     Err(format!(
-        "创建目录共享联接失败: status={}, detail={}",
-        output.status, detail
+        "创建目录共享联接失败: powershell_status={}, powershell_detail={}, mklink_status={}, mklink_detail={}, source={}, target={}",
+        powershell_status,
+        powershell_detail,
+        output.status,
+        mklink_detail,
+        display_abs_path(source),
+        display_abs_path(target)
     ))
 }
 
