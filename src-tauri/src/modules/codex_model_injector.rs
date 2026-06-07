@@ -62,13 +62,6 @@ pub fn remote_debugging_arg(codex_home: &str) -> String {
     )
 }
 
-pub fn has_remote_debugging_arg(args: &[String]) -> bool {
-    args.iter().any(|arg| {
-        let trimmed = arg.trim();
-        trimmed == "--remote-debugging-port" || trimmed.starts_with("--remote-debugging-port=")
-    })
-}
-
 pub fn inject_for_codex_home_later(codex_home: PathBuf) {
     crate::modules::logger::log_info(&format!(
         "[Codex Model Injector] schedule injection: codex_home={}",

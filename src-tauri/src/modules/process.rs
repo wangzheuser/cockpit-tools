@@ -7623,17 +7623,7 @@ pub fn start_codex_with_args(codex_home: &str, extra_args: &[String]) -> Result<
         let app_root = app_root.ok_or_else(|| app_path_missing_error("codex"))?;
 
         let codex_home_trimmed = codex_home.trim();
-        let mut args: Vec<String> = Vec::new();
-        for arg in extra_args {
-            if !arg.trim().is_empty() {
-                args.push(arg.to_string());
-            }
-        }
-        if !crate::modules::codex_model_injector::has_remote_debugging_arg(&args) {
-            args.push(crate::modules::codex_model_injector::remote_debugging_arg(
-                codex_home_trimmed,
-            ));
-        }
+        let args = build_codex_app_launch_args(extra_args, codex_home_trimmed);
 
         // 使用 open -a 启动，避免 macOS Responsible Process 归因
         // 注意：CODEX_HOME 环境变量无法通过 open -a 传递，
@@ -7736,16 +7726,9 @@ pub fn start_codex_with_args(codex_home: &str, extra_args: &[String]) -> Result<
                 .stdout(Stdio::null())
                 .stderr(Stdio::null());
         }
-        for arg in extra_args {
-            let trimmed = arg.trim();
-            if !trimmed.is_empty() {
-                cmd.arg(trimmed);
-            }
-        }
-        if !crate::modules::codex_model_injector::has_remote_debugging_arg(extra_args) {
-            cmd.arg(crate::modules::codex_model_injector::remote_debugging_arg(
-                codex_home_trimmed,
-            ));
+        let args = build_codex_app_launch_args(extra_args, codex_home_trimmed);
+        for arg in &args {
+            cmd.arg(arg);
         }
         cmd.arg(format!(
             "--user-data-dir={}",
@@ -7759,18 +7742,8 @@ pub fn start_codex_with_args(codex_home: &str, extra_args: &[String]) -> Result<
                 if err.kind() == std::io::ErrorKind::PermissionDenied
                     && launch_path_text.contains("\\windowsapps\\")
                 {
-                    let mut store_args = extra_args
-                        .iter()
-                        .map(|item| item.trim().to_string())
-                        .filter(|item| !item.is_empty())
-                        .collect::<Vec<_>>();
-                    if !crate::modules::codex_model_injector::has_remote_debugging_arg(extra_args) {
-                        store_args.push(
-                            crate::modules::codex_model_injector::remote_debugging_arg(
-                                codex_home_trimmed,
-                            ),
-                        );
-                    }
+                    let mut store_args =
+                        build_codex_app_launch_args(extra_args, codex_home_trimmed);
                     store_args.push(format!(
                         "--user-data-dir={}",
                         app_user_data_dir.to_string_lossy()
@@ -7866,6 +7839,42 @@ pub fn start_codex_default_fast_after_close(extra_args: &[String]) -> Result<u32
     start_codex_default_internal(extra_args, true)
 }
 
+fn build_codex_app_launch_args(extra_args: &[String], codex_home: &str) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut index = 0usize;
+    while index < extra_args.len() {
+        let trimmed = extra_args[index].trim();
+        if trimmed.is_empty() {
+            index += 1;
+            continue;
+        }
+        if trimmed == "--remote-debugging-port" {
+            index += 1;
+            if index < extra_args.len() && !extra_args[index].trim().starts_with("--") {
+                index += 1;
+            }
+            continue;
+        }
+        if trimmed.starts_with("--remote-debugging-port=") {
+            index += 1;
+            continue;
+        }
+        args.push(trimmed.to_string());
+        index += 1;
+    }
+    args.push(crate::modules::codex_model_injector::remote_debugging_arg(
+        codex_home.trim(),
+    ));
+    args
+}
+
+fn build_codex_default_launch_args(extra_args: &[String]) -> Vec<String> {
+    let default_home = crate::modules::codex_account::get_codex_home()
+        .to_string_lossy()
+        .to_string();
+    build_codex_app_launch_args(extra_args, &default_home)
+}
+
 fn start_codex_default_internal(
     extra_args: &[String],
     fast_after_close: bool,
@@ -7882,13 +7891,7 @@ fn start_codex_default_internal(
         });
         let app_root = app_root.ok_or_else(|| app_path_missing_error("codex"))?;
 
-        let mut args: Vec<String> = Vec::new();
-        for arg in extra_args {
-            let trimmed = arg.trim();
-            if !trimmed.is_empty() {
-                args.push(trimmed.to_string());
-            }
-        }
+        let args = build_codex_default_launch_args(extra_args);
 
         // 使用 open -n -a 启动默认实例，避免复用已运行的其他 Codex 实例。
         let open_pid = spawn_open_app_with_options(&app_root, &args, true)
@@ -7945,12 +7948,8 @@ fn start_codex_default_internal(
                 "[Codex Start] 启动策略候选=system-store-entry app_id={}",
                 app_user_model_id
             ));
-            match launch_codex_via_store_app_user_model_id(
-                &app_user_model_id,
-                None,
-                None,
-                extra_args,
-            ) {
+            let args = build_codex_default_launch_args(extra_args);
+            match launch_codex_via_store_app_user_model_id(&app_user_model_id, None, None, &args) {
                 Ok(()) => {
                     crate::modules::logger::log_info(&format!(
                         "[Codex Start] 已通过系统入口启动 Codex: {}",
@@ -8051,11 +8050,9 @@ fn start_codex_default_internal(
                 .stderr(Stdio::null());
         }
         // Codex 是 GUI 应用，不设置 CREATE_NO_WINDOW，否则会导致其内部 spawn CLI 子进程失败。
-        for arg in extra_args {
-            let trimmed = arg.trim();
-            if !trimmed.is_empty() {
-                cmd.arg(trimmed);
-            }
+        let args = build_codex_default_launch_args(extra_args);
+        for arg in args {
+            cmd.arg(arg);
         }
 
         let child =
