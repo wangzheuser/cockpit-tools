@@ -70,8 +70,7 @@ fn read_config_toml(path: &Path) -> Result<Document, String> {
     if content.trim().is_empty() {
         return Ok(Document::new());
     }
-    content
-        .parse::<Document>()
+    crate::modules::codex_config_format::read_codex_config_doc_from_str(&content)
         .map_err(|err| format!("解析 Codex config.toml 失败: {}", err))
 }
 
@@ -280,7 +279,7 @@ fn write_app_speed_for_config_toml_path(
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|err| format!("创建 Codex 配置目录失败: {}", err))?;
     }
-    crate::modules::atomic_write::write_string_atomic(&path, &content)
+    crate::modules::codex_config_format::write_codex_config_toml_atomic(&path, &content)
         .map_err(|err| format!("写入 Codex config.toml 失败: {}", err))?;
 
     Ok(build_config_with_config_path(&path, speed))
@@ -330,10 +329,11 @@ pub fn apply_api_service_speed_to_official_state() -> Result<CodexAppSpeedConfig
 #[cfg(test)]
 mod tests {
     use super::{
-        get_app_speed_config_for_dir, normalize_service_tier_speed, read_desktop_service_tier_from_doc,
-        sync_legacy_service_tier_state, write_app_speed_for_config_toml_path,
-        DESKTOP_DEFAULT_SERVICE_TIER_KEY, DESKTOP_SECTION_KEY, ELECTRON_PERSISTED_ATOM_STATE_KEY,
-        GLOBAL_STATE_FILE, HAS_USER_CHANGED_SERVICE_TIER_KEY,
+        get_app_speed_config_for_dir, normalize_service_tier_speed,
+        read_desktop_service_tier_from_doc, sync_legacy_service_tier_state,
+        write_app_speed_for_config_toml_path, DESKTOP_DEFAULT_SERVICE_TIER_KEY,
+        DESKTOP_SECTION_KEY, ELECTRON_PERSISTED_ATOM_STATE_KEY, GLOBAL_STATE_FILE,
+        HAS_USER_CHANGED_SERVICE_TIER_KEY,
     };
     use crate::models::codex::CodexAppSpeed;
     use std::fs;

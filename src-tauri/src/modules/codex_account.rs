@@ -58,6 +58,8 @@ const CODEX_AUTO_SWITCH_ACCOUNT_SCOPE_ALL: &str = "all_accounts";
 const CODEX_AUTO_SWITCH_ACCOUNT_SCOPE_SELECTED: &str = "selected_accounts";
 const DISK_FULL_ERROR_CODE: &str = "DISK_FULL";
 const CODEX_TOKEN_SOURCE_MANAGED: &str = "managed";
+const CODEX_MISSING_REFRESH_TOKEN_REAUTH_REASON: &str =
+    "Codex 登录授权缺少 refresh_token，无法自动续期；当前 access_token 已不可用，请重新登录。";
 const CODEX_PROACTIVE_REFRESH_INTERVAL_SECONDS: i64 = 8 * 24 * 60 * 60;
 const CODEX_AUTH_PROJECTION_FILE_NAME: &str = ".cockpit_codex_auth.json";
 const CODEX_AUTH_PROJECTION_WRITER: &str = "cockpit";
@@ -720,8 +722,7 @@ pub fn read_quick_config_from_config_toml(base_dir: &Path) -> Result<CodexQuickC
         });
     }
 
-    let doc = content
-        .parse::<Document>()
+    let doc = crate::modules::codex_config_format::read_codex_config_doc_from_str(&content)
         .map_err(|e| format!("解析 config.toml 失败: {}", e))?;
     let detected_model_context_window =
         read_top_level_int_from_doc(&doc, CODEX_CONFIG_MODEL_CONTEXT_WINDOW_KEY);
@@ -760,8 +761,7 @@ fn write_quick_config_to_config_toml(
     let mut doc = if existing.trim().is_empty() {
         Document::new()
     } else {
-        existing
-            .parse::<Document>()
+        crate::modules::codex_config_format::read_codex_config_doc_from_str(&existing)
             .map_err(|e| format!("解析 config.toml 失败: {}", e))?
     };
 
@@ -787,7 +787,7 @@ fn write_quick_config_to_config_toml(
         fs::create_dir_all(parent).map_err(|e| format!("创建 config.toml 目录失败: {}", e))?;
     }
     let content = crate::modules::codex_config_format::codex_config_doc_to_string(&mut doc);
-    crate::modules::atomic_write::write_string_atomic(&config_path, &content)
+    crate::modules::codex_config_format::write_codex_config_toml_atomic(&config_path, &content)
         .map_err(|e| format!("写入 config.toml 失败: {}", e))?;
 
     read_quick_config_from_config_toml(base_dir)
@@ -826,7 +826,7 @@ fn read_api_provider_from_config_toml(base_dir: &Path) -> ApiProviderConfig {
         }
     };
 
-    let doc = match content.parse::<Document>() {
+    let doc = match crate::modules::codex_config_format::read_codex_config_doc_from_str(&content) {
         Ok(doc) => doc,
         Err(_) => {
             return ApiProviderConfig {
@@ -900,8 +900,7 @@ fn write_api_provider_to_config_toml(
     let mut doc = if existing.trim().is_empty() {
         Document::new()
     } else {
-        existing
-            .parse::<Document>()
+        crate::modules::codex_config_format::read_codex_config_doc_from_str(&existing)
             .map_err(|e| format!("解析 config.toml 失败: {}", e))?
     };
 
@@ -963,7 +962,7 @@ fn write_api_provider_to_config_toml(
         fs::create_dir_all(parent).map_err(|e| format!("创建 config.toml 目录失败: {}", e))?;
     }
     let content = crate::modules::codex_config_format::codex_config_doc_to_string(&mut doc);
-    crate::modules::atomic_write::write_string_atomic(&config_path, &content)
+    crate::modules::codex_config_format::write_codex_config_toml_atomic(&config_path, &content)
         .map_err(|e| format!("写入 config.toml 失败: {}", e))
 }
 
@@ -1054,8 +1053,7 @@ fn write_api_key_provider_to_config_toml(
     let mut doc = if existing.trim().is_empty() {
         Document::new()
     } else {
-        existing
-            .parse::<Document>()
+        crate::modules::codex_config_format::read_codex_config_doc_from_str(&existing)
             .map_err(|e| format!("解析 config.toml 失败: {}", e))?
     };
 
@@ -1083,7 +1081,7 @@ fn write_api_key_provider_to_config_toml(
         fs::create_dir_all(parent).map_err(|e| format!("创建 config.toml 目录失败: {}", e))?;
     }
     let content = crate::modules::codex_config_format::codex_config_doc_to_string(&mut doc);
-    crate::modules::atomic_write::write_string_atomic(&config_path, &content)
+    crate::modules::codex_config_format::write_codex_config_toml_atomic(&config_path, &content)
         .map_err(|e| format!("写入 config.toml 失败: {}", e))
 }
 
@@ -1400,10 +1398,22 @@ fn clear_stale_missing_refresh_token_reauth(account: &mut CodexAccount) -> Resul
     if !account.requires_reauth || !is_missing_refresh_token_reauth {
         return Ok(());
     }
+    if codex_oauth::is_token_expired(&account.tokens.access_token) {
+        return Ok(());
+    }
 
     account.requires_reauth = false;
     account.reauth_reason = None;
     save_account(account)
+}
+
+pub fn mark_access_token_only_account_requires_reauth(account_id: &str) -> Result<(), String> {
+    let mut account =
+        load_account(account_id).ok_or_else(|| format!("账号不存在: {}", account_id))?;
+    if account.is_api_key_auth() || account_has_refresh_token(&account) {
+        return Ok(());
+    }
+    mark_account_requires_reauth(&mut account, CODEX_MISSING_REFRESH_TOKEN_REAUTH_REASON)
 }
 
 fn retain_existing_refresh_token_if_missing(
@@ -3733,6 +3743,7 @@ pub fn is_managed_auth_refresh_due(account: &CodexAccount) -> bool {
 async fn perform_managed_token_refresh(
     mut account: CodexAccount,
     reason: &str,
+    force: bool,
 ) -> Result<CodexAccount, String> {
     let refresh_token = match account
         .tokens
@@ -3746,6 +3757,13 @@ async fn perform_managed_token_refresh(
                 "Codex Token Authority 跳过刷新：账号缺少 refresh_token，按 access-token-only 模式继续使用当前 access_token: account_id={}, email={}, reason={}",
                 account.id, account.email, reason
             ));
+            if force || codex_oauth::is_token_expired(&account.tokens.access_token) {
+                mark_account_requires_reauth(
+                    &mut account,
+                    CODEX_MISSING_REFRESH_TOKEN_REAUTH_REASON,
+                )?;
+                return Err(CODEX_MISSING_REFRESH_TOKEN_REAUTH_REASON.to_string());
+            }
             return Ok(account);
         }
     };
@@ -3816,7 +3834,7 @@ async fn refresh_managed_account_locked(
         return Ok(account);
     }
 
-    perform_managed_token_refresh(account, reason).await
+    perform_managed_token_refresh(account, reason, force).await
 }
 
 async fn refresh_bound_oauth_account_for_api_key(
@@ -3882,7 +3900,7 @@ pub async fn keepalive_managed_account(
         return Ok(account);
     }
 
-    perform_managed_token_refresh(account, reason).await
+    perform_managed_token_refresh(account, reason, false).await
 }
 
 pub async fn execute_with_managed_account_projection<R, F>(
@@ -6217,6 +6235,7 @@ mod tests {
         }));
         let access_token = make_jwt(serde_json::json!({
             "sub": format!("access-{}", suffix),
+            "exp": 4_102_444_800i64,
             "https://api.openai.com/auth": {
                 "chatgpt_account_id": account_id,
                 "organization_id": organization_id,
@@ -6871,6 +6890,43 @@ mod tests {
         let persisted = load_account(&account.id).expect("persisted account");
         assert!(!persisted.requires_reauth);
         assert_eq!(persisted.reauth_reason, None);
+    }
+
+    #[test]
+    fn expired_access_token_only_account_requires_reauth_on_prepare() {
+        let _lock = TEST_ENV_LOCK.lock().unwrap_or_else(|err| err.into_inner());
+        let _env = TestEnvGuard::new("codex-access-token-only-expired-test");
+        let mut tokens = make_codex_tokens(
+            "demo@example.com",
+            "acc-current",
+            "org-current",
+            "access-only-expired",
+            "rt-unused",
+        );
+        tokens.access_token = make_jwt(serde_json::json!({
+            "sub": "access-only-expired",
+            "exp": 1i64,
+            "https://api.openai.com/auth": {
+                "chatgpt_account_id": "acc-current",
+                "organization_id": "org-current",
+            }
+        }));
+        tokens.refresh_token = None;
+        let account = seed_oauth_account(tokens);
+
+        let runtime = tokio::runtime::Runtime::new().expect("create runtime");
+        let error = runtime
+            .block_on(ensure_managed_account_fresh(&account.id))
+            .expect_err("expired access-token-only account should require reauth");
+
+        assert!(error.contains("缺少 refresh_token"));
+        let persisted = load_account(&account.id).expect("persisted account");
+        assert!(persisted.requires_reauth);
+        assert!(persisted
+            .reauth_reason
+            .as_deref()
+            .unwrap_or_default()
+            .contains("缺少 refresh_token"));
     }
 
     #[test]

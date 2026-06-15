@@ -91,6 +91,7 @@ import {
   getCodexSubscriptionPresentation,
   hasCodexAccountName,
   isCodexApiKeyAccount,
+  isCodexChatCompletionsApiKeyAccount,
   isCodexNewApiAccount,
   isCodexTeamLikePlan,
   type CodexApiProviderMode,
@@ -131,6 +132,7 @@ import { SingleSelectDropdown } from "../components/SingleSelectDropdown";
 import type { CodexAccount, CodexAppSpeed } from "../types/codex";
 import type {
   CodexLocalAccessAddressKind,
+  CodexLocalAccessAccountHealth,
   CodexLocalAccessCustomRoutingRule,
   CodexLocalAccessGatewayMode,
   CodexLocalAccessRoutingStrategy,
@@ -159,9 +161,16 @@ import {
   resolveCodexApiProviderPresetId,
 } from "../utils/codexProviderPresets";
 import {
+  APIKEY_FUN_PROVIDER_BASE_URL,
+  isApiKeyFunProviderBaseUrl,
   normalizeApiKeyFunOfficialUrl,
   resolveApiKeyFunWireApi,
 } from "../utils/apikeyFunLinks";
+import {
+  APIKEY_FUN_PREFILL_EVENT,
+  consumeApiKeyFunPrefill,
+  type ApiKeyFunPrefillPayload,
+} from "../utils/apiKeyFunPrefill";
 import { resolveCodexProviderCapabilityProfile } from "../utils/codexProviderGateway";
 import {
   formatCodexQuotaPoolPercent,
@@ -298,9 +307,11 @@ type CodexApiKeyUsageState = {
   summary?: CodexModelProviderUsageSummary;
   error?: string;
   unavailable?: boolean;
+  updatedAt?: number;
 };
 
 const CODEX_API_KEY_USAGE_CACHE_KEY = "agtools.codex.apiKeyUsage.cache.v1";
+const CODEX_API_KEY_USAGE_AUTO_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
 
 function readCodexApiKeyUsageCache(): Record<string, CodexApiKeyUsageState> {
   try {
@@ -315,12 +326,17 @@ function readCodexApiKeyUsageCache(): Record<string, CodexApiKeyUsageState> {
         summary?: CodexModelProviderUsageSummary;
         error?: string;
         unavailable?: boolean;
+        updatedAt?: number;
       };
       next[accountId] = {
         loading: false,
         summary: item.summary,
         error: typeof item.error === "string" ? item.error : undefined,
         unavailable: item.unavailable === true,
+        updatedAt:
+          typeof item.updatedAt === "number" && Number.isFinite(item.updatedAt)
+            ? item.updatedAt
+            : undefined,
       };
     });
     return next;
@@ -343,6 +359,7 @@ function writeCodexApiKeyUsageCache(
               summary: item.summary,
               error: item.error,
               unavailable: item.unavailable === true,
+              updatedAt: item.updatedAt,
             },
           ]),
         ),
@@ -380,18 +397,22 @@ interface LocalAccessAccountPoolHealthSummary {
   quotaLimited: number;
 }
 
-const BLOCKING_LOCAL_ACCESS_ACCOUNT_FAILURE_CATEGORIES = new Set([
+const ABNORMAL_LOCAL_ACCESS_ACCOUNT_FAILURE_CATEGORIES = new Set([
   "auth_unavailable",
   "auth_refresh_failed",
   "account_prepare_failed",
-  "free_account_restricted",
 ]);
 
-function isBlockingLocalAccessAccountFailureCategory(
-  category?: string | null,
+function isAbnormalLocalAccessAccountFailure(
+  health?: CodexLocalAccessAccountHealth,
 ): boolean {
   return Boolean(
-    category && BLOCKING_LOCAL_ACCESS_ACCOUNT_FAILURE_CATEGORIES.has(category),
+    health &&
+      health.consecutiveFailures >= 3 &&
+      health.lastFailureCategory &&
+      ABNORMAL_LOCAL_ACCESS_ACCOUNT_FAILURE_CATEGORIES.has(
+        health.lastFailureCategory,
+      ),
   );
 }
 
@@ -2167,6 +2188,7 @@ export function CodexAccountsPage() {
   const [apiKeyUsageMap, setApiKeyUsageMap] = useState<
     Record<string, CodexApiKeyUsageState>
   >(() => readCodexApiKeyUsageCache());
+  const apiKeyUsageInFlightRef = useRef<Set<string>>(new Set());
   const [managedProviderId, setManagedProviderId] = useState<string>("");
   const [managedProviderApiKeyId, setManagedProviderApiKeyId] =
     useState<string>("");
@@ -2265,6 +2287,10 @@ export function CodexAccountsPage() {
   const oauthEventSeqRef = useRef(0);
   const oauthAttemptSeqRef = useRef(0);
   const inlineRenameDiscardRef = useRef(false);
+  const skipManagedProviderApiKeyAutofillRef = useRef(false);
+  const apiKeyFunPrefillModelCatalogRef = useRef<string[] | null>(null);
+  const pendingApiKeyFunCodexPrefillRef =
+    useRef<ApiKeyFunPrefillPayload | null>(null);
   const apiSwitchNoticeRepairSeqRef = useRef(0);
   const apiSwitchNoticeAutoCloseTimerRef = useRef<number | null>(null);
 
@@ -2565,11 +2591,19 @@ export function CodexAccountsPage() {
         };
       }
 
+      const isApiKeyFunProvider = isApiKeyFunProviderBaseUrl(normalizedBaseUrl);
+      const apiKeyFunModelCatalog = isApiKeyFunProvider
+        ? (apiKeyFunPrefillModelCatalogRef.current ?? undefined)
+        : undefined;
       const trimmedName = customProviderName.trim();
+      const customProviderDisplayName =
+        trimmedName || (isApiKeyFunProvider ? "APIKEY.FUN" : undefined);
       return {
         apiProviderMode: "custom",
-        apiProviderName: trimmedName || undefined,
-        accountName: trimmedName || undefined,
+        apiProviderName: customProviderDisplayName,
+        apiModelCatalog: apiKeyFunModelCatalog,
+        apiWireApi: isApiKeyFunProvider ? "responses" : undefined,
+        accountName: customProviderDisplayName,
       };
     },
     [managedProviders, sponsorApiProviderTemplates],
@@ -2659,6 +2693,9 @@ export function CodexAccountsPage() {
 
   useEffect(() => {
     if (!showAddModal) {
+      if (!pendingApiKeyFunCodexPrefillRef.current) {
+        apiKeyFunPrefillModelCatalogRef.current = null;
+      }
       setApiKeyInput("");
       setApiKeyInputVisible(false);
       setApiBaseUrlInput(DEFAULT_CODEX_API_BASE_URL);
@@ -2708,7 +2745,12 @@ export function CodexAccountsPage() {
     setManagedProviderId((prev) =>
       prev === (matched?.id ?? "") ? prev : (matched?.id ?? ""),
     );
-    if (!matched || matched.apiKeys.length === 0) {
+    if (
+      !matched ||
+      matched.apiKeys.length === 0 ||
+      skipManagedProviderApiKeyAutofillRef.current
+    ) {
+      skipManagedProviderApiKeyAutofillRef.current = false;
       setManagedProviderApiKeyId("");
       return;
     }
@@ -4118,6 +4160,91 @@ export function CodexAccountsPage() {
     [selectedManagedProvider],
   );
 
+  const applyApiKeyFunPrefill = useCallback(
+    (request: ApiKeyFunPrefillPayload) => {
+      if (request.target !== "codex") return;
+      const apiKey = request.apiKey.trim();
+      if (!apiKey) return;
+
+      pendingApiKeyFunCodexPrefillRef.current = request;
+      openCodexAddModal("apikey");
+    },
+    [openCodexAddModal],
+  );
+
+  useEffect(() => {
+    if (!showAddModal || addTab !== "apikey") return;
+    const request = pendingApiKeyFunCodexPrefillRef.current;
+    if (!request) return;
+    pendingApiKeyFunCodexPrefillRef.current = null;
+
+    const apiKey = request.apiKey.trim();
+    if (!apiKey) return;
+
+    const requestBaseUrl =
+      request.baseUrl?.trim() || APIKEY_FUN_PROVIDER_BASE_URL;
+    const normalizedRequestBaseUrl =
+      normalizeHttpBaseUrl(requestBaseUrl)?.toLowerCase() ?? "";
+    const sponsorTemplate =
+      sponsorApiProviderTemplates.find((template) => {
+        const normalizedTemplateBaseUrl =
+          normalizeHttpBaseUrl(template.baseUrl)?.toLowerCase() ?? "";
+        const searchable = [
+          template.name,
+          template.website,
+          template.apiKeyUrl,
+          template.baseUrl,
+        ]
+          .join(" ")
+          .toLowerCase();
+        return (
+          normalizedTemplateBaseUrl === normalizedRequestBaseUrl ||
+          searchable.includes("apikey.fun") ||
+          searchable.includes("api.apikey.fun")
+        );
+      }) ?? null;
+
+    skipManagedProviderApiKeyAutofillRef.current = true;
+    apiKeyFunPrefillModelCatalogRef.current = request.modelCatalog ?? null;
+    setApiKeyInput(apiKey);
+    setApiKeyInputVisible(false);
+    setApiBaseUrlInput(sponsorTemplate?.baseUrl ?? requestBaseUrl);
+    setManagedProviderId("");
+    setManagedProviderApiKeyId("");
+    setApiProviderPresetId(sponsorTemplate?.id ?? CODEX_API_PROVIDER_CUSTOM_ID);
+    setNewManagedProviderNameInput(
+      sponsorTemplate?.name ?? request.providerName?.trim() ?? "APIKEY.FUN",
+    );
+    setAddStatus("idle");
+    setAddMessage(
+      t(
+        "apiKeyFun.prefill.codexReady",
+        "已带入 APIKEY.FUN 配置，请确认后添加到 Codex。",
+      ),
+    );
+  }, [
+    addTab,
+    setAddMessage,
+    setAddStatus,
+    showAddModal,
+    sponsorApiProviderTemplates,
+    t,
+  ]);
+
+  useEffect(() => {
+    const consumePrefill = () => {
+      const request = consumeApiKeyFunPrefill("codex");
+      if (request) {
+        applyApiKeyFunPrefill(request);
+      }
+    };
+    consumePrefill();
+    window.addEventListener(APIKEY_FUN_PREFILL_EVENT, consumePrefill);
+    return () => {
+      window.removeEventListener(APIKEY_FUN_PREFILL_EVENT, consumePrefill);
+    };
+  }, [applyApiKeyFunPrefill]);
+
   const handleSelectEditingApiProviderPreset = useCallback(
     (providerId: string) => {
       setEditingApiProviderPresetId(providerId);
@@ -4326,7 +4453,7 @@ export function CodexAccountsPage() {
             apiKey: validation.apiKey,
             apiKeyName: providerPayload.accountName,
             sourceTag: providerPayload.sponsorTemplate?.id ?? null,
-            modelCatalog: providerPayload.sponsorTemplate?.modelCatalog,
+            modelCatalog: providerPayload.apiModelCatalog,
             supportsVision: providerPayload.sponsorTemplate?.supportsVision,
             website: providerPayload.sponsorTemplate?.website,
             apiKeyUrl: providerPayload.sponsorTemplate?.apiKeyUrl,
@@ -4634,7 +4761,10 @@ export function CodexAccountsPage() {
 
   const resolveUsageProviderForApiKeyAccount = useCallback(
     (account: CodexAccount): CodexModelProvider | null => {
-      if (!isCodexApiKeyAccount(account) || isCodexNewApiAccount(account)) {
+      if (
+        !isCodexApiKeyAccount(account) ||
+        isCodexNewApiAccount(account)
+      ) {
         return null;
       }
       const provider =
@@ -4650,12 +4780,19 @@ export function CodexAccountsPage() {
 
   const refreshApiKeyUsage = useCallback(
     async (account: CodexAccount, provider?: CodexModelProvider | null) => {
+      if (isCodexChatCompletionsApiKeyAccount(account)) {
+        return;
+      }
       const targetProvider =
         provider ?? resolveUsageProviderForApiKeyAccount(account);
       const apiKey = (account.openai_api_key || "").trim();
       const baseUrl =
         targetProvider?.baseUrl.trim() || (account.api_base_url || "").trim();
       if (!baseUrl || !apiKey) return;
+      if (apiKeyUsageInFlightRef.current.has(account.id)) {
+        return;
+      }
+      apiKeyUsageInFlightRef.current.add(account.id);
       setApiKeyUsageMap((previous) => ({
         ...previous,
         [account.id]: {
@@ -4671,6 +4808,7 @@ export function CodexAccountsPage() {
           apiKey,
           integrationType: targetProvider?.integrationType ?? null,
         });
+        const updatedAt = Date.now();
         if (
           targetProvider &&
           (summary.mode === "sub2api" || summary.mode === "new_api") &&
@@ -4684,9 +4822,10 @@ export function CodexAccountsPage() {
         }
         setApiKeyUsageMap((previous) => ({
           ...previous,
-          [account.id]: { loading: false, summary },
+          [account.id]: { loading: false, summary, updatedAt },
         }));
       } catch (error) {
+        const updatedAt = Date.now();
         setApiKeyUsageMap((previous) => ({
           ...previous,
           [account.id]: {
@@ -4696,26 +4835,23 @@ export function CodexAccountsPage() {
               ? undefined
               : String(error).replace(/^Error:\s*/, ""),
             unavailable: isProviderUsageUnavailableError(error),
+            updatedAt,
           },
         }));
+      } finally {
+        apiKeyUsageInFlightRef.current.delete(account.id);
       }
     },
     [reloadManagedProviders, resolveUsageProviderForApiKeyAccount],
   );
 
-  const refreshApiKeyUsageByAccountId = useCallback(
-    async (accountId: string) => {
-      const account = accounts.find((item) => item.id === accountId);
-      if (!account) return;
-      const provider = resolveUsageProviderForApiKeyAccount(account);
-      await refreshApiKeyUsage(account, provider);
-    },
-    [accounts, refreshApiKeyUsage, resolveUsageProviderForApiKeyAccount],
-  );
-
   const canRefreshApiKeyUsage = useCallback(
     (account: CodexAccount, provider?: CodexModelProvider | null): boolean => {
-      if (!isCodexApiKeyAccount(account) || isCodexNewApiAccount(account)) {
+      if (
+        !isCodexApiKeyAccount(account) ||
+        isCodexNewApiAccount(account) ||
+        isCodexChatCompletionsApiKeyAccount(account)
+      ) {
         return false;
       }
       const targetProvider =
@@ -4728,24 +4864,43 @@ export function CodexAccountsPage() {
     [resolveUsageProviderForApiKeyAccount],
   );
 
-  const refreshApiKeyUsageForAccounts = useCallback(
-    async (targetAccounts: CodexAccount[]) => {
-      const apiKeyAccounts = targetAccounts.filter((account) => {
-        const provider = resolveUsageProviderForApiKeyAccount(account);
-        const baseUrl =
-          provider?.baseUrl.trim() || (account.api_base_url || "").trim();
-        return Boolean(baseUrl && (account.openai_api_key || "").trim());
-      });
-      await Promise.all(
-        apiKeyAccounts.map((account) =>
-          refreshApiKeyUsage(
-            account,
-            resolveUsageProviderForApiKeyAccount(account),
-          ),
-        ),
+  const shouldAutoRefreshApiKeyUsage = useCallback(
+    (account: CodexAccount, provider?: CodexModelProvider | null): boolean => {
+      if (!canRefreshApiKeyUsage(account, provider)) {
+        return false;
+      }
+      const state = apiKeyUsageMap[account.id];
+      if (state?.loading || apiKeyUsageInFlightRef.current.has(account.id)) {
+        return false;
+      }
+      const updatedAt = state?.updatedAt ?? 0;
+      return (
+        updatedAt <= 0 ||
+        Date.now() - updatedAt >= CODEX_API_KEY_USAGE_AUTO_REFRESH_INTERVAL_MS
       );
     },
-    [refreshApiKeyUsage, resolveUsageProviderForApiKeyAccount],
+    [apiKeyUsageMap, canRefreshApiKeyUsage],
+  );
+
+  const refreshApiKeyUsageByAccountId = useCallback(
+    async (accountId: string, options?: { force?: boolean }) => {
+      const account = accounts.find((item) => item.id === accountId);
+      if (!account) return;
+      const provider = resolveUsageProviderForApiKeyAccount(account);
+      if (
+        options?.force === false &&
+        !shouldAutoRefreshApiKeyUsage(account, provider)
+      ) {
+        return;
+      }
+      await refreshApiKeyUsage(account, provider);
+    },
+    [
+      accounts,
+      refreshApiKeyUsage,
+      resolveUsageProviderForApiKeyAccount,
+      shouldAutoRefreshApiKeyUsage,
+    ],
   );
 
   useEffect(() => {
@@ -4754,11 +4909,16 @@ export function CodexAccountsPage() {
 
   useEffect(() => {
     const accountIds = new Set(accounts.map((account) => account.id));
+    const chatCompletionsAccountIds = new Set(
+      accounts
+        .filter((account) => isCodexChatCompletionsApiKeyAccount(account))
+        .map((account) => account.id),
+    );
     setApiKeyUsageMap((previous) => {
       let changed = false;
       const next: Record<string, CodexApiKeyUsageState> = {};
       for (const [accountId, state] of Object.entries(previous)) {
-        if (accountIds.has(accountId)) {
+        if (accountIds.has(accountId) && !chatCompletionsAccountIds.has(accountId)) {
           next[accountId] = state;
         } else {
           changed = true;
@@ -4769,13 +4929,6 @@ export function CodexAccountsPage() {
   }, [accounts]);
 
   useEffect(() => {
-    const refreshOnQuotaChanged = async () => {
-      await refreshApiKeyUsageForAccounts(accounts);
-    };
-    const refreshOnAccountsChanged = async () => {
-      await refreshApiKeyUsageForAccounts(accounts);
-    };
-
     let unlistenAccountsChanged: UnlistenFn | null = null;
     let unlistenCurrentChanged: UnlistenFn | null = null;
 
@@ -4787,10 +4940,11 @@ export function CodexAccountsPage() {
       } | null;
       if (payload?.platformId !== "codex") return;
       if (payload.accountId) {
-        await refreshApiKeyUsageByAccountId(payload.accountId);
+        await refreshApiKeyUsageByAccountId(payload.accountId, {
+          force: false,
+        });
         return;
       }
-      await refreshOnAccountsChanged();
     }).then((fn) => {
       unlistenAccountsChanged = fn;
     });
@@ -4802,19 +4956,19 @@ export function CodexAccountsPage() {
       } | null;
       if (payload?.platformId !== "codex") return;
       if (payload.accountId) {
-        await refreshApiKeyUsageByAccountId(payload.accountId);
+        await refreshApiKeyUsageByAccountId(payload.accountId, {
+          force: false,
+        });
       }
     }).then((fn) => {
       unlistenCurrentChanged = fn;
     });
 
-    void refreshOnQuotaChanged();
-
     return () => {
       unlistenAccountsChanged?.();
       unlistenCurrentChanged?.();
     };
-  }, [accounts, refreshApiKeyUsageByAccountId, refreshApiKeyUsageForAccounts]);
+  }, [refreshApiKeyUsageByAccountId]);
 
   const formatApiKeyUsageMoney = useCallback(
     (value?: number | null, unit?: string | null): string => {
@@ -5076,6 +5230,9 @@ export function CodexAccountsPage() {
       provider: CodexModelProvider | null,
       variant: "card" | "table" = "card",
     ): ReactElement => {
+      if (isCodexChatCompletionsApiKeyAccount(account)) {
+        return <></>;
+      }
       const usageState = apiKeyUsageMap[account.id];
       const summary = usageState?.summary;
       const loading = usageState?.loading === true;
@@ -5719,8 +5876,15 @@ export function CodexAccountsPage() {
   );
 
   const isAbnormalAccount = useCallback(
-    (account: CodexAccount) => Boolean(account.quota_error),
-    [],
+    (account: CodexAccount) => {
+      if (account.requires_reauth === true) {
+        return true;
+      }
+      return shouldOfferReauthorizeAction(
+        resolveQuotaErrorMeta(account.quota_error),
+      );
+    },
+    [resolveQuotaErrorMeta, shouldOfferReauthorizeAction],
   );
 
   const localAccessAccountIdSet = useMemo(
@@ -5766,7 +5930,6 @@ export function CodexAccountsPage() {
         const health = healthById.get(accountId);
         if (!account) {
           summary.missing += 1;
-          summary.abnormal += 1;
           return;
         }
         if (health?.cooldowns?.length) {
@@ -5775,20 +5938,14 @@ export function CodexAccountsPage() {
         }
         if (isBlockingCodexQuotaError(account.quota_error)) {
           summary.quotaLimited += 1;
-          summary.abnormal += 1;
           return;
         }
-        if (
-          isBlockingLocalAccessAccountFailureCategory(
-            health?.lastFailureCategory,
-          )
-        ) {
+        if (isAbnormalLocalAccessAccountFailure(health)) {
           summary.authError += 1;
           summary.abnormal += 1;
           return;
         }
         if (health && !health.available) {
-          summary.abnormal += 1;
           return;
         }
         summary.available += 1;
@@ -5801,6 +5958,8 @@ export function CodexAccountsPage() {
       localAccessState?.accountHealth,
     ]);
   const localAccessAccountPoolHealthHasIssue =
+    localAccessAccountPoolHealthSummary.available <
+      localAccessAccountPoolHealthSummary.total ||
     localAccessAccountPoolHealthSummary.abnormal > 0 ||
     localAccessAccountPoolHealthSummary.cooldown > 0;
   const localAccessQuotaPoolLabels = useMemo(
@@ -6049,7 +6208,7 @@ export function CodexAccountsPage() {
       }
       const tier = resolvePlanKey(a);
       if (tier in counts) counts[tier as keyof typeof counts] += 1;
-      if (a.quota_error) counts.ERROR += 1;
+      if (isAbnormalAccount(a)) counts.ERROR += 1;
     });
     return counts;
   }, [isAbnormalAccount, overviewAccounts, resolvePlanKey]);
@@ -6084,7 +6243,7 @@ export function CodexAccountsPage() {
       }
       const tier = resolvePlanKey(account);
       if (tier in counts) counts[tier as keyof typeof counts] += 1;
-      if (account.quota_error) counts.ERROR += 1;
+      if (isAbnormalAccount(account)) counts.ERROR += 1;
     });
     return counts;
   }, [isAbnormalAccount, oauthBindingEligibleAccounts, resolvePlanKey]);
@@ -6159,7 +6318,7 @@ export function CodexAccountsPage() {
       );
       if (selectedTypes.size > 0) {
         result = result.filter((account) => {
-          if (selectedTypes.has("ERROR") && account.quota_error) {
+          if (selectedTypes.has("ERROR") && isAbnormalAccount(account)) {
             return true;
           }
           return selectedTypes.has(resolvePlanKey(account));
@@ -6948,7 +7107,7 @@ export function CodexAccountsPage() {
       }
       if (selectedTypes.size > 0) {
         result = result.filter((a) => {
-          if (selectedTypes.has("ERROR") && a.quota_error) {
+          if (selectedTypes.has("ERROR") && isAbnormalAccount(a)) {
             return true;
           }
           return selectedTypes.has(resolvePlanKey(a));
@@ -7010,9 +7169,9 @@ export function CodexAccountsPage() {
   const errorAccountIds = useMemo(
     () =>
       filteredAccounts
-        .filter((account) => account.quota_error)
+        .filter(isAbnormalAccount)
         .map((account) => account.id),
-    [filteredAccounts],
+    [filteredAccounts, isAbnormalAccount],
   );
   const handleClearErrorAccounts = useCallback(() => {
     if (errorAccountIds.length === 0) return;
@@ -7364,6 +7523,8 @@ export function CodexAccountsPage() {
       const isCurrent = overviewCurrentAccountId === account.id;
       const isSelected = selected.has(account.id);
       const isApiKeyAccount = isCodexApiKeyAccount(account);
+      const isChatCompletionsApiKey =
+        isCodexChatCompletionsApiKeyAccount(account);
       const compactQuotaItems = resolveCompactQuotaItems(presentation);
       const subscriptionInfo = resolveSubscriptionPresentation(account);
       const showCompactExpiry =
@@ -7394,20 +7555,21 @@ export function CodexAccountsPage() {
             {maskAccountText(presentation.displayName)}
           </span>
           <div className="codex-compact-quotas">
-            {compactQuotaItems.map((item) => (
-              <span
-                key={`${account.id}-${item.key}`}
-                className={`codex-compact-quota codex-compact-quota-${item.key}`}
-                title={item.titleText}
-              >
-                <span className="codex-compact-dot" />
+            {!isChatCompletionsApiKey &&
+              compactQuotaItems.map((item) => (
                 <span
-                  className={`codex-compact-quota-value ${item.quotaClass}`}
+                  key={`${account.id}-${item.key}`}
+                  className={`codex-compact-quota codex-compact-quota-${item.key}`}
+                  title={item.titleText}
                 >
-                  {item.valueText}
+                  <span className="codex-compact-dot" />
+                  <span
+                    className={`codex-compact-quota-value ${item.quotaClass}`}
+                  >
+                    {item.valueText}
+                  </span>
                 </span>
-              </span>
-            ))}
+              ))}
             {showCompactExpiry && (
               <span className="codex-compact-expiry-wrap">
                 <span
@@ -7470,6 +7632,8 @@ export function CodexAccountsPage() {
       const isCurrent = overviewCurrentAccountId === account.id;
       const isApiKeyAccount = isCodexApiKeyAccount(account);
       const isNewApiAccount = isCodexNewApiAccount(account);
+      const isChatCompletionsApiKey =
+        isCodexChatCompletionsApiKeyAccount(account);
       const isEditingApiKeyName =
         isApiKeyAccount && editingApiKeyNameId === account.id;
       const isSavingApiKeyName = savingApiKeyNameId === account.id;
@@ -7531,13 +7695,16 @@ export function CodexAccountsPage() {
       const apiKeyUsageMode = resolveApiKeyUsageMode(
         apiKeyUsageMap[account.id]?.summary,
       );
+      const showApiKeyUsagePanel =
+        isApiKeyAccount && !isNewApiAccount && !isChatCompletionsApiKey;
       const isQuotaAwareApiKeyAccount =
-        isApiKeyAccount &&
-        !isNewApiAccount &&
+        showApiKeyUsagePanel &&
         !isSponsorApiKeyAccount &&
         (apiKeyUsageMode !== null ||
           apiKeyUsageProvider?.integrationType === "new_api" ||
           apiKeyUsageProvider?.integrationType === "sub2api");
+      const shouldRenderQuotaSection =
+        showApiKeyUsagePanel || !isApiKeyAccount || isNewApiAccount;
       const displayPlanClass = isSponsorApiKeyAccount
         ? "sponsor-api"
         : isQuotaAwareApiKeyAccount
@@ -7698,10 +7865,11 @@ export function CodexAccountsPage() {
               )}
             </div>
           )}
-          <div className="codex-quota-section">
-            {isApiKeyAccount && !isNewApiAccount ? (
-              renderApiKeyUsagePanel(account, apiKeyUsageProvider)
-            ) : (
+          {shouldRenderQuotaSection && (
+            <div className="codex-quota-section">
+              {showApiKeyUsagePanel ? (
+                renderApiKeyUsagePanel(account, apiKeyUsageProvider)
+              ) : (
               <>
                 {hasQuotaError && (
                   <div
@@ -7777,8 +7945,9 @@ export function CodexAccountsPage() {
                   </div>
                 )}
               </>
-            )}
-          </div>
+              )}
+            </div>
+          )}
           {!isApiKeyAccount && (
             <div
               className={`codex-subscription-footer ${subscriptionInfo.tone}`}
@@ -7847,7 +8016,7 @@ export function CodexAccountsPage() {
                     <Database size={14} />
                   </button>
                 )}
-                {isSponsorApiKeyAccount && (
+                {isSponsorApiKeyAccount && showApiKeyUsagePanel && (
                   <button
                     className="card-action-btn"
                     onClick={() => setApiKeyUsageDetailAccountId(account.id)}
@@ -8474,19 +8643,30 @@ export function CodexAccountsPage() {
                   {t("codex.localAccess.accountPoolHealth.title", "账号池")}
                 </span>
                 <span className="codex-local-access-health-summary-value">
-                  {t("codex.localAccess.accountPoolHealth.availableRatio", {
-                    available: localAccessAccountPoolHealthSummary.available,
-                    total: localAccessAccountPoolHealthSummary.total,
-                    defaultValue: "可用 {{available}}/{{total}}",
-                  })}
+                  {localAccessAccountPoolHealthSummary.available ===
+                    localAccessAccountPoolHealthSummary.total &&
+                  localAccessAccountPoolHealthSummary.abnormal === 0 &&
+                  localAccessAccountPoolHealthSummary.cooldown === 0
+                    ? t("codex.localAccess.accountPoolHealth.allAvailable", {
+                        count: localAccessAccountPoolHealthSummary.total,
+                        defaultValue: "全部可用 {{count}}",
+                      })
+                    : t("codex.localAccess.accountPoolHealth.availableRatio", {
+                        available: localAccessAccountPoolHealthSummary.available,
+                        total: localAccessAccountPoolHealthSummary.total,
+                        defaultValue: "可用 {{available}}/{{total}}",
+                      })}
                 </span>
-                <span className="codex-local-access-health-summary-value">
-                  {t("codex.localAccess.accountPoolHealth.issueSummary", {
-                    abnormal: localAccessAccountPoolHealthSummary.abnormal,
-                    cooldown: localAccessAccountPoolHealthSummary.cooldown,
-                    defaultValue: "异常 {{abnormal}} · 冷却 {{cooldown}}",
-                  })}
-                </span>
+                {(localAccessAccountPoolHealthSummary.abnormal > 0 ||
+                  localAccessAccountPoolHealthSummary.cooldown > 0) && (
+                  <span className="codex-local-access-health-summary-value">
+                    {t("codex.localAccess.accountPoolHealth.issueSummary", {
+                      abnormal: localAccessAccountPoolHealthSummary.abnormal,
+                      cooldown: localAccessAccountPoolHealthSummary.cooldown,
+                      defaultValue: "异常 {{abnormal}} · 冷却 {{cooldown}}",
+                    })}
+                  </span>
+                )}
               </div>
             )}
 
@@ -8775,6 +8955,8 @@ export function CodexAccountsPage() {
       const isCurrent = overviewCurrentAccountId === account.id;
       const isApiKeyAccount = isCodexApiKeyAccount(account);
       const isNewApiAccount = isCodexNewApiAccount(account);
+      const isChatCompletionsApiKey =
+        isCodexChatCompletionsApiKeyAccount(account);
       const isEditingApiKeyName =
         isApiKeyAccount && editingApiKeyNameId === account.id;
       const isSavingApiKeyName = savingApiKeyNameId === account.id;
@@ -8835,9 +9017,10 @@ export function CodexAccountsPage() {
       const apiKeyUsageMode = resolveApiKeyUsageMode(
         apiKeyUsageMap[account.id]?.summary,
       );
+      const showApiKeyUsagePanel =
+        isApiKeyAccount && !isNewApiAccount && !isChatCompletionsApiKey;
       const isQuotaAwareApiKeyAccount =
-        isApiKeyAccount &&
-        !isNewApiAccount &&
+        showApiKeyUsagePanel &&
         !isSponsorApiKeyAccount &&
         (apiKeyUsageMode !== null ||
           apiKeyUsageProvider?.integrationType === "new_api" ||
@@ -9047,8 +9230,10 @@ export function CodexAccountsPage() {
             )}
           </td>
           <td>
-            {isApiKeyAccount && !isNewApiAccount ? (
+            {showApiKeyUsagePanel ? (
               renderApiKeyUsagePanel(account, apiKeyUsageProvider, "table")
+            ) : isChatCompletionsApiKey ? (
+              <span className="codex-subscription-table-empty">-</span>
             ) : (
               <>
                 <div className="quota-grid">
@@ -9143,7 +9328,7 @@ export function CodexAccountsPage() {
                   <Database size={14} />
                 </button>
               )}
-              {isSponsorApiKeyAccount && (
+              {isSponsorApiKeyAccount && showApiKeyUsagePanel && (
                 <button
                   className="action-btn"
                   onClick={() => setApiKeyUsageDetailAccountId(account.id)}
@@ -12789,9 +12974,12 @@ export function CodexAccountsPage() {
                     {customSortAccounts.map((account, index) => {
                       const presentation = resolvePresentation(account);
                       const isCurrent = overviewCurrentAccountId === account.id;
+                      const isChatCompletionsApiKey =
+                        isCodexChatCompletionsApiKeyAccount(account);
                       const quotaItems =
-                        isCodexApiKeyAccount(account) &&
-                        !isCodexNewApiAccount(account)
+                        isChatCompletionsApiKey ||
+                        (isCodexApiKeyAccount(account) &&
+                          !isCodexNewApiAccount(account))
                           ? []
                           : presentation.quotaItems
                               .filter((item) => item.key !== "code_review")
@@ -12877,7 +13065,7 @@ export function CodexAccountsPage() {
                                       </strong>
                                     </span>
                                   ))
-                                ) : (
+                                ) : isChatCompletionsApiKey ? null : (
                                   <span className="codex-custom-sort-quota-empty">
                                     {t(
                                       "common.shared.quota.noData",

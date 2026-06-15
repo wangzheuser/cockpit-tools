@@ -204,7 +204,7 @@
         "planEndsInHours": "Resets in {{hours}}h"
       },
       "flowNotice": {
-        "alternative": "Multi-instance isolation: use different --user-data-dir profiles and log in once per instance to switch account environments quickly."
+        "alternative": "Multi-instance isolation: use separate managed profiles and sign in once per instance to switch account environments quickly."
       },
       "injecting": "Injecting...",
       "usage": {
@@ -307,7 +307,8 @@
     "switchClassicLayoutDesc": "The classic layout shows the full platform navigation and supports sidebar collapsing. You can switch back anytime in Settings > General > Sidebar Layout.",
     "switchClassicLayoutDontAskAgain": "Don't show this prompt again",
     "switchClassicLayoutConfirm": "Switch now",
-    "2faManager": "2FA"
+    "2faManager": "2FA",
+    "claude": "Claude"
   },
   "sponsors": {
     "pageTitle": "Sponsors",
@@ -422,14 +423,24 @@
       "success": "Config files written: {{paths}}",
       "failed": "Config write failed: {{error}}"
     },
-    "error": {
-      "missingApiKey": "Enter an API Key.",
-      "queryFailed": "Quota check failed: {{error}}",
-      "saveFailed": "Write-in failed: {{error}}"
-    },
-    "copyKey": "Copy Key",
-    "clearKey": "Clear input",
-    "keyManager": {
+  "error": {
+    "missingApiKey": "Enter an API Key.",
+    "queryFailed": "Quota check failed: {{error}}",
+    "saveFailed": "Write-in failed: {{error}}"
+  },
+  "models": {
+    "title": "Available models",
+    "desc": "Loaded from the current API Key's models endpoint and passed to Codex or Claude CLI.",
+    "count": "{{count}} models",
+    "loading": "Loading",
+    "loadingDesc": "Loading models from the current API Key...",
+    "empty": "Enter an API Key to load available models.",
+    "emptyFromKey": "The current API Key returned no models.",
+    "queryFailed": "Model list failed: {{error}}"
+  },
+  "copyKey": "Copy Key",
+  "clearKey": "Clear input",
+  "keyManager": {
       "title": "Key Manager",
       "desc": "Save API Keys for quick switching and automatic quota checks.",
       "saveButton": "Save key",
@@ -441,7 +452,19 @@
       "editAlias": "Edit alias",
       "renamePlaceholder": "Enter alias...",
       "createdAt": "Added {{time}}",
-      "saveFlash": "Just saved"
+      "saveFlash": "Just saved",
+      "addingToCodex": "Adding to Codex...",
+      "addedToCodex": "Added to Codex",
+      "addToCodexFailed": "Failed to add to Codex: {{error}}",
+      "addingToClaude": "Adding to Claude CLI...",
+      "addedToClaude": "Added to Claude CLI",
+      "addToClaudeFailed": "Failed to add to Claude CLI: {{error}}",
+      "codexAdded": "Codex added",
+      "claudeAdded": "Claude added",
+      "addToCodex": "Add to Codex",
+      "addToClaude": "Add to Claude CLI",
+      "codexShort": "Codex",
+      "claudeShort": "Claude"
     }
   },
   "platformLayout": {
@@ -1047,7 +1070,10 @@
       "codexAppSpeedFast": "Fast",
       "codexAppSpeedLaunch": "Restart Codex",
       "codexAppSpeedSaveFailed": "Failed to save Codex speed: {{error}}",
-      "codexAppSpeedLaunchFailed": "Failed to restart Codex: {{error}}"
+      "codexAppSpeedLaunchFailed": "Failed to restart Codex: {{error}}",
+      "claudeSettingsTitle": "Claude Desktop Settings",
+      "claudeAutoRefresh": "Claude Desktop quota auto refresh",
+      "claudeAutoRefreshDesc": "Automatically refresh cached quota for Claude Desktop accounts in the background."
     },
     "network": {
       "apiTitle": "Antigravity Cockpit API",
@@ -1433,7 +1459,10 @@
     "switchSuccess": "Switch successful",
     "switched": "Switched to {{email}}",
     "tagButton": "Edit Tags",
-    "tagUpdated": "Tag updated"
+    "tagUpdated": "Tag updated",
+    "plan": {
+      "personal": "Personal"
+    }
   },
   "overview": {
     "title": "Overview",
@@ -1856,9 +1885,9 @@
     },
     "apiSwitchNotice": {
       "title": "Codex Sessions Hidden",
-      "message": "Detected that Codex switched from {{from}} to {{to}}. Because of Codex's official behavior, existing sessions may not appear automatically after switching directly between API and accounts. Session visibility is being repaired automatically. You can also use Session Management > Repair Visibility later.",
-      "repairing": "Repairing Codex session visibility...",
-      "repairFailed": "Automatic repair failed. You can retry later from Session Management > Repair Visibility.",
+      "message": "Detected that Codex switched from {{from}} to {{to}}. Because of Codex's official behavior, existing sessions may not appear automatically after switching directly between API and accounts. The session index is being repaired automatically. You can also use Session Management > Repair Index later.",
+      "repairing": "Repairing Codex session index...",
+      "repairFailed": "Automatic repair failed. You can retry later from Session Management > Repair Index.",
       "type": {
         "api": "API Mode",
         "apiKey": "API Key",
@@ -2851,14 +2880,16 @@
     },
     "sessionManager": {
       "title": "Session Manager",
-      "desc": "Sync, visibility repair, cleanup, and restore live here together: use the top actions to sync sessions, repair history visibility, or restore from Trash, then expand each project to review and trash sessions.",
+      "desc": "Sync, index repair, cleanup, and restore live here together: use the top actions to sync sessions, repair the session index, or restore from Trash, then expand each project to review and trash sessions.",
       "actions": {
         "moveToTrash": "Move to Trash",
         "syncSessions": "Sync Sessions",
         "copyToInstance": "Copy to Instance",
-        "repairVisibility": "Repair Visibility",
+        "repairVisibility": "Repair Index",
         "restoreSessions": "Restore Sessions",
         "copySessionId": "Copy Session ID",
+        "selectAllSessions": "Select All",
+        "clearSelectedSessions": "Deselect All",
         "expand": "Expand",
         "collapse": "Collapse"
       },
@@ -2866,7 +2897,7 @@
         "title": "Move to Trash",
         "message": "Selected sessions will be moved to Trash from their instances so they can be restored later. Running instances may need a restart before the change appears. Continue?",
         "syncMessage": "Missing rollout files, session_index entries, and session file times will be synced to all instances, then official Codex will rebuild the session index. Existing content will not be written again, and target files are backed up before writing. Continue?",
-        "repairVisibilityMessage": "This will repair provider metadata in rollout files and state_5.sqlite using each instance's root config.toml model_provider (defaulting to openai when missing). Files that will be changed are backed up before writing. Running instances may need a restart before the change appears. Continue?"
+        "repairVisibilityMessage": "This will follow CodexPlusPlus sync rules to reconcile every rollout session_meta entry, SQLite session databases, session_index.jsonl, session file times, and the current provider, then ask official Codex to rebuild the sidebar index. Files that will be changed are backed up before writing. Continue?"
       },
       "empty": {
         "title": "No sessions to manage",
@@ -2876,8 +2907,8 @@
         "pickOne": "Please select at least one session",
         "pickRestoreOne": "Please select at least one session to restore",
         "syncNeedTwo": "At least two instances are required to sync sessions",
-        "repairVisibilitySkippedOnly": "No writable provider differences were found; skipped {{count}} invalid or corrupted state_5.sqlite file(s). Codex must regenerate them before their SQLite records can be repaired.",
-        "repairVisibilitySkippedWithBase": "{{message}}; skipped {{count}} invalid or corrupted state_5.sqlite file(s). Codex must regenerate them before their SQLite records can be repaired."
+        "repairVisibilitySkippedOnly": "No writable session index differences were found; skipped {{count}} invalid or corrupted SQLite session database(s). Codex must regenerate them before their records can be repaired.",
+        "repairVisibilitySkippedWithBase": "{{message}}; skipped {{count}} invalid or corrupted SQLite session database(s). Codex must regenerate them before their records can be repaired."
       },
       "groupCount": "{{count}} sessions",
       "updatedAt": "Updated",
@@ -3499,6 +3530,10 @@
     "workbuddy": {
       "title": "WorkBuddy Settings",
       "appPath": "WorkBuddy Path"
+    },
+    "claudeRefreshInterval": "Quota auto refresh",
+    "claude": {
+      "appPath": "Claude Desktop path"
     }
   },
   "quotaAlert": {
@@ -4524,5 +4559,181 @@
     "importErrorMsg": "Import failed. Please ensure the file format is a valid exported JSON array.",
     "btnImportTitle": "Import Local JSON Backup",
     "btnExportTitle": "Export Saved as JSON"
+  },
+  "claude": {
+    "import": {
+      "localSuccess": "Imported {{count}} local Claude Desktop sign-in(s)",
+      "localClient": "Import current Desktop",
+      "jsonLabel": "JSON data",
+      "jsonPlaceholder": "Paste exported Claude account JSON",
+      "desktopJsonPlaceholder": "Paste exported Claude Desktop account JSON",
+      "cliJsonPlaceholder": "Paste exported Claude CLI account JSON",
+      "localDesc": "Reads the current official Claude Desktop sign-in state and copies it into this tool as a local account snapshot."
+    },
+    "subPlatform": {
+      "label": "Claude sub-platform",
+      "desktop": "Claude Desktop",
+      "cli": "Claude CLI"
+    },
+    "deleteCurrentDisabled": "Current account cannot be deleted",
+    "flowNotice": {
+      "title": "Claude account notes (expand/collapse)",
+      "desc": "This tool manages Claude Desktop sign-in state and Anthropic API Keys. Desktop sign-in completes in this platform window and is saved locally first; it is written to official Claude Desktop only when switching accounts.",
+      "permission": "Permission scope: read/write the official Claude Desktop app data directory. API Keys and Desktop snapshots are saved in this tool's local account data.",
+      "network": "Network scope: the Desktop sign-in window opens claude.ai; account refresh may request Claude Web endpoints; API Key import itself does not access the network.",
+      "desktopDesc": "This tool manages Claude Desktop sign-in state. Sign-in is saved locally first and is written to official Claude Desktop only when switching accounts.",
+      "cliDesc": "This tool manages Claude Code OAuth and multi-provider API Keys. OAuth switching writes to the local Claude Code config; API Key launch injects provider environment variables.",
+      "desktopPermission": "Permission scope: read/write the official Claude Desktop app data directory. Desktop snapshots are saved in this tool's local account data.",
+      "cliPermission": "Permission scope: read/write local Claude Code config and Claude Code credentials in macOS Keychain; API Key accounts are stored in this tool locally, and launch creates a one-time local temporary script.",
+      "desktopNetwork": "Network scope: the Desktop sign-in window opens claude.ai; account refresh may request Claude Web endpoints.",
+      "cliNetwork": "Network scope: OAuth authorization reaches Claude official authorization and token/profile/usage endpoints; API Key import itself is offline, and Claude CLI contacts the selected provider after launch."
+    },
+    "search": "Search Claude accounts...",
+    "searchDesktop": "Search Claude Desktop accounts...",
+    "searchCli": "Search Claude CLI accounts...",
+    "noAccounts": "No Claude accounts yet",
+    "noDesktopAccounts": "No Claude Desktop accounts yet",
+    "noCliAccounts": "No Claude CLI accounts yet",
+    "addAccount": {
+      "title": "Add Claude Account",
+      "desktopTitle": "Add Claude Desktop Account",
+      "cliTitle": "Add Claude CLI Account"
+    },
+    "deleteConfirm": "Delete Claude account {{email}}?",
+    "switch": {
+      "success": "Switched successfully"
+    },
+    "instances": {
+      "unsupportedDescPlatform": "Claude Desktop multi-instance is supported on macOS, Windows, and Linux only.",
+      "launchDialogTitle": "Launch Instance",
+      "launchCommand": "Launch command",
+      "executeInTerminal": "Run in terminal",
+      "startSuccess": "Claude Desktop launched"
+    },
+    "quota": {
+      "title": "Quota",
+      "fiveHour": "Current session",
+      "sevenDay": "Current week (all models)",
+      "sonnet": "Sonnet",
+      "extra": "Extra usage",
+      "empty": "No quota",
+      "unsupported": "Not refreshable",
+      "updatedAt": "Updated: {{time}}",
+      "resetAt": "{{label}} resets: {{time}}",
+      "refreshSuccess": "Quota refreshed",
+      "refreshAllDone": "Quota refresh complete",
+      "refreshFailed": "Quota refresh failed: {{error}}",
+      "refreshWithWarning": "Quota refresh failed: {{error}}",
+      "notUpdated": "Quota not refreshed",
+      "updated": "Updated",
+      "notUpdatedShort": "Not refreshed"
+    },
+    "addTabs": {
+      "desktop": "Desktop",
+      "oauth": "OAuth",
+      "apiKey": "API Key",
+      "import": "Local/JSON"
+    },
+    "authMode": {
+      "oauth": "OAuth",
+      "setup_token": "Setup Token",
+      "api_key": "API Key",
+      "desktop_oauth": "Desktop sign-in"
+    },
+    "apiKey": {
+      "desc": "Save a Claude CLI API Key as a standalone credential. CLI launch injects provider environment variables and does not write Claude Desktop sign-in state.",
+      "nameLabel": "Account name",
+      "namePlaceholder": "Optional, for example APIKEY.FUN",
+      "keyLabel": "API Key",
+      "placeholder": "Paste provider API Key",
+      "hide": "Hide API Key",
+      "show": "Show API Key",
+      "hint": "API Key accounts are only used to launch Claude CLI. They are not written to Claude Desktop and do not refresh subscription quota.",
+      "importAction": "Import API Key",
+      "required": "Enter an API Key",
+      "importSuccess": "Claude API Key account imported: {{name}}",
+      "quotaUnsupported": "API Key accounts do not support refresh",
+      "switchDisabled": "API Key accounts cannot be switched into Claude Desktop",
+      "cliUnsupported": "API Key accounts cannot launch Claude CLI",
+      "providerLabel": "Provider",
+      "customProvider": "Custom",
+      "endpointLabel": "Provider endpoint",
+      "officialEndpoint": "Official default",
+      "baseUrlLabel": "Base URL",
+      "baseUrlPlaceholder": "Leave empty to use Anthropic official default",
+      "keyFieldLabel": "Auth field",
+      "baseUrlInvalid": "Base URL is not a valid URL"
+    },
+    "desktopOAuth": {
+      "title": "Claude Desktop sign-in",
+      "desc": "Open the Claude sign-in window inside this tool, with Google, Apple, email, and free account support.",
+      "start": "Open sign-in",
+      "hint": "The sign-in state is saved to this tool's local account vault first and is not written to official Claude Desktop until you switch accounts.",
+      "nameLabel": "Account name",
+      "namePlaceholder": "Optional, for example Claude Free",
+      "waiting": "Finish signing in in the opened Claude authorization window. When the chat page appears, return here and complete the import.",
+      "profileDir": "Isolated profile directory",
+      "complete": "Complete import",
+      "localTitle": "Import current Desktop",
+      "localDesc": "Read the current official Claude Desktop sign-in state and copy it as a local account snapshot.",
+      "localAction": "Import",
+      "localSuccess": "Imported local Claude Desktop sign-in: {{name}}",
+      "importSuccess": "Claude Desktop sign-in imported: {{name}}",
+      "switchHint": "Switch to official Claude Desktop",
+      "planUnknown": "Plan unknown"
+    },
+    "oauth": {
+      "title": "Claude OAuth Authorization",
+      "desc": "Open the official Claude OAuth authorization page, then paste the callback URL or code to import the account.",
+      "start": "Authorize OAuth",
+      "proRequiredHint": "Claude official OAuth is usually for Claude Code authorization. If the page stops on an upgrade or permission page, use Claude Desktop sign-in instead.",
+      "waiting": "The browser has opened the authorization page. After authorization, paste the final page URL or displayed code below.",
+      "authUrl": "Authorization link",
+      "callbackPlaceholder": "Paste callback URL or authorization code",
+      "callbackRequired": "Paste the callback URL or code after authorization completes",
+      "authorizeUrlNotCallback": "This is the authorization entry link above, not the code after authorization. Complete authorization in the browser first, then copy the final page URL or displayed code.",
+      "complete": "Complete import",
+      "emailPlaceholder": "Email (fill in if it cannot be detected)",
+      "importSuccess": "Claude OAuth authorization imported: {{name}}"
+    },
+    "plan": {
+      "label": "Plan badge",
+      "selectPlaceholder": "Select plan",
+      "updateFailed": "Failed to update plan badge: {{error}}"
+    },
+    "legacyOAuth": {
+      "switchDisabled": "Legacy OAuth accounts cannot switch into Claude Desktop",
+      "quotaUnsupported": "Legacy OAuth accounts no longer support refresh",
+      "cliUnsupported": "Legacy OAuth accounts cannot launch Claude CLI"
+    },
+    "cli": {
+      "quickLaunch": "CLI Launch",
+      "selectWorkingDir": "Select Claude CLI working folder",
+      "launchSuccess": "Claude CLI launched",
+      "launchFailed": "Failed to launch Claude CLI: {{error}}",
+      "localTitle": "Import current Claude Code",
+      "localDesc": "Read the current local Claude Code OAuth sign-in state and copy it as a local account snapshot.",
+      "localSuccess": "Imported local Claude Code sign-in: {{name}}"
+    },
+    "accountNote": {
+      "title": "Account Note",
+      "desc": "Add a local note for {{email}} so the account is easier to identify when switching.",
+      "label": "Account note",
+      "placeholder": "Example: Free main, Max 20x, team account",
+      "saved": "Account note saved",
+      "saveFailed": "Failed to save account note: {{error}}",
+      "emptyTitle": "Add an account note",
+      "short": "Note",
+      "addShort": "Add note"
+    },
+    "selection": {
+      "selected": "Selected {{count}}"
+    },
+    "deleteSelectedLabel": "{{count}} accounts",
+    "account": {
+      "signedInWith": "Signed in with {{provider}}",
+      "userId": "User ID",
+      "nickname": "Nickname"
+    }
   }
 }

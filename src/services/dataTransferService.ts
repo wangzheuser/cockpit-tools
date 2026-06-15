@@ -8,6 +8,7 @@ import {
   importAllAccountsFromTransferJson,
 } from './accountTransferService';
 import { ALL_PLATFORM_IDS, PlatformId } from '../types/platform';
+import * as claudeService from './claudeService';
 import { getGroupSettings, GroupSettings, saveGroupSettings } from './groupService';
 import {
   AccountGroup,
@@ -263,6 +264,8 @@ const ACCOUNT_LOADERS: Record<PlatformId, AccountLoader> = {
   antigravity_ide: async () =>
     (await accountService.listAccounts()) as unknown as TransferAccountRecord[],
   codex: async () => (await codexService.listCodexAccounts()) as unknown as TransferAccountRecord[],
+  claude: async () => (await claudeService.listClaudeAccounts()) as unknown as TransferAccountRecord[],
+  claude_cli: async () => (await claudeService.listClaudeAccounts()) as unknown as TransferAccountRecord[],
   zed: async () => (await zedService.listZedAccounts()) as unknown as TransferAccountRecord[],
   'github-copilot': async () =>
     (await githubCopilotService.listGitHubCopilotAccounts()) as unknown as TransferAccountRecord[],
@@ -282,6 +285,8 @@ const LEGACY_IMPORTERS: Record<PlatformId, ((jsonContent: string) => Promise<unk
   antigravity: accountService.importFromJson,
   antigravity_ide: accountService.importFromJson,
   codex: codexService.importCodexFromJson,
+  claude: claudeService.importClaudeFromJson,
+  claude_cli: claudeService.importClaudeFromJson,
   zed: zedService.importZedFromJson,
   'github-copilot': githubCopilotService.importGitHubCopilotFromJson,
   windsurf: windsurfService.importWindsurfFromJson,

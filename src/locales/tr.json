@@ -197,7 +197,7 @@
         "planEndsInHours": "{{hours}}h içinde sıfırlanır"
       },
       "flowNotice": {
-        "alternative": "Alternatif: çoklu örnek izolasyonunu kullanın (farklı --user-data-dir). Her örnek için bir kez giriş yapın, ardından hedef hesap ortamına hızlı geçiş için örnek bazında başlatın."
+        "alternative": "Çoklu örnek izolasyonu: ayrı yönetilen profiller kullanın ve hesap ortamları arasında hızlı geçiş için her örnekte bir kez giriş yapın."
       },
       "injecting": "Enjekte ediliyor...",
       "usage": {
@@ -261,7 +261,8 @@
     "switchClassicLayoutDontAskAgain": "Bu uyarıyı tekrar gösterme",
     "switchClassicLayoutConfirm": "Şimdi geç",
     "2faManager": "2FA Yönetimi",
-    "apiRelay": "Aktarım"
+    "apiRelay": "Aktarım",
+    "claude": "Claude"
   },
   "sponsors": {
     "pageTitle": "Sponsorlar",
@@ -778,7 +779,10 @@
       "codexAppSpeedFast": "Hızlı",
       "codexAppSpeedLaunch": "Codex'i yeniden başlat",
       "codexAppSpeedSaveFailed": "Codex hızı kaydedilemedi: {{error}}",
-      "codexAppSpeedLaunchFailed": "Codex yeniden başlatılamadı: {{error}}"
+      "codexAppSpeedLaunchFailed": "Codex yeniden başlatılamadı: {{error}}",
+      "claudeSettingsTitle": "Claude Desktop Ayarları",
+      "claudeAutoRefresh": "Claude Desktop kota otomatik yenileme",
+      "claudeAutoRefreshDesc": "Claude Desktop hesaplarının kota önbelleğini arka planda otomatik yeniler."
     },
     "network": {
       "apiTitle": "Yerçekimine Karşı Kokpit API'si",
@@ -1262,7 +1266,10 @@
     "switchSuccess": "Geçiş başarılı",
     "switched": "{{email}} hesabına geçildi",
     "tagButton": "Etiketleri Düzenle",
-    "tagUpdated": "Etiket güncellendi"
+    "tagUpdated": "Etiket güncellendi",
+    "plan": {
+      "personal": "Kişisel"
+    }
   },
   "overview": {
     "title": "Hesap Genel Bakışı",
@@ -2286,6 +2293,8 @@
         "repairVisibility": "Görünürlüğü düzelt",
         "restoreSessions": "Oturumları geri yükle",
         "copySessionId": "Oturum kimliğini kopyala",
+        "selectAllSessions": "Tümünü seç",
+        "clearSelectedSessions": "Seçimi kaldır",
         "copyToInstance": "Örneğe kopyala"
       },
       "confirm": {
@@ -3228,6 +3237,10 @@
       "title": "Filtre hafızası",
       "enable": "Hesap genel görünüm filtrelerini hatırla (arama hariç)",
       "hint": "Varsayılan olarak kapalıdır. Açıldığında her platform için filtreler, etiketler ve sıralama korunur."
+    },
+    "claudeRefreshInterval": "Kota otomatik yenileme",
+    "claude": {
+      "appPath": "Claude Desktop yolu"
     }
   },
   "quotaAlert": {
@@ -4508,6 +4521,16 @@
       "queryFailed": "Kota kontrolü başarısız: {{error}}",
       "saveFailed": "Yazma başarısız: {{error}}"
     },
+    "models": {
+      "title": "Kullanılabilir modeller",
+      "desc": "Geçerli API Key model endpoint’inden okunur ve Codex ya da Claude CLI’ye aktarılır.",
+      "count": "{{count}} model",
+      "loading": "Yükleniyor",
+      "loadingDesc": "Geçerli API Key ile model listesi okunuyor...",
+      "empty": "Kullanılabilir modelleri okumak için API Key girin.",
+      "emptyFromKey": "Geçerli API Key model döndürmedi.",
+      "queryFailed": "Model listesi okunamadı: {{error}}"
+    },
     "keyManager": {
       "title": "Anahtar yönetimi",
       "desc": "Hızlı geçiş ve otomatik kota sorgusu için API Keys kaydedin.",
@@ -4520,9 +4543,197 @@
       "editAlias": "Edit alias​",
       "renamePlaceholder": "Enter alias...​",
       "createdAt": "{{time}} eklendi",
-      "saveFlash": "Kaydedildi"
+      "saveFlash": "Kaydedildi",
+      "addingToCodex": "Codex’e ekleniyor...",
+      "addedToCodex": "Codex’e eklendi",
+      "addToCodexFailed": "Codex’e eklenemedi: {{error}}",
+      "addingToClaude": "Claude CLI’ye ekleniyor...",
+      "addedToClaude": "Claude CLI’ye eklendi",
+      "addToClaudeFailed": "Claude CLI’ye eklenemedi: {{error}}",
+      "codexAdded": "Codex eklendi",
+      "claudeAdded": "Claude eklendi",
+      "addToCodex": "Codex’e ekle",
+      "addToClaude": "Claude CLI’ye ekle",
+      "codexShort": "Codex",
+      "claudeShort": "Claude CLI"
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
+  },
+  "claude": {
+    "import": {
+      "localSuccess": "{{count}} yerel Claude Desktop oturumu içe aktarıldı",
+      "localClient": "Geçerli Desktop içe aktar",
+      "jsonLabel": "JSON verisi",
+      "jsonPlaceholder": "Dışa aktarılan Claude hesap JSON verisini yapıştırın",
+      "localDesc": "Resmi Claude Desktop uygulamasındaki mevcut oturumu okur ve bu araca yerel hesap anlık görüntüsü olarak kopyalar.",
+      "desktopJsonPlaceholder": "Dışa aktarılan Claude Desktop hesap JSON’unu yapıştırın",
+      "cliJsonPlaceholder": "Dışa aktarılan Claude CLI hesap JSON’unu yapıştırın"
+    },
+    "deleteCurrentDisabled": "Geçerli hesap silinemez",
+    "flowNotice": {
+      "title": "Claude hesapları",
+      "desc": "Bu araç Claude Desktop oturum durumunu ve Anthropic API Key bilgilerini yönetir. Desktop oturumu bu platformun yetkilendirme penceresinde tamamlanır ve önce yerelde saklanır; resmi Claude Desktop’a yalnızca hesap değiştirirken yazılır.",
+      "permission": "İzin kapsamı: resmi Claude Desktop uygulama veri dizinini okuma/yazma. API Key ve Desktop anlık görüntüleri bu aracın yerel hesap verilerinde saklanır.",
+      "network": "Ağ kapsamı: Desktop giriş penceresi claude.ai açar; hesap yenileme Claude Web uç noktalarına istek atabilir. API Key içe aktarma tek başına ağ kullanmaz.",
+      "desktopDesc": "Bu araç Claude Desktop oturum durumunu yönetir. Oturum önce yerelde kaydedilir ve yalnızca hesap değiştirirken resmi Claude Desktop’a yazılır.",
+      "cliDesc": "Bu araç Claude Code OAuth ve çok sağlayıcılı API Key yönetir. OAuth değişimi yerel Claude Code yapılandırmasına yazar; API Key ile başlatma sağlayıcı ortam değişkenlerini ekler.",
+      "desktopPermission": "İzin kapsamı: resmi Claude Desktop uygulama veri dizinini okuma/yazma. Desktop anlık görüntüleri bu aracın yerel hesap verilerinde saklanır.",
+      "cliPermission": "İzin kapsamı: yerel Claude Code yapılandırmasını ve macOS Keychain içindeki Claude Code kimliklerini okur/yazar; API Key hesapları bu araçta yerel saklanır ve başlatmada tek kullanımlık geçici yerel betik oluşturulur.",
+      "desktopNetwork": "Ağ kapsamı: Desktop oturum penceresi claude.ai açar; hesap yenileme Claude Web endpoint istekleri yapabilir.",
+      "cliNetwork": "Ağ kapsamı: OAuth, Claude resmi yetkilendirme ve token/profile/usage endpointlerine erişir; API Key içe aktarma çevrimdışıdır, başlatma sonrası Claude CLI seçilen sağlayıcıya bağlanır."
+    },
+    "search": "Claude hesaplarında ara...",
+    "noAccounts": "Claude hesabı yok",
+    "addAccount": {
+      "title": "Claude hesabı ekle",
+      "desktopTitle": "Claude Desktop Hesabı Ekle",
+      "cliTitle": "Claude CLI Hesabı Ekle"
+    },
+    "deleteConfirm": "Claude hesabı {{email}} silinsin mi?",
+    "switch": {
+      "success": "Başarıyla değiştirildi"
+    },
+    "instances": {
+      "unsupportedDescPlatform": "Claude Desktop çoklu örnek yalnızca macOS, Windows ve Linux üzerinde desteklenir.",
+      "launchDialogTitle": "Örneği başlat",
+      "launchCommand": "Başlatma komutu",
+      "executeInTerminal": "Terminalde çalıştır",
+      "startSuccess": "Claude Desktop başlatıldı"
+    },
+    "quota": {
+      "title": "Kota",
+      "fiveHour": "Geçerli oturum",
+      "sevenDay": "Bu hafta (tüm modeller)",
+      "sonnet": "Sonnet 7 gün",
+      "extra": "Ek kullanım",
+      "empty": "Kota yok",
+      "unsupported": "Yenilenemez",
+      "updatedAt": "Güncellendi: {{time}}",
+      "resetAt": "{{label}} sıfırlanır: {{time}}",
+      "refreshSuccess": "Kota yenilendi",
+      "refreshAllDone": "Kota yenileme tamamlandı",
+      "refreshFailed": "Kota yenileme başarısız: {{error}}",
+      "refreshWithWarning": "Kota yenileme başarısız: {{error}}",
+      "notUpdated": "Kota yenilenmedi",
+      "updated": "Güncellendi",
+      "notUpdatedShort": "Yenilenmedi"
+    },
+    "addTabs": {
+      "desktop": "Masa",
+      "oauth": "OAuth",
+      "apiKey": "API anahtarı",
+      "import": "Yerel/JSON"
+    },
+    "authMode": {
+      "oauth": "OAuth modu",
+      "setup_token": "Kurulum tokenı",
+      "api_key": "API anahtarı",
+      "desktop_oauth": "Desktop oturumu"
+    },
+    "apiKey": {
+      "desc": "Claude CLI API Key ayrı kimlik olarak kaydedilir. CLI başlarken sağlayıcı ortam değişkenleri eklenir; Claude Desktop oturumuna yazılmaz.",
+      "nameLabel": "Hesap adı",
+      "namePlaceholder": "İsteğe bağlı, ör. APIKEY.FUN",
+      "keyLabel": "API anahtarı",
+      "placeholder": "Sağlayıcı API Key yapıştırın",
+      "hide": "API Key gizle",
+      "show": "API Key göster",
+      "hint": "API Key hesabı yalnızca Claude CLI başlatır; Claude Desktop oturumuna yazmaz ve abonelik kotasını yenilemez.",
+      "importAction": "API Key içe aktar",
+      "required": "API Key girin",
+      "importSuccess": "Claude API Key hesabı içe aktarıldı: {{name}}",
+      "quotaUnsupported": "API Key hesapları yenilenmez",
+      "switchDisabled": "API Key hesabı Claude Desktop’a geçirilemez",
+      "cliUnsupported": "API Key hesabı Claude CLI başlatamaz",
+      "providerLabel": "Sağlayıcı",
+      "customProvider": "Özel",
+      "endpointLabel": "Sağlayıcı endpoint",
+      "officialEndpoint": "Resmi varsayılan",
+      "baseUrlLabel": "Temel URL",
+      "baseUrlPlaceholder": "Boşsa Anthropic resmi adresi",
+      "keyFieldLabel": "Auth alanı",
+      "baseUrlInvalid": "Base URL geçerli değil"
+    },
+    "desktopOAuth": {
+      "title": "Claude Desktop oturumu",
+      "desc": "Bu araçta Claude girişi; Google, Apple, e-posta ve free destekler.",
+      "start": "Girişi aç",
+      "hint": "Önce yerelde saklar; Claude Desktop’a geçişte yazar.",
+      "nameLabel": "Hesap adı",
+      "namePlaceholder": "İsteğe bağlı, örn. Claude Free",
+      "waiting": "Claude penceresinde giriş yapın, burada içe aktarmayı bitirin.",
+      "profileDir": "Yalıtılmış profile dizini",
+      "complete": "Tamamla",
+      "localTitle": "Geçerli Desktop içe aktar",
+      "localDesc": "Geçerli Claude Desktop oturumunu yerel snapshot olarak kopyalar.",
+      "localAction": "İçe aktar",
+      "localSuccess": "Yerel Claude Desktop oturumu içe aktarıldı: {{name}}",
+      "importSuccess": "Claude Desktop oturumu içe aktarıldı: {{name}}",
+      "switchHint": "Resmi Claude Desktop’a geç",
+      "planUnknown": "Plan bilinmiyor"
+    },
+    "oauth": {
+      "title": "Claude OAuth Yetkilendirme",
+      "desc": "Resmi Claude OAuth yetkilendirme sayfasını açın, ardından hesabı içe aktarmak için geri dönüş bağlantısını veya code değerini yapıştırın.",
+      "start": "OAuth yetkilendir",
+      "proRequiredHint": "Claude resmi OAuth genellikle Claude Code yetkilendirmesi için kullanılır. Sayfa yükseltme veya yetki yok ekranında kalırsa Claude Desktop girişi kullanın.",
+      "waiting": "Tarayıcı yetkilendirme sayfasını açtı. Tamamlandıktan sonra son sayfa adresini veya gösterilen code değerini aşağıya yapıştırın.",
+      "authUrl": "Yetkilendirme bağlantısı",
+      "callbackPlaceholder": "Geri dönüş bağlantısı veya yetkilendirme code yapıştır",
+      "callbackRequired": "Yetkilendirme tamamlandıktan sonra geri dönüş bağlantısını veya code değerini yapıştırın",
+      "authorizeUrlNotCallback": "Yapıştırılan değer yukarıdaki yetkilendirme giriş bağlantısıdır, tamamlanmış code değildir. Önce tarayıcıda yetkilendirmeyi tamamlayın, sonra son sayfa adresini veya gösterilen code değerini kopyalayın.",
+      "complete": "İçe aktarmayı tamamla",
+      "emailPlaceholder": "E-posta (algılanamazsa doldurun)",
+      "importSuccess": "Claude OAuth yetkilendirmesi içe aktarıldı: {{name}}"
+    },
+    "plan": {
+      "label": "Plan rozeti",
+      "selectPlaceholder": "Plan seç",
+      "updateFailed": "Plan rozeti güncellenemedi: {{error}}"
+    },
+    "legacyOAuth": {
+      "switchDisabled": "Eski OAuth hesapları Claude Desktop’a geçirilemez",
+      "quotaUnsupported": "Eski OAuth hesapları artık yenilemeyi desteklemez",
+      "cliUnsupported": "Eski OAuth hesapları Claude CLI başlatamaz"
+    },
+    "cli": {
+      "quickLaunch": "CLI başlat",
+      "selectWorkingDir": "Claude CLI çalışma klasörünü seç",
+      "launchSuccess": "Claude CLI başlatıldı",
+      "launchFailed": "Claude CLI başlatılamadı: {{error}}",
+      "localTitle": "Geçerli Claude Code’u içe aktar",
+      "localDesc": "Geçerli yerel Claude Code OAuth oturum durumunu okur ve yerel hesap anlık görüntüsü olarak kopyalar.",
+      "localSuccess": "Yerel Claude Code oturumu içe aktarıldı: {{name}}"
+    },
+    "accountNote": {
+      "title": "Hesap notu",
+      "desc": "{{email}} için yerel not ekleyin; hesap değiştirirken ayırt etmek kolaylaşır.",
+      "label": "Hesap notu",
+      "placeholder": "Örn: Free ana, Max 20x, ekip hesabı",
+      "saved": "Hesap notu kaydedildi",
+      "saveFailed": "Hesap notu kaydedilemedi: {{error}}",
+      "emptyTitle": "Hesap notu ekle",
+      "short": "Not",
+      "addShort": "Not"
+    },
+    "account": {
+      "signedInWith": "{{provider}} ile giriş",
+      "userId": "Kullanıcı ID",
+      "nickname": "Takma ad"
+    },
+    "selection": {
+      "selected": "{{count}} seçildi"
+    },
+    "deleteSelectedLabel": "{{count}} hesap",
+    "subPlatform": {
+      "label": "Claude alt platformu",
+      "desktop": "Claude Masaüstü",
+      "cli": "Claude komut satırı"
+    },
+    "searchDesktop": "Claude Desktop hesaplarında ara...",
+    "searchCli": "Claude CLI hesaplarında ara...",
+    "noDesktopAccounts": "Henüz Claude Desktop hesabı yok",
+    "noCliAccounts": "Henüz Claude CLI hesabı yok"
   }
 }

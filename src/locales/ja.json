@@ -197,7 +197,7 @@
         "planEndsInHours": "{{hours}}h でリセット"
       },
       "flowNotice": {
-        "alternative": "代替案: マルチインスタンス分離（異なる --user-data-dir）を利用します。インスタンスごとに一度ログインすれば、以後はインスタンス単位で起動して目的のアカウント環境へ素早く切り替えられます。"
+        "alternative": "マルチインスタンス分離: 個別の管理プロファイルを使い、各インスタンスで一度ログインするとアカウント環境を素早く切り替えられます。"
       },
       "injecting": "注入中...",
       "usage": {
@@ -261,7 +261,8 @@
     "switchClassicLayoutDontAskAgain": "この案内を今後表示しない",
     "switchClassicLayoutConfirm": "今すぐ切り替える",
     "2faManager": "2FA管理",
-    "apiRelay": "リレー"
+    "apiRelay": "リレー",
+    "claude": "Claude"
   },
   "sponsors": {
     "pageTitle": "スポンサー",
@@ -778,7 +779,10 @@
       "codexAppSpeedFast": "高速",
       "codexAppSpeedLaunch": "Codex を再起動",
       "codexAppSpeedSaveFailed": "Codex 速度の保存に失敗しました: {{error}}",
-      "codexAppSpeedLaunchFailed": "Codex の再起動に失敗しました: {{error}}"
+      "codexAppSpeedLaunchFailed": "Codex の再起動に失敗しました: {{error}}",
+      "claudeSettingsTitle": "Claude Desktop 設定",
+      "claudeAutoRefresh": "Claude Desktop 使用量の自動更新",
+      "claudeAutoRefreshDesc": "Claude Desktop アカウントの使用量キャッシュをバックグラウンドで自動更新します。"
     },
     "network": {
       "apiTitle": "反重力コックピット API",
@@ -1262,7 +1266,10 @@
     "switchSuccess": "切替成功",
     "switched": "{{email}} に切り替えました",
     "tagButton": "タグを編集",
-    "tagUpdated": "タグを更新しました"
+    "tagUpdated": "タグを更新しました",
+    "plan": {
+      "personal": "個人"
+    }
   },
   "overview": {
     "title": "アカウント概要",
@@ -2286,6 +2293,8 @@
         "repairVisibility": "表示情報を修復",
         "restoreSessions": "セッションを復元",
         "copySessionId": "セッション ID をコピー",
+        "selectAllSessions": "すべて選択",
+        "clearSelectedSessions": "選択解除",
         "copyToInstance": "インスタンスへコピー"
       },
       "confirm": {
@@ -3228,6 +3237,10 @@
       "title": "フィルター記憶",
       "enable": "アカウント概要のフィルターを記憶（検索を除く）",
       "hint": "既定ではオフ。オンにすると、プラットフォームごとにフィルター・タグ・並び順を保持します。"
+    },
+    "claudeRefreshInterval": "クォータ自動更新",
+    "claude": {
+      "appPath": "Claude Desktop パス"
     }
   },
   "quotaAlert": {
@@ -4508,6 +4521,16 @@
       "queryFailed": "残高確認に失敗しました: {{error}}",
       "saveFailed": "書き込みに失敗しました: {{error}}"
     },
+    "models": {
+      "title": "利用可能モデル",
+      "desc": "現在の API Key のモデルエンドポイントから読み込み、Codex または Claude CLI に渡します。",
+      "count": "{{count}} 個のモデル",
+      "loading": "読み込み中",
+      "loadingDesc": "現在の API Key からモデル一覧を読み込んでいます...",
+      "empty": "API Key を入力すると利用可能モデルを読み込みます。",
+      "emptyFromKey": "現在の API Key はモデルを返しませんでした。",
+      "queryFailed": "モデル一覧の読み込みに失敗しました: {{error}}"
+    },
     "keyManager": {
       "title": "キー管理",
       "desc": "よく使う API Key を保存し、クリックで切り替えて残高を自動確認できます。",
@@ -4520,9 +4543,197 @@
       "editAlias": "Edit alias​",
       "renamePlaceholder": "Enter alias...​",
       "createdAt": "{{time}} に追加",
-      "saveFlash": "保存しました"
+      "saveFlash": "保存しました",
+      "addingToCodex": "Codex に追加中...",
+      "addedToCodex": "Codex に追加済み",
+      "addToCodexFailed": "Codex への追加に失敗: {{error}}",
+      "addingToClaude": "Claude CLI に追加中...",
+      "addedToClaude": "Claude CLI に追加済み",
+      "addToClaudeFailed": "Claude CLI への追加に失敗: {{error}}",
+      "codexAdded": "Codex 追加済み",
+      "claudeAdded": "Claude 追加済み",
+      "addToCodex": "Codex に追加",
+      "addToClaude": "Claude CLI に追加",
+      "codexShort": "Codex",
+      "claudeShort": "Claude CLI"
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
+  },
+  "claude": {
+    "import": {
+      "localSuccess": "ローカル Claude Desktop ログインを {{count}} 件取り込みました",
+      "localClient": "現在の Desktop を取り込む",
+      "jsonLabel": "JSON データ",
+      "jsonPlaceholder": "エクスポートした Claude アカウント JSON を貼り付け",
+      "localDesc": "この Mac の公式 Claude Desktop の現在のログイン状態を読み取り、このツールのローカルアカウントスナップショットとして保存します。",
+      "desktopJsonPlaceholder": "エクスポートした Claude Desktop アカウント JSON を貼り付け",
+      "cliJsonPlaceholder": "エクスポートした Claude CLI アカウント JSON を貼り付け"
+    },
+    "deleteCurrentDisabled": "現在のアカウントは削除できません",
+    "flowNotice": {
+      "title": "Claude アカウント管理",
+      "desc": "このツールは Claude Desktop のログイン状態と Anthropic API Key を管理します。Desktop ログインはこのプラットフォームの認証ウィンドウで完了し、まずローカルに保存され、アカウント切替時だけ公式 Claude Desktop に書き戻されます。",
+      "permission": "権限範囲：公式 Claude Desktop のアプリデータディレクトリを読み書きします。API Key と Desktop スナップショットはこのツールのローカルアカウントデータに保存されます。",
+      "network": "ネットワーク範囲：Desktop ログイン画面は claude.ai にアクセスします。アカウント更新では Claude Web 関連 API を呼び出す場合があります。API Key の取り込み自体は通信しません。",
+      "desktopDesc": "このツールは Claude Desktop のサインイン状態を管理します。サインイン状態はまずローカルに保存され、アカウント切替時にのみ公式 Claude Desktop へ書き込まれます。",
+      "cliDesc": "このツールは Claude Code OAuth と複数プロバイダーの API Key を管理します。OAuth の切替はローカルの Claude Code 設定に書き込み、API Key では CLI 起動時にプロバイダー環境変数を注入します。",
+      "desktopPermission": "権限範囲: 公式 Claude Desktop アプリのデータディレクトリの読み書き。Desktop スナップショットはこのツールのローカルアカウントデータに保存されます。",
+      "cliPermission": "権限範囲: ローカル Claude Code 設定と macOS Keychain の Claude Code 認証情報を読み書きします。API Key アカウントは本ツールのローカルデータに保存し、起動時に一度だけ使うローカル一時スクリプトを作成します。",
+      "desktopNetwork": "ネットワーク範囲: Desktop サインインウィンドウは claude.ai を開きます。アカウント更新時に Claude Web エンドポイントへアクセスする場合があります。",
+      "cliNetwork": "ネットワーク範囲: OAuth 認証は Claude 公式の認証ページと token/profile/usage API にアクセスします。API Key 取り込み自体はオフラインで、起動後は Claude CLI が選択したプロバイダーへ接続します。"
+    },
+    "search": "Claude アカウントを検索...",
+    "noAccounts": "Claude アカウントなし",
+    "addAccount": {
+      "title": "Claude アカウントを追加",
+      "desktopTitle": "Claude Desktop アカウントを追加",
+      "cliTitle": "Claude CLI アカウントを追加"
+    },
+    "deleteConfirm": "Claude アカウント {{email}} を削除しますか？",
+    "switch": {
+      "success": "切り替えました"
+    },
+    "instances": {
+      "unsupportedDescPlatform": "Claude Desktop の複数インスタンスは macOS、Windows、Linux のみ対応しています。",
+      "launchDialogTitle": "インスタンスを起動",
+      "launchCommand": "起動コマンド",
+      "executeInTerminal": "ターミナルで実行",
+      "startSuccess": "Claude Desktop を起動しました"
+    },
+    "quota": {
+      "title": "上限",
+      "fiveHour": "現在のセッション",
+      "sevenDay": "今週（全モデル）",
+      "sonnet": "Sonnet枠",
+      "extra": "追加利用",
+      "empty": "上限データなし",
+      "unsupported": "更新不可",
+      "updatedAt": "更新：{{time}}",
+      "resetAt": "{{label}} リセット：{{time}}",
+      "refreshSuccess": "上限を更新しました",
+      "refreshAllDone": "上限更新完了",
+      "refreshFailed": "上限更新失敗：{{error}}",
+      "refreshWithWarning": "上限更新失敗：{{error}}",
+      "notUpdated": "使用枠未更新",
+      "updated": "更新済み",
+      "notUpdatedShort": "未更新"
+    },
+    "addTabs": {
+      "desktop": "デスク",
+      "oauth": "OAuth",
+      "apiKey": "APIキー",
+      "import": "ローカル/JSON"
+    },
+    "authMode": {
+      "oauth": "OAuth モード",
+      "setup_token": "セットアップトークン",
+      "api_key": "APIキー",
+      "desktop_oauth": "Desktop ログイン"
+    },
+    "apiKey": {
+      "desc": "Claude CLI の API Key を独立した認証情報として保存します。CLI 起動時にプロバイダー別の環境変数を注入し、Claude Desktop のログイン状態には書き込みません。",
+      "nameLabel": "アカウント名",
+      "namePlaceholder": "任意、例 APIKEY.FUN",
+      "keyLabel": "APIキー",
+      "placeholder": "プロバイダーの API Key を貼り付け",
+      "hide": "API Key を隠す",
+      "show": "API Key を表示",
+      "hint": "API Key アカウントは Claude CLI 起動専用です。Claude Desktop のログイン状態には書き込まず、サブスク使用量の更新にも対応しません。",
+      "importAction": "API Key を取り込む",
+      "required": "API Key を入力してください",
+      "importSuccess": "Claude API Key アカウントを取り込みました: {{name}}",
+      "quotaUnsupported": "API Key アカウントは更新非対応です",
+      "switchDisabled": "API Key アカウントは Claude Desktop に切り替えできません",
+      "cliUnsupported": "API Key アカウントは Claude CLI を起動できません",
+      "providerLabel": "プロバイダー",
+      "customProvider": "カスタム",
+      "endpointLabel": "エンドポイント",
+      "officialEndpoint": "公式既定",
+      "baseUrlLabel": "ベースURL",
+      "baseUrlPlaceholder": "空なら Anthropic 公式既定を使用",
+      "keyFieldLabel": "認証フィールド",
+      "baseUrlInvalid": "Base URL が有効な URL ではありません"
+    },
+    "desktopOAuth": {
+      "title": "Claude Desktop ログイン",
+      "desc": "このツール内で Claude ログイン。Google、Apple、メール、free に対応。",
+      "start": "ログインを開く",
+      "hint": "まずローカル保存し、切替時だけ Claude Desktop へ書き込みます。",
+      "nameLabel": "アカウント名",
+      "namePlaceholder": "任意、例: Claude Free",
+      "waiting": "Claude ウィンドウでログイン後、ここで取込を完了します。",
+      "profileDir": "分離 profile ディレクトリ",
+      "complete": "取込完了",
+      "localTitle": "現在の Desktop を取込",
+      "localDesc": "現在の Claude Desktop セッションをローカルスナップショットにします。",
+      "localAction": "取込",
+      "localSuccess": "本機 Claude Desktop ログインを取り込みました: {{name}}",
+      "importSuccess": "Claude Desktop ログインを取り込みました: {{name}}",
+      "switchHint": "公式 Claude Desktop へ切替",
+      "planUnknown": "プラン不明"
+    },
+    "oauth": {
+      "title": "Claude OAuth 認可",
+      "desc": "Claude 公式 OAuth 認可ページを開き、完了後にコールバック URL または code を貼り付けてアカウントをインポートします。",
+      "start": "OAuth 認可",
+      "proRequiredHint": "Claude 公式 OAuth は通常 Claude Code の認可に使われます。アップグレード画面や権限なし画面で止まる場合は、Claude Desktop ログインを使用してください。",
+      "waiting": "ブラウザで認可ページを開きました。認可完了後、最終ページの URL または表示された code を下に貼り付けてください。",
+      "authUrl": "認可リンク",
+      "callbackPlaceholder": "コールバック URL または認可 code を貼り付け",
+      "callbackRequired": "認可完了後のコールバック URL または code を貼り付けてください",
+      "authorizeUrlNotCallback": "貼り付けられたのは上の認可開始リンクで、認可完了後の code ではありません。まずブラウザで認可を完了し、最終ページの URL または表示された code をコピーしてください。",
+      "complete": "インポート完了",
+      "emailPlaceholder": "メール（自動識別できない場合に入力）",
+      "importSuccess": "Claude OAuth 認可をインポートしました: {{name}}"
+    },
+    "plan": {
+      "label": "サブスク表示",
+      "selectPlaceholder": "未選択",
+      "updateFailed": "サブスク表示の更新に失敗しました：{{error}}"
+    },
+    "legacyOAuth": {
+      "switchDisabled": "旧 OAuth アカウントは Claude Desktop に切り替えできません",
+      "quotaUnsupported": "旧 OAuth アカウントは更新に対応していません",
+      "cliUnsupported": "旧 OAuth アカウントでは Claude CLI を起動できません"
+    },
+    "cli": {
+      "quickLaunch": "CLI 起動",
+      "selectWorkingDir": "Claude CLI の作業フォルダを選択",
+      "launchSuccess": "Claude CLI を起動しました",
+      "launchFailed": "Claude CLI の起動に失敗しました：{{error}}",
+      "localTitle": "現在の Claude Code をインポート",
+      "localDesc": "現在のローカル Claude Code OAuth サインイン状態を読み取り、ローカルアカウントスナップショットとしてコピーします。",
+      "localSuccess": "ローカル Claude Code サインインをインポートしました: {{name}}"
+    },
+    "accountNote": {
+      "title": "アカウントメモ",
+      "desc": "{{email}} にローカルメモを追加し、切り替え時に識別しやすくします。",
+      "label": "アカウントメモ",
+      "placeholder": "例：Free メイン、Max 20x、チームアカウント",
+      "saved": "アカウントメモを保存しました",
+      "saveFailed": "アカウントメモの保存に失敗しました：{{error}}",
+      "emptyTitle": "アカウントメモを入力",
+      "short": "メモ",
+      "addShort": "メモ追加"
+    },
+    "account": {
+      "signedInWith": "{{provider}} でログイン",
+      "userId": "ユーザー ID",
+      "nickname": "ニックネーム"
+    },
+    "selection": {
+      "selected": "{{count}} 件選択中"
+    },
+    "deleteSelectedLabel": "{{count}} 件のアカウント",
+    "subPlatform": {
+      "label": "Claude サブプラットフォーム",
+      "desktop": "Claude デスクトップ",
+      "cli": "Claude コマンドライン"
+    },
+    "searchDesktop": "Claude Desktop アカウントを検索...",
+    "searchCli": "Claude CLI アカウントを検索...",
+    "noDesktopAccounts": "Claude Desktop アカウントはまだありません",
+    "noCliAccounts": "Claude CLI アカウントはまだありません"
   }
 }

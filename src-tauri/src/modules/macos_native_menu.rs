@@ -411,6 +411,8 @@ mod imp {
         match platform {
             PlatformId::Antigravity => "#67c27b",
             PlatformId::Codex => "#1976ff",
+            PlatformId::Claude => "#d97745",
+            PlatformId::ClaudeCli => "#d97745",
             PlatformId::Zed => "#8b92a1",
             PlatformId::GitHubCopilot => "#8b92a1",
             PlatformId::Windsurf => "#21c7b7",
@@ -2866,6 +2868,8 @@ mod imp {
         match platform {
             PlatformId::Antigravity => build_antigravity_cards(lang),
             PlatformId::Codex => build_codex_cards(lang),
+            PlatformId::Claude => build_claude_cards(lang, true),
+            PlatformId::ClaudeCli => build_claude_cards(lang, false),
             PlatformId::GitHubCopilot => build_ghcp_cards(lang),
             PlatformId::Windsurf => build_windsurf_cards(lang),
             PlatformId::Kiro => build_kiro_cards(lang),
@@ -3018,6 +3022,115 @@ mod imp {
                         account.email
                     },
                     plan: account.plan_type,
+                    updated_at: display_updated_at(
+                        account.usage_updated_at,
+                        account.last_used,
+                        account.created_at,
+                    ),
+                    quota_rows: rows,
+                }
+            })
+            .collect();
+
+        (cards, current_id, recommended)
+    }
+
+    fn is_claude_desktop_account(account: &crate::models::claude::ClaudeAccount) -> bool {
+        matches!(
+            account.auth_mode,
+            crate::models::claude::ClaudeAuthMode::DesktopOAuth
+        )
+    }
+
+    fn build_claude_cards(
+        lang: &str,
+        desktop: bool,
+    ) -> (Vec<AccountCard>, Option<String>, Option<String>) {
+        let fallback_title = if desktop {
+            "Claude Desktop"
+        } else {
+            "Claude CLI"
+        };
+        let mut accounts = modules::claude_account::list_accounts()
+            .into_iter()
+            .filter(|account| is_claude_desktop_account(account) == desktop)
+            .collect::<Vec<_>>();
+        let current_platform = if desktop { "claude" } else { "claude_cli" };
+        let current_id = modules::claude_account::resolve_current_account_for_platform(
+            current_platform,
+            &accounts,
+        )
+        .map(|account| account.id);
+        accounts
+            .sort_by_key(|account| std::cmp::Reverse(account.last_used.max(account.created_at)));
+
+        let recommended = current_id.as_deref().and_then(|id| {
+            accounts
+                .iter()
+                .filter(|account| account.id != id)
+                .filter_map(|account| {
+                    let quota = account.quota.as_ref()?;
+                    let values = [quota.five_hour_percentage, quota.seven_day_percentage];
+                    let avg = values.iter().copied().sum::<i32>() as f64 / values.len() as f64;
+                    Some((account.id.clone(), avg, account.last_used))
+                })
+                .min_by(|left, right| {
+                    left.1
+                        .partial_cmp(&right.1)
+                        .unwrap_or(Ordering::Equal)
+                        .then_with(|| right.2.cmp(&left.2))
+                })
+                .map(|item| item.0)
+        });
+
+        let cards = accounts
+            .into_iter()
+            .map(|account| {
+                let mut rows = Vec::new();
+                if let Some(quota) = account.quota.as_ref() {
+                    let five_hour = quota.five_hour_percentage.clamp(0, 100);
+                    rows.push(make_progress_row(
+                        translate_or(lang, "claude.quota.fiveHour", "Current session", &[]),
+                        format!("{five_hour}%"),
+                        five_hour,
+                        format_reset_subtext(lang, quota.five_hour_reset_time),
+                        usage_warning_tone(five_hour),
+                    ));
+
+                    let seven_day = quota.seven_day_percentage.clamp(0, 100);
+                    rows.push(make_progress_row(
+                        translate_or(
+                            lang,
+                            "claude.quota.sevenDay",
+                            "Current week (all models)",
+                            &[],
+                        ),
+                        format!("{seven_day}%"),
+                        seven_day,
+                        format_reset_subtext(lang, quota.seven_day_reset_time),
+                        usage_warning_tone(seven_day),
+                    ));
+                } else if let Some(error) = account.quota_error.as_ref() {
+                    rows.push(make_text_row(
+                        translate_or(lang, "common.shared.columns.status", "Status", &[]),
+                        error.message.clone(),
+                        None,
+                    ));
+                }
+
+                AccountCard {
+                    id: account.id,
+                    title: first_non_empty(&[
+                        Some(account.email.as_str()),
+                        account.organization_name.as_deref(),
+                    ])
+                    .unwrap_or(fallback_title)
+                    .to_string(),
+                    plan: first_non_empty(&[
+                        account.plan_type.as_deref(),
+                        account.organization_name.as_deref(),
+                    ])
+                    .map(str::to_string),
                     updated_at: display_updated_at(
                         account.usage_updated_at,
                         account.last_used,
@@ -4285,6 +4398,14 @@ mod imp {
                         .map(|_| 0)
                 }
                 (PlatformId::Codex, None) => refresh_all_codex_usage_for_menu(app.clone()).await,
+                (PlatformId::Claude | PlatformId::ClaudeCli, Some(account_id)) => {
+                    commands::claude::refresh_claude_quota(app.clone(), account_id)
+                        .await
+                        .map(|_| 0)
+                }
+                (PlatformId::Claude | PlatformId::ClaudeCli, None) => {
+                    commands::claude::refresh_all_claude_quotas(app.clone()).await
+                }
                 (PlatformId::GitHubCopilot, Some(account_id)) => {
                     commands::github_copilot::refresh_github_copilot_token(app.clone(), account_id)
                         .await
@@ -4403,6 +4524,9 @@ mod imp {
                 PlatformId::Codex => commands::codex::switch_codex_account(app, account_id)
                     .await
                     .map(|_| ()),
+                PlatformId::Claude | PlatformId::ClaudeCli => {
+                    commands::claude::switch_claude_account(app, account_id).map(|_| ())
+                }
                 PlatformId::GitHubCopilot => {
                     commands::github_copilot::inject_github_copilot_to_vscode(app, account_id)
                         .await

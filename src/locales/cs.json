@@ -197,7 +197,7 @@
         "planEndsInHours": "Resetuje se za {{hours}}h"
       },
       "flowNotice": {
-        "alternative": "Alternativa: použijte izolaci více instancí (odlišné --user-data-dir). V každé instanci se přihlaste jednou a poté spouštějte podle instance pro rychlé přepnutí na cílové prostředí účtu."
+        "alternative": "Izolace více instancí: používejte oddělené spravované profily a v každé instanci se jednou přihlaste pro rychlé přepínání účtů."
       },
       "injecting": "Probíhá injektování...",
       "usage": {
@@ -261,7 +261,8 @@
     "switchClassicLayoutDontAskAgain": "Toto upozornění už nezobrazovat",
     "switchClassicLayoutConfirm": "Přepnout nyní",
     "2faManager": "Správa 2FA",
-    "apiRelay": "API relay"
+    "apiRelay": "API relay",
+    "claude": "Claude"
   },
   "sponsors": {
     "pageTitle": "Sponzoři",
@@ -778,7 +779,10 @@
       "codexAppSpeedFast": "Rychlá",
       "codexAppSpeedLaunch": "Restartovat Codex",
       "codexAppSpeedSaveFailed": "Nepodařilo se uložit rychlost Codexu: {{error}}",
-      "codexAppSpeedLaunchFailed": "Nepodařilo se restartovat Codex: {{error}}"
+      "codexAppSpeedLaunchFailed": "Nepodařilo se restartovat Codex: {{error}}",
+      "claudeSettingsTitle": "Nastavení Claude Desktop",
+      "claudeAutoRefresh": "Automatická obnova kvóty Claude Desktop",
+      "claudeAutoRefreshDesc": "Automaticky na pozadí obnovuje mezipaměť kvóty účtů Claude Desktop."
     },
     "network": {
       "apiTitle": "Antigravity Cockpit API​",
@@ -1262,7 +1266,10 @@
     "switchSuccess": "Přepnuto úspěšně",
     "switched": "Přepnuto na {{email}}",
     "tagButton": "Upravit štítky",
-    "tagUpdated": "Štítek byl aktualizován"
+    "tagUpdated": "Štítek byl aktualizován",
+    "plan": {
+      "personal": "Osobní"
+    }
   },
   "overview": {
     "title": "Přehled účtů",
@@ -2286,6 +2293,8 @@
         "repairVisibility": "Opravit viditelnost",
         "restoreSessions": "Obnovit relace",
         "copySessionId": "Kopírovat ID relace",
+        "selectAllSessions": "Vybrat vše",
+        "clearSelectedSessions": "Zrušit výběr",
         "copyToInstance": "Kopírovat do instance"
       },
       "confirm": {
@@ -3228,6 +3237,10 @@
       "title": "Paměť filtrů",
       "enable": "Pamatovat filtry přehledu účtů (bez vyhledávání)",
       "hint": "Ve výchozím stavu vypnuto. Po zapnutí se pro každou platformu uloží filtry, štítky a řazení."
+    },
+    "claudeRefreshInterval": "Automatická obnova kvóty",
+    "claude": {
+      "appPath": "Cesta Claude Desktop"
     }
   },
   "quotaAlert": {
@@ -4508,6 +4521,16 @@
       "queryFailed": "Kontrola kvóty selhala: {{error}}",
       "saveFailed": "Zápis selhal: {{error}}"
     },
+    "models": {
+      "title": "Dostupné modely",
+      "desc": "Načítá se z endpointu modelů aktuálního API Key a předá se do Codex nebo Claude CLI.",
+      "count": "{{count}} modelů",
+      "loading": "Načítání",
+      "loadingDesc": "Načítá se seznam modelů z aktuálního API Key...",
+      "empty": "Zadejte API Key pro načtení dostupných modelů.",
+      "emptyFromKey": "Aktuální API Key nevrátil žádné modely.",
+      "queryFailed": "Načtení seznamu modelů selhalo: {{error}}"
+    },
     "keyManager": {
       "title": "Správa klíčů",
       "desc": "Ukládejte API Keys pro rychlé přepínání a automatickou kontrolu kvóty.",
@@ -4520,9 +4543,197 @@
       "editAlias": "Edit alias​",
       "renamePlaceholder": "Enter alias...​",
       "createdAt": "Přidáno {{time}}",
-      "saveFlash": "Uloženo"
+      "saveFlash": "Uloženo",
+      "addingToCodex": "Přidávání do Codex...",
+      "addedToCodex": "Přidáno do Codex",
+      "addToCodexFailed": "Přidání do Codex selhalo: {{error}}",
+      "addingToClaude": "Přidávání do Claude CLI...",
+      "addedToClaude": "Přidáno do Claude CLI",
+      "addToClaudeFailed": "Přidání do Claude CLI selhalo: {{error}}",
+      "codexAdded": "Codex přidán",
+      "claudeAdded": "Claude přidán",
+      "addToCodex": "Přidat do Codex",
+      "addToClaude": "Přidat do Claude CLI",
+      "codexShort": "Codex",
+      "claudeShort": "Claude CLI"
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
+  },
+  "claude": {
+    "import": {
+      "localSuccess": "Importováno místních přihlášení Claude Desktop: {{count}}",
+      "localClient": "Importovat aktuální Desktop",
+      "jsonLabel": "Data JSON",
+      "jsonPlaceholder": "Vložte exportovaný JSON účtu Claude",
+      "localDesc": "Načte aktuální přihlášení z oficiální aplikace Claude Desktop a zkopíruje ho do tohoto nástroje jako místní snímek účtu.",
+      "desktopJsonPlaceholder": "Vložte exportovaný JSON účtu Claude Desktop",
+      "cliJsonPlaceholder": "Vložte exportovaný JSON účtu Claude CLI"
+    },
+    "deleteCurrentDisabled": "Aktuální účet nelze odstranit",
+    "flowNotice": {
+      "title": "Správa účtů Claude",
+      "desc": "Tento nástroj spravuje přihlášení Claude Desktop a Anthropic API Key. Desktop přihlášení proběhne v autorizačním okně této platformy a nejprve se uloží lokálně; do oficiálního Claude Desktop se zapíše až při přepnutí účtu.",
+      "permission": "Rozsah oprávnění: čtení/zápis datové složky oficiální aplikace Claude Desktop. API Key a snímky Desktop se ukládají do místních dat účtů tohoto nástroje.",
+      "network": "Síť: okno Desktop přihlášení otevírá claude.ai; obnovení účtu může volat rozhraní Claude Web. Samotný import API Key síť nepoužívá.",
+      "desktopDesc": "Tento nástroj spravuje přihlášení Claude Desktop. Přihlášení se nejdříve uloží lokálně a do oficiálního Claude Desktop se zapíše až při přepnutí účtu.",
+      "cliDesc": "Nástroj spravuje OAuth Claude Code a API Key více poskytovatelů. Přepnutí OAuth zapisuje do lokální konfigurace Claude Code; spuštění s API Key vloží proměnné prostředí poskytovatele.",
+      "desktopPermission": "Rozsah oprávnění: čtení/zápis datového adresáře oficiální aplikace Claude Desktop. Snímky Desktopu se ukládají do lokálních dat účtů tohoto nástroje.",
+      "cliPermission": "Rozsah oprávnění: čte/zapisuje lokální konfiguraci Claude Code a přihlašovací údaje v macOS Keychain; účty API Key se ukládají lokálně v tomto nástroji a spuštění vytvoří jednorázový lokální dočasný skript.",
+      "desktopNetwork": "Rozsah sítě: přihlašovací okno Desktop otevírá claude.ai; obnovení účtu může volat koncové body Claude Web.",
+      "cliNetwork": "Síť: OAuth používá oficiální autorizaci Claude a endpointy token/profile/usage; import API Key je offline, po spuštění Claude CLI kontaktuje vybraného poskytovatele."
+    },
+    "search": "Hledat účty Claude...",
+    "noAccounts": "Žádné účty Claude",
+    "addAccount": {
+      "title": "Přidat účet Claude",
+      "desktopTitle": "Přidat účet Claude Desktop",
+      "cliTitle": "Přidat účet Claude CLI"
+    },
+    "deleteConfirm": "Smazat účet Claude {{email}}?",
+    "switch": {
+      "success": "Přepnutí proběhlo úspěšně"
+    },
+    "instances": {
+      "unsupportedDescPlatform": "Více instancí Claude Desktop je podporováno jen na macOS, Windows a Linuxu.",
+      "launchDialogTitle": "Spustit instanci",
+      "launchCommand": "Spouštěcí příkaz",
+      "executeInTerminal": "Spustit v terminálu",
+      "startSuccess": "Claude Desktop spuštěn"
+    },
+    "quota": {
+      "title": "Kvóta",
+      "fiveHour": "Aktuální relace",
+      "sevenDay": "Aktuální týden (všechny modely)",
+      "sonnet": "Sonnet 7 d",
+      "extra": "Extra využití",
+      "empty": "Bez kvóty",
+      "unsupported": "Nelze obnovit",
+      "updatedAt": "Aktualizováno: {{time}}",
+      "resetAt": "{{label}} reset: {{time}}",
+      "refreshSuccess": "Kvóta obnovena",
+      "refreshAllDone": "Obnova kvóty hotova",
+      "refreshFailed": "Obnova kvóty selhala: {{error}}",
+      "refreshWithWarning": "Obnova kvóty selhala: {{error}}",
+      "notUpdated": "Limit neobnoven",
+      "updated": "Aktualizováno",
+      "notUpdatedShort": "Neobnoveno"
+    },
+    "addTabs": {
+      "desktop": "Plocha",
+      "oauth": "OAuth",
+      "apiKey": "API klíč",
+      "import": "Místní/JSON"
+    },
+    "authMode": {
+      "oauth": "Režim OAuth",
+      "setup_token": "Token nastavení",
+      "api_key": "API klíč",
+      "desktop_oauth": "Desktop přihlášení"
+    },
+    "apiKey": {
+      "desc": "Uloží API Key Claude CLI jako samostatné údaje. Při spuštění CLI vloží proměnné poskytovatele a nezapíše přihlášení Claude Desktop.",
+      "nameLabel": "Název účtu",
+      "namePlaceholder": "Volitelné, např. APIKEY.FUN",
+      "keyLabel": "Klíč API",
+      "placeholder": "Vložte API Key poskytovatele",
+      "hide": "Skrýt API Key",
+      "show": "Zobrazit API Key",
+      "hint": "Účet API Key slouží jen ke spuštění Claude CLI; nezapisuje Claude Desktop a neobnovuje limity předplatného.",
+      "importAction": "Importovat API Key",
+      "required": "Zadejte API Key",
+      "importSuccess": "Účet Claude API Key importován: {{name}}",
+      "quotaUnsupported": "Účty API Key nepodporují obnovení",
+      "switchDisabled": "Účet API Key nelze přepnout do Claude Desktop",
+      "cliUnsupported": "Účet API Key nespustí Claude CLI",
+      "providerLabel": "Poskytovatel",
+      "customProvider": "Vlastní",
+      "endpointLabel": "Endpoint",
+      "officialEndpoint": "Oficiální výchozí",
+      "baseUrlLabel": "Základní URL",
+      "baseUrlPlaceholder": "Prázdné použije Anthropic",
+      "keyFieldLabel": "Pole auth",
+      "baseUrlInvalid": "Base URL není platná URL"
+    },
+    "desktopOAuth": {
+      "title": "Přihlášení Claude Desktop",
+      "desc": "Přihlášení Claude v tomto nástroji; Google, Apple, e-mail a free.",
+      "start": "Otevřít",
+      "hint": "Nejdřív lokálně; zápis do Claude Desktop až při přepnutí.",
+      "nameLabel": "Název účtu",
+      "namePlaceholder": "Volitelné, např. Claude Free",
+      "waiting": "Přihlaste se v okně Claude a dokončete import zde.",
+      "profileDir": "Izolovaný adresář profile",
+      "complete": "Dokončit",
+      "localTitle": "Import aktuálního Desktop",
+      "localDesc": "Kopíruje aktuální relaci Claude Desktop jako lokální snímek.",
+      "localAction": "Import",
+      "localSuccess": "Lokální přihlášení Claude Desktop importováno: {{name}}",
+      "importSuccess": "Přihlášení Claude Desktop importováno: {{name}}",
+      "switchHint": "Přepnout na oficiální Claude Desktop",
+      "planUnknown": "Plán neznámý"
+    },
+    "oauth": {
+      "title": "Autorizace Claude OAuth",
+      "desc": "Otevřete oficiální stránku autorizace Claude OAuth a po dokončení vložte zpětný odkaz nebo kód pro import účtu.",
+      "start": "Autorizovat OAuth",
+      "proRequiredHint": "Oficiální OAuth Claude se obvykle používá pro Claude Code. Pokud stránka zůstane na upgradu nebo bez oprávnění, použijte přihlášení Claude Desktop.",
+      "waiting": "Prohlížeč otevřel autorizační stránku. Po dokončení vložte níže finální adresu stránky nebo zobrazený kód.",
+      "authUrl": "Autorizační odkaz",
+      "callbackPlaceholder": "Vložte zpětný odkaz nebo autorizační kód",
+      "callbackRequired": "Po dokončení autorizace vložte zpětný odkaz nebo kód",
+      "authorizeUrlNotCallback": "Vložili jste výše uvedený vstupní autorizační odkaz, ne dokončený kód. Nejprve dokončete autorizaci v prohlížeči a potom zkopírujte finální adresu stránky nebo zobrazený kód.",
+      "complete": "Dokončit import",
+      "emailPlaceholder": "E-mail (vyplňte, pokud se nerozpozná)",
+      "importSuccess": "Autorizace Claude OAuth importována: {{name}}"
+    },
+    "plan": {
+      "label": "Štítek tarifu",
+      "selectPlaceholder": "Vybrat tarif",
+      "updateFailed": "Nepodařilo se aktualizovat štítek tarifu: {{error}}"
+    },
+    "legacyOAuth": {
+      "switchDisabled": "Staré účty OAuth nelze přepnout do Claude Desktop",
+      "quotaUnsupported": "Staré účty OAuth už nepodporují obnovení",
+      "cliUnsupported": "Starší účty OAuth nemohou spustit Claude CLI"
+    },
+    "cli": {
+      "quickLaunch": "Spustit CLI",
+      "selectWorkingDir": "Vyberte pracovní složku Claude CLI",
+      "launchSuccess": "Claude CLI spuštěno",
+      "launchFailed": "Claude CLI se nepodařilo spustit: {{error}}",
+      "localTitle": "Importovat aktuální Claude Code",
+      "localDesc": "Přečte aktuální lokální OAuth přihlášení Claude Code a zkopíruje ho jako lokální snímek účtu.",
+      "localSuccess": "Lokální přihlášení Claude Code importováno: {{name}}"
+    },
+    "accountNote": {
+      "title": "Poznámka účtu",
+      "desc": "Přidejte místní poznámku pro {{email}}, aby šel účet při přepínání snadno rozpoznat.",
+      "label": "Poznámka účtu",
+      "placeholder": "Např.: Free hlavní, Max 20x, týmový účet",
+      "saved": "Poznámka účtu uložena",
+      "saveFailed": "Poznámku se nepodařilo uložit: {{error}}",
+      "emptyTitle": "Přidat poznámku účtu",
+      "short": "Poznámka",
+      "addShort": "Poznámka"
+    },
+    "account": {
+      "signedInWith": "Přihlášeno přes {{provider}}",
+      "userId": "ID uživatele",
+      "nickname": "Přezdívka"
+    },
+    "selection": {
+      "selected": "Vybráno {{count}}"
+    },
+    "deleteSelectedLabel": "{{count}} účtů",
+    "subPlatform": {
+      "label": "Podplatforma Claude",
+      "desktop": "Claude Desktop aplikace",
+      "cli": "Claude příkazová řádka"
+    },
+    "searchDesktop": "Hledat účty Claude Desktop...",
+    "searchCli": "Hledat účty Claude CLI...",
+    "noDesktopAccounts": "Zatím žádné účty Claude Desktop",
+    "noCliAccounts": "Zatím žádné účty Claude CLI"
   }
 }

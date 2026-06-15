@@ -1088,12 +1088,58 @@ fn summarize_model_provider_models(body: &serde_json::Value) -> (Option<String>,
     (first, output)
 }
 
+fn list_model_provider_models(body: &serde_json::Value) -> Vec<CodexModelProviderModel> {
+    let mut seen = std::collections::HashSet::new();
+    body.get("data")
+        .and_then(|value| value.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| {
+                    let id = item.get("id").and_then(|id| id.as_str())?.trim();
+                    if id.is_empty() {
+                        return None;
+                    }
+                    let key = id.to_ascii_lowercase();
+                    if !seen.insert(key) {
+                        return None;
+                    }
+                    Some(CodexModelProviderModel {
+                        id: id.to_string(),
+                        display_name: item
+                            .get("display_name")
+                            .or_else(|| item.get("displayName"))
+                            .and_then(|value| value.as_str())
+                            .map(str::trim)
+                            .filter(|value| !value.is_empty())
+                            .map(str::to_string),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodexModelProviderUsageDetail {
     pub key: String,
     pub label: String,
     pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexModelProviderModel {
+    pub id: String,
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodexModelProviderModelsResult {
+    pub models: Vec<CodexModelProviderModel>,
+    pub latency_ms: u64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1506,6 +1552,46 @@ pub async fn codex_test_model_provider_connection(
         latency_ms: Some(latency_ms),
         output: output.or_else(|| Some(format!("{} connection ok", protocol))),
         failure: None,
+    })
+}
+
+#[tauri::command]
+pub async fn codex_list_model_provider_models(
+    base_url: String,
+    api_key: String,
+) -> Result<CodexModelProviderModelsResult, String> {
+    let key = api_key.trim();
+    if key.is_empty() {
+        return Err("MISSING_API_KEY".to_string());
+    }
+    let url = codex_model_provider_models_url(&base_url)?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(CODEX_MODEL_PROVIDER_TEST_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| format!("CREATE_HTTP_CLIENT_FAILED: {}", e))?;
+    let started = Instant::now();
+    let response = client
+        .get(&url)
+        .bearer_auth(key)
+        .header(reqwest::header::ACCEPT, "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("PROVIDER_MODELS_NETWORK_FAILED: {}", e))?;
+    let latency_ms = started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
+    let status = response.status();
+    let text = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(format!(
+            "PROVIDER_MODELS_HTTP_{}: {}",
+            status.as_u16(),
+            text.chars().take(300).collect::<String>()
+        ));
+    }
+    let parsed = serde_json::from_str::<serde_json::Value>(&text)
+        .map_err(|e| format!("PROVIDER_MODELS_PARSE_FAILED: {}", e))?;
+    Ok(CodexModelProviderModelsResult {
+        models: list_model_provider_models(&parsed),
+        latency_ms,
     })
 }
 

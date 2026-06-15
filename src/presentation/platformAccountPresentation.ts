@@ -4,6 +4,7 @@ import type {
   CodebuddyOfficialQuotaResource,
 } from "../types/codebuddy";
 import type { CodexAccount } from "../types/codex";
+import type { ClaudeAccount } from "../types/claude";
 import type { GitHubCopilotAccount } from "../types/githubCopilot";
 import type { WindsurfAccount } from "../types/windsurf";
 import type { CursorAccount } from "../types/cursor";
@@ -37,8 +38,16 @@ import {
   getCodexQuotaClass,
   getCodexQuotaWindows,
   isCodexApiKeyAccount,
+  isCodexChatCompletionsApiKeyAccount,
   isCodexNewApiAccount,
 } from "../types/codex";
+import {
+  formatClaudeResetTime,
+  getClaudeAccountDisplayEmail,
+  getClaudePlanBadge,
+  getClaudePlanBadgeClass,
+  getClaudeQuotaClass,
+} from "../types/claude";
 import {
   formatGitHubCopilotResetTime,
   getGitHubCopilotPlanBadge,
@@ -689,7 +698,9 @@ export function buildCodexAccountPresentation(
     ? buildCodexNewApiQuotaItems(account, t)
     : [];
   const quotaItems: UnifiedQuotaMetric[] =
-    newApiQuotaItems.length > 0
+    isCodexChatCompletionsApiKeyAccount(account)
+      ? []
+      : newApiQuotaItems.length > 0
       ? newApiQuotaItems
       : getCodexQuotaWindows(account.quota).map((window) => ({
           key: window.id,
@@ -728,6 +739,43 @@ export function buildCodexAccountPresentation(
     planLabel: planBadge.label,
     planClass: planBadge.className,
     quotaItems,
+  };
+}
+
+export function buildClaudeAccountPresentation(
+  account: ClaudeAccount,
+  t: Translate,
+): UnifiedAccountPresentation {
+  const quotaItems: UnifiedQuotaMetric[] = [];
+  if (account.quota) {
+    quotaItems.push({
+      key: "five_hour",
+      label: t("claude.quota.fiveHour", "Current session"),
+      percentage: account.quota.five_hour_percentage,
+      quotaClass: getClaudeQuotaClass(account.quota.five_hour_percentage),
+      valueText: `${account.quota.five_hour_percentage}%`,
+      resetText: formatClaudeResetTime(account.quota.five_hour_reset_time),
+      resetAt: account.quota.five_hour_reset_time,
+    });
+    quotaItems.push({
+      key: "seven_day",
+      label: t("claude.quota.sevenDay", "Current week (all models)"),
+      percentage: account.quota.seven_day_percentage,
+      quotaClass: getClaudeQuotaClass(account.quota.seven_day_percentage),
+      valueText: `${account.quota.seven_day_percentage}%`,
+      resetText: formatClaudeResetTime(account.quota.seven_day_reset_time),
+      resetAt: account.quota.seven_day_reset_time,
+    });
+  }
+
+  return {
+    id: account.id,
+    displayName: getClaudeAccountDisplayEmail(account),
+    planLabel: getClaudePlanBadge(account) || t("claude.desktopOAuth.planUnknown", "订阅未知"),
+    planClass: getClaudePlanBadgeClass(account),
+    quotaItems,
+    sublineText: account.quota_error?.message,
+    sublineClass: account.quota_error ? "critical" : undefined,
   };
 }
 

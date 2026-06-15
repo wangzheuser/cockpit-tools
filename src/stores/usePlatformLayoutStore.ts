@@ -6,6 +6,7 @@ const PLATFORM_LAYOUT_STORAGE_KEY = 'agtools.platform_layout.v1';
 const LEGACY_TRAY_CORE_IDS: PlatformId[] = ['antigravity', 'codex', 'github-copilot', 'windsurf'];
 const TRAY_MIGRATED_PLATFORM_IDS: PlatformId[] = [
   'antigravity_ide',
+  'claude',
   'zed',
   'kiro',
   'cursor',
@@ -18,6 +19,7 @@ const TRAY_MIGRATED_PLATFORM_IDS: PlatformId[] = [
 ];
 const DEFAULT_CODEBUDDY_GROUP_ID = 'codebuddy-suite';
 const DEFAULT_ANTIGRAVITY_GROUP_ID = 'antigravity-suite';
+const DEFAULT_CLAUDE_GROUP_ID = 'claude-suite';
 
 const PLATFORM_ENTRY_PREFIX = 'platform:';
 const GROUP_ENTRY_PREFIX = 'group:';
@@ -268,6 +270,18 @@ function defaultPlatformGroups(): PlatformLayoutGroup[] {
       ],
     },
     {
+      id: DEFAULT_CLAUDE_GROUP_ID,
+      name: 'Claude',
+      platformIds: ['claude', 'claude_cli'],
+      defaultPlatformId: 'claude',
+      iconKind: 'platform',
+      iconPlatformId: 'claude',
+      childConfigs: [
+        { platformId: 'claude', name: 'Claude Desktop' },
+        { platformId: 'claude_cli', name: 'Claude CLI' },
+      ],
+    },
+    {
       id: DEFAULT_CODEBUDDY_GROUP_ID,
       name: 'CodeBuddy',
       platformIds: ['codebuddy', 'codebuddy_cn', 'workbuddy'],
@@ -380,6 +394,12 @@ function normalizeGroupName(raw: unknown, fallbackPlatform: PlatformId): string 
   if (fallbackPlatform === 'zed') {
     return 'Zed';
   }
+  if (fallbackPlatform === 'claude') {
+    return 'Claude Desktop';
+  }
+  if (fallbackPlatform === 'claude_cli') {
+    return 'Claude CLI';
+  }
   if (fallbackPlatform === 'workbuddy') {
     return 'WorkBuddy';
   }
@@ -416,6 +436,9 @@ function normalizeGroupChildName(raw: unknown, platformId: PlatformId): string |
   }
   if (platformId === 'antigravity_ide' && value === 'Antigravity') {
     return 'Antigravity IDE';
+  }
+  if (platformId === 'claude' && value === 'Claude') {
+    return 'Claude Desktop';
   }
   return value;
 }
@@ -546,6 +569,31 @@ function normalizePlatformGroups(raw: unknown, fallbackToDefault: boolean): Plat
         antigravityGroup.platformIds,
       );
       usedPlatformIds.add('antigravity_ide');
+    }
+  }
+
+  if (!usedPlatformIds.has('claude_cli')) {
+    const claudeGroup = result.find((group) => group.platformIds.includes('claude'));
+    if (claudeGroup) {
+      claudeGroup.platformIds = Array.from(new Set([...claudeGroup.platformIds, 'claude_cli']));
+      if (!claudeGroup.platformIds.includes(claudeGroup.defaultPlatformId)) {
+        claudeGroup.defaultPlatformId = 'claude';
+      }
+      if (claudeGroup.name === 'Claude Desktop' || claudeGroup.name === 'Claude CLI') {
+        claudeGroup.name = 'Claude';
+      }
+      if (claudeGroup.iconKind !== 'custom') {
+        claudeGroup.iconPlatformId = 'claude';
+      }
+      claudeGroup.childConfigs = normalizeGroupChildConfigs(
+        [
+          ...(claudeGroup.childConfigs ?? []),
+          { platformId: 'claude', name: 'Claude Desktop' },
+          { platformId: 'claude_cli', name: 'Claude CLI' },
+        ],
+        claudeGroup.platformIds,
+      );
+      usedPlatformIds.add('claude_cli');
     }
   }
 

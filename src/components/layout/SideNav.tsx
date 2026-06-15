@@ -23,6 +23,7 @@ import { useGlobalModal } from '../../hooks/useGlobalModal';
 import { getPlatformLabel, renderPlatformIcon } from '../../utils/platformMeta';
 import { useAntigravityRuntimeTarget } from '../../hooks/useAntigravityRuntimeTarget';
 import { setAntigravityRuntimeTargetFromPlatform } from '../../utils/antigravityRuntimeTarget';
+import { useRemoteConfigStore } from '../../stores/useRemoteConfigStore';
 
 interface SideNavProps {
   page: Page;
@@ -60,6 +61,8 @@ const PAGE_PLATFORM_MAP: Partial<Record<Page, PlatformId>> = {
   overview: 'antigravity',
   codex: 'codex',
   'codex-api-service': 'codex',
+  claude: 'claude',
+  'claude-cli': 'claude',
   zed: 'zed',
   'github-copilot': 'github-copilot',
   windsurf: 'windsurf',
@@ -166,6 +169,7 @@ export function SideNav({
     apiRelaySidebarVisible,
     apiRelayEntryOrder,
   } = usePlatformLayoutStore();
+  const remoteHiddenPlatformIds = useRemoteConfigStore((state) => state.hiddenPlatformIds);
 
   const antigravityRuntimeTarget = useAntigravityRuntimeTarget();
   const currentPlatformId = page === 'overview'
@@ -183,6 +187,15 @@ export function SideNav({
 
   const hiddenSet = useMemo(() => new Set(hiddenEntryIds), [hiddenEntryIds]);
   const sidebarSet = useMemo(() => new Set(sidebarEntryIds), [sidebarEntryIds]);
+  const remoteHiddenPlatformSet = useMemo(
+    () => new Set(remoteHiddenPlatformIds),
+    [remoteHiddenPlatformIds],
+  );
+  const isPlatformAvailable = useCallback(
+    (platformId: PlatformId) =>
+      isMenuVisiblePlatform(platformId) && !remoteHiddenPlatformSet.has(platformId),
+    [remoteHiddenPlatformSet],
+  );
   const apiRelayEntryVisible = sponsorEntryVisible && apiRelaySidebarVisible;
 
   const orderedEntries = useMemo<SideNavEntry[]>(() => {
@@ -190,7 +203,7 @@ export function SideNav({
       .map<SideNavEntry | null>((entryId) => {
         const platformId = parsePlatformEntryId(entryId);
         if (platformId) {
-          if (!isMenuVisiblePlatform(platformId)) {
+          if (!isPlatformAvailable(platformId)) {
             return null;
           }
           return {
@@ -213,7 +226,7 @@ export function SideNav({
           return null;
         }
 
-        const visiblePlatformIds = group.platformIds.filter(isMenuVisiblePlatform);
+        const visiblePlatformIds = group.platformIds.filter(isPlatformAvailable);
         if (visiblePlatformIds.length === 0) {
           return null;
         }
@@ -255,7 +268,15 @@ export function SideNav({
       group: null,
     });
     return result;
-  }, [apiRelayEntryOrder, apiRelayEntryVisible, orderedEntryIds, platformGroups, hiddenSet, t]);
+  }, [
+    apiRelayEntryOrder,
+    apiRelayEntryVisible,
+    orderedEntryIds,
+    platformGroups,
+    hiddenSet,
+    isPlatformAvailable,
+    t,
+  ]);
 
   const sidebarVisibleEntries = useMemo(
     () => orderedEntries.filter((entry) =>

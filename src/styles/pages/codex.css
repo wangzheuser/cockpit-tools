@@ -5174,8 +5174,14 @@
   color: var(--text-primary);
 }
 
+.codex-provider-manager-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .codex-provider-manager-page .toolbar {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .codex-provider-manager-page .toolbar-left {

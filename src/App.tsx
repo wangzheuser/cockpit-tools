@@ -27,6 +27,7 @@ import { useGlobalModal } from './hooks/useGlobalModal';
 import { changeLanguage, getCurrentLanguage, normalizeLanguage } from './i18n';
 import { useAccountStore } from './stores/useAccountStore';
 import { useCodexAccountStore } from './stores/useCodexAccountStore';
+import { useClaudeAccountStore } from './stores/useClaudeAccountStore';
 import { useGitHubCopilotAccountStore } from './stores/useGitHubCopilotAccountStore';
 import { useWindsurfAccountStore } from './stores/useWindsurfAccountStore';
 import { useKiroAccountStore } from './stores/useKiroAccountStore';
@@ -42,6 +43,7 @@ import { useSideNavLayoutStore } from './stores/useSideNavLayoutStore';
 import { usePlatformLayoutStore } from './stores/usePlatformLayoutStore';
 import { useTopRightAdStore } from './stores/useTopRightAdStore';
 import { useSponsorStore } from './stores/useSponsorStore';
+import { useRemoteConfigStore } from './stores/useRemoteConfigStore';
 import type { UpdateCheckResult, UpdateInfo } from './components/UpdateNotification';
 import type { Update as UpdaterUpdate } from '@tauri-apps/plugin-updater';
 import { parseUpdaterReleaseNotes, resolveUpdaterDownloadUrl } from './utils/updaterReleaseNotes';
@@ -76,6 +78,9 @@ const CodexAccountsPage = lazy(() =>
 );
 const CodexApiServicePage = lazy(() =>
   import('./pages/CodexApiServicePage').then((module) => ({ default: module.CodexApiServicePage })),
+);
+const ClaudeAccountsPage = lazy(() =>
+  import('./pages/ClaudeAccountsPage').then((module) => ({ default: module.ClaudeAccountsPage })),
 );
 const GitHubCopilotAccountsPage = lazy(() =>
   import('./pages/GitHubCopilotAccountsPage').then((module) => ({
@@ -202,6 +207,7 @@ const WAKEUP_ENABLED_KEY = 'agtools.wakeup.enabled';
 const TASKS_STORAGE_KEY = 'agtools.wakeup.tasks';
 const WAKEUP_FORCE_DISABLE_MIGRATION_KEY = 'agtools.wakeup.migration.force_disable_0_8_14';
 const TOP_RIGHT_AD_REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+const REMOTE_CONFIG_FALLBACK_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 const EXTERNAL_IMPORT_DEDUPE_WINDOW_MS = 30 * 1000;
 
 type WakeupHistoryRecord = {
@@ -240,6 +246,7 @@ type QuotaAlertPayload = {
 type QuotaAlertPlatform =
   | 'antigravity'
   | 'codex'
+  | 'claude'
   | 'github_copilot'
   | 'windsurf'
   | 'kiro'
@@ -333,6 +340,9 @@ function normalizeQuotaAlertPlatform(platform: string | undefined): QuotaAlertPl
   switch (platform) {
     case 'codex':
       return 'codex';
+    case 'claude':
+    case 'claude-cli':
+      return 'claude';
     case 'github_copilot':
       return 'github_copilot';
     case 'windsurf':
@@ -365,6 +375,8 @@ function getQuotaAlertPlatformLabel(
   switch (platform) {
     case 'codex':
       return t('nav.codex', 'Codex');
+    case 'claude':
+      return t('nav.claude', 'Claude Desktop');
     case 'github_copilot':
       return t('nav.githubCopilot', 'GitHub Copilot');
     case 'windsurf':
@@ -394,6 +406,8 @@ function getQuotaAlertTargetPage(platform: QuotaAlertPlatform): Page {
   switch (platform) {
     case 'codex':
       return 'codex';
+    case 'claude':
+      return 'claude';
     case 'github_copilot':
       return 'github-copilot';
     case 'windsurf':
@@ -425,6 +439,8 @@ function getQuotaAlertQuickSettingsType(platform: QuotaAlertPlatform): QuickSett
   switch (platform) {
     case 'codex':
       return 'codex';
+    case 'claude':
+      return 'claude';
     case 'github_copilot':
       return 'github_copilot';
     case 'windsurf':
@@ -540,6 +556,7 @@ function MainApp() {
   const sponsorModuleState = useSponsorStore((state) => state.state);
   const fetchSponsorModuleState = useSponsorStore((state) => state.fetchState);
   const sponsorModuleInitialized = useSponsorStore((state) => state.initialized);
+  const fetchRemoteConfigState = useRemoteConfigStore((state) => state.fetchState);
   const sponsorEntryVisible = Boolean(sponsorModuleState.sponsorModule);
   const [topRightAdVisible, setTopRightAdVisible] = useState(true);
   const trayRefreshInFlightRef = useRef(false);
@@ -726,6 +743,39 @@ function MainApp() {
   useEffect(() => {
     void fetchSponsorModuleState();
   }, [fetchSponsorModuleState]);
+
+  useEffect(() => {
+    let disposed = false;
+    let timer: number | null = null;
+
+    const scheduleNextRefresh = (delayMs: number) => {
+      if (disposed) return;
+      const normalizedDelay = Number.isFinite(delayMs) && delayMs >= 60_000
+        ? delayMs
+        : REMOTE_CONFIG_FALLBACK_REFRESH_INTERVAL_MS;
+      timer = window.setTimeout(() => {
+        void refresh(false);
+      }, normalizedDelay);
+    };
+
+    const refresh = async (force: boolean) => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      const state = await fetchRemoteConfigState(force);
+      scheduleNextRefresh(state.refreshIntervalMs);
+    };
+
+    void refresh(true);
+
+    return () => {
+      disposed = true;
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+    };
+  }, [fetchRemoteConfigState]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -2279,6 +2329,9 @@ function MainApp() {
                     if (platform === 'codex') {
                       await useCodexAccountStore.getState().switchAccount(targetAccountId);
                       setPage('codex');
+                    } else if (platform === 'claude') {
+                      await useClaudeAccountStore.getState().switchAccount(targetAccountId);
+                      setPage('claude');
                     } else if (platform === 'github_copilot') {
                       await useGitHubCopilotAccountStore.getState().switchAccount(targetAccountId);
                       setPage('github-copilot');
@@ -2491,6 +2544,10 @@ function MainApp() {
       {
         command: 'refresh_current_codex_quota',
         errorMessage: 'Failed to refresh Codex quotas:',
+      },
+      {
+        command: 'refresh_all_claude_quotas',
+        errorMessage: 'Failed to refresh Claude Desktop quotas:',
       },
       {
         command: 'refresh_all_github_copilot_tokens',
@@ -2810,6 +2867,8 @@ function MainApp() {
             case 'api-relay':
             case 'codex':
             case 'codex-api-service':
+            case 'claude':
+            case 'claude-cli':
             case 'github-copilot':
             case 'windsurf':
             case 'kiro':
@@ -3219,6 +3278,8 @@ function MainApp() {
           {page === 'api-relay' && <ApiKeyFunPage />}
           {page === 'overview' && <AccountsPage onNavigate={setPage} />}
           {page === 'codex' && <CodexAccountsPage />}
+          {page === 'claude' && <ClaudeAccountsPage subPlatform="desktop" />}
+          {page === 'claude-cli' && <ClaudeAccountsPage subPlatform="cli" />}
           {page === 'codex-api-service' && <CodexApiServicePage />}
           {page === 'github-copilot' && <GitHubCopilotAccountsPage />}
           {page === 'windsurf' && <WindsurfAccountsPage />}

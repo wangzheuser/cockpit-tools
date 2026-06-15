@@ -197,7 +197,7 @@
         "planEndsInHours": "Сбрасывается через {{hours}}h"
       },
       "flowNotice": {
-        "alternative": "Альтернатива: использовать изоляцию мульти-инстансов (разные --user-data-dir). Войдите один раз для каждого инстанса, затем запускайте нужный инстанс для быстрого переключения на целевую среду аккаунта."
+        "alternative": "Изоляция мульти-инстансов: используйте отдельные управляемые профили и войдите один раз в каждый инстанс для быстрого переключения аккаунтов."
       },
       "injecting": "Внедрение...",
       "usage": {
@@ -261,7 +261,8 @@
     "switchClassicLayoutDontAskAgain": "Больше не показывать это сообщение",
     "switchClassicLayoutConfirm": "Переключить сейчас",
     "2faManager": "Управление 2FA",
-    "apiRelay": "Релей"
+    "apiRelay": "Релей",
+    "claude": "Claude"
   },
   "sponsors": {
     "pageTitle": "Спонсоры",
@@ -778,7 +779,10 @@
       "codexAppSpeedFast": "Быстро",
       "codexAppSpeedLaunch": "Перезапустить Codex",
       "codexAppSpeedSaveFailed": "Не удалось сохранить скорость Codex: {{error}}",
-      "codexAppSpeedLaunchFailed": "Не удалось перезапустить Codex: {{error}}"
+      "codexAppSpeedLaunchFailed": "Не удалось перезапустить Codex: {{error}}",
+      "claudeSettingsTitle": "Настройки Claude Desktop",
+      "claudeAutoRefresh": "Автообновление квоты Claude Desktop",
+      "claudeAutoRefreshDesc": "Автоматически обновляет кэш квоты аккаунтов Claude Desktop в фоне."
     },
     "network": {
       "apiTitle": "API антигравитационной кабины",
@@ -1262,7 +1266,10 @@
     "switchSuccess": "Переключение выполнено",
     "switched": "Переключено на {{email}}",
     "tagButton": "Редактировать теги",
-    "tagUpdated": "Тег обновлён"
+    "tagUpdated": "Тег обновлён",
+    "plan": {
+      "personal": "Личный"
+    }
   },
   "overview": {
     "title": "Обзор аккаунтов",
@@ -2286,6 +2293,8 @@
         "repairVisibility": "Исправить видимость",
         "restoreSessions": "Восстановить сессии",
         "copySessionId": "Копировать ID сессии",
+        "selectAllSessions": "Выбрать все",
+        "clearSelectedSessions": "Снять выбор",
         "copyToInstance": "Копировать в экземпляр"
       },
       "confirm": {
@@ -3228,6 +3237,10 @@
       "title": "Память фильтров",
       "enable": "Запоминать фильтры обзора аккаунтов (кроме поиска)",
       "hint": "По умолчанию выключено. При включении для каждой платформы сохраняются фильтры, теги и сортировка."
+    },
+    "claudeRefreshInterval": "Автообновление квоты",
+    "claude": {
+      "appPath": "Путь Claude Desktop"
     }
   },
   "quotaAlert": {
@@ -4508,6 +4521,16 @@
       "queryFailed": "Не удалось проверить квоту: {{error}}",
       "saveFailed": "Не удалось записать: {{error}}"
     },
+    "models": {
+      "title": "Доступные модели",
+      "desc": "Загружаются из endpoint моделей текущего API Key и передаются в Codex или Claude CLI.",
+      "count": "{{count}} моделей",
+      "loading": "Загрузка",
+      "loadingDesc": "Загрузка списка моделей с текущим API Key...",
+      "empty": "Введите API Key, чтобы загрузить доступные модели.",
+      "emptyFromKey": "Текущий API Key не вернул моделей.",
+      "queryFailed": "Не удалось загрузить список моделей: {{error}}"
+    },
     "keyManager": {
       "title": "Управление ключами",
       "desc": "Сохраняйте API Keys для быстрого переключения и автоматической проверки лимита.",
@@ -4520,9 +4543,197 @@
       "editAlias": "Edit alias​",
       "renamePlaceholder": "Enter alias...​",
       "createdAt": "Добавлено {{time}}",
-      "saveFlash": "Сохранено"
+      "saveFlash": "Сохранено",
+      "addingToCodex": "Добавление в Codex...",
+      "addedToCodex": "Добавлено в Codex",
+      "addToCodexFailed": "Не удалось добавить в Codex: {{error}}",
+      "addingToClaude": "Добавление в Claude CLI...",
+      "addedToClaude": "Добавлено в Claude CLI",
+      "addToClaudeFailed": "Не удалось добавить в Claude CLI: {{error}}",
+      "codexAdded": "Codex добавлен",
+      "claudeAdded": "Claude добавлен",
+      "addToCodex": "В Codex",
+      "addToClaude": "В Claude CLI",
+      "codexShort": "Codex",
+      "claudeShort": "Claude CLI"
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
+  },
+  "claude": {
+    "import": {
+      "localSuccess": "Импортировано локальных входов Claude Desktop: {{count}}",
+      "localClient": "Импорт текущего Desktop",
+      "jsonLabel": "Данные JSON",
+      "jsonPlaceholder": "Вставьте экспортированный JSON аккаунта Claude",
+      "localDesc": "Читает текущий вход в официальном Claude Desktop и копирует его в этот инструмент как локальный снимок аккаунта.",
+      "desktopJsonPlaceholder": "Вставьте экспортированный JSON аккаунта Claude Desktop",
+      "cliJsonPlaceholder": "Вставьте экспортированный JSON аккаунта Claude CLI"
+    },
+    "deleteCurrentDisabled": "Текущий аккаунт нельзя удалить",
+    "flowNotice": {
+      "title": "Аккаунты Claude",
+      "desc": "Этот инструмент управляет состоянием входа Claude Desktop и Anthropic API Key. Вход Desktop выполняется в окне авторизации этой платформы и сначала сохраняется локально; в официальный Claude Desktop он записывается только при переключении аккаунта.",
+      "permission": "Права доступа: чтение и запись каталога данных официального Claude Desktop. API Key и снимки Desktop сохраняются в локальных данных аккаунтов этого инструмента.",
+      "network": "Сеть: окно входа Desktop открывает claude.ai; обновление аккаунта может обращаться к интерфейсам Claude Web. Импорт API Key сам по себе не использует сеть.",
+      "desktopDesc": "Этот инструмент управляет состоянием входа Claude Desktop. Вход сначала сохраняется локально и записывается в официальный Claude Desktop только при переключении аккаунта.",
+      "cliDesc": "Инструмент управляет OAuth Claude Code и API Key разных провайдеров. Переключение OAuth пишет в локальную конфигурацию Claude Code; запуск с API Key добавляет переменные окружения провайдера.",
+      "desktopPermission": "Область разрешений: чтение/запись каталога данных официального приложения Claude Desktop. Снимки Desktop сохраняются в локальных данных аккаунтов этого инструмента.",
+      "cliPermission": "Права: чтение/запись локальной конфигурации Claude Code и учетных данных Claude Code в macOS Keychain; аккаунты API Key хранятся локально в этом инструменте, при запуске создается одноразовый временный локальный скрипт.",
+      "desktopNetwork": "Сеть: окно входа Desktop открывает claude.ai; обновление аккаунта может обращаться к endpoint Claude Web.",
+      "cliNetwork": "Сеть: OAuth обращается к официальной авторизации Claude и endpoint token/profile/usage; импорт API Key не использует сеть, после запуска Claude CLI обращается к выбранному провайдеру."
+    },
+    "search": "Поиск аккаунтов Claude...",
+    "noAccounts": "Нет аккаунтов Claude",
+    "addAccount": {
+      "title": "Добавить аккаунт Claude",
+      "desktopTitle": "Добавить аккаунт Claude Desktop",
+      "cliTitle": "Добавить аккаунт Claude CLI"
+    },
+    "deleteConfirm": "Удалить аккаунт Claude {{email}}?",
+    "switch": {
+      "success": "Переключено успешно"
+    },
+    "instances": {
+      "unsupportedDescPlatform": "Несколько экземпляров Claude Desktop поддерживаются только на macOS, Windows и Linux.",
+      "launchDialogTitle": "Запустить экземпляр",
+      "launchCommand": "Команда запуска",
+      "executeInTerminal": "Запустить в терминале",
+      "startSuccess": "Claude Desktop запущен"
+    },
+    "quota": {
+      "title": "Лимит",
+      "fiveHour": "Текущая сессия",
+      "sevenDay": "Текущая неделя (все модели)",
+      "sonnet": "Sonnet 7 дн.",
+      "extra": "Доп. использование",
+      "empty": "Нет лимита",
+      "unsupported": "Не обновляется",
+      "updatedAt": "Обновлено: {{time}}",
+      "resetAt": "{{label}} сброс: {{time}}",
+      "refreshSuccess": "Лимит обновлён",
+      "refreshAllDone": "Обновление лимита завершено",
+      "refreshFailed": "Не удалось обновить лимит: {{error}}",
+      "refreshWithWarning": "Не удалось обновить лимит: {{error}}",
+      "notUpdated": "Лимит не обновлен",
+      "updated": "Обновлено",
+      "notUpdatedShort": "Не обновлено"
+    },
+    "addTabs": {
+      "desktop": "Рабочий",
+      "oauth": "OAuth",
+      "apiKey": "API-ключ",
+      "import": "Локально/JSON"
+    },
+    "authMode": {
+      "oauth": "Режим OAuth",
+      "setup_token": "Токен настройки",
+      "api_key": "API-ключ",
+      "desktop_oauth": "Вход Desktop"
+    },
+    "apiKey": {
+      "desc": "Сохраняет API Key Claude CLI как отдельные учетные данные. При запуске CLI добавляет переменные провайдера и не пишет в вход Claude Desktop.",
+      "nameLabel": "Имя аккаунта",
+      "namePlaceholder": "Необязательно, напр. APIKEY.FUN",
+      "keyLabel": "Ключ API",
+      "placeholder": "Вставьте API Key провайдера",
+      "hide": "Скрыть API Key",
+      "show": "Показать API Key",
+      "hint": "Аккаунт API Key используется только для запуска Claude CLI; он не пишет в Claude Desktop и не обновляет лимиты подписки.",
+      "importAction": "Импорт API Key",
+      "required": "Введите API Key",
+      "importSuccess": "Аккаунт Claude API Key импортирован: {{name}}",
+      "quotaUnsupported": "Аккаунты API Key не обновляются",
+      "switchDisabled": "Аккаунт API Key нельзя переключить в Claude Desktop",
+      "cliUnsupported": "Аккаунт API Key не может запускать Claude CLI",
+      "providerLabel": "Провайдер",
+      "customProvider": "Свой",
+      "endpointLabel": "Endpoint провайдера",
+      "officialEndpoint": "Офиц. по умолч.",
+      "baseUrlLabel": "Базовый URL",
+      "baseUrlPlaceholder": "Пусто: официальный Anthropic",
+      "keyFieldLabel": "Поле auth",
+      "baseUrlInvalid": "Base URL не является URL"
+    },
+    "desktopOAuth": {
+      "title": "Вход Claude Desktop",
+      "desc": "Вход Claude внутри инструмента; Google, Apple, почта и free поддерживаются.",
+      "start": "Открыть вход",
+      "hint": "Сначала локально; запись в Claude Desktop только при переключении.",
+      "nameLabel": "Имя аккаунта",
+      "namePlaceholder": "Необязательно, например Claude Free",
+      "waiting": "Войдите в окне Claude, затем завершите импорт здесь.",
+      "profileDir": "Изолированный каталог profile",
+      "complete": "Завершить",
+      "localTitle": "Импорт текущего Desktop",
+      "localDesc": "Копирует текущую сессию Claude Desktop как локальный снимок.",
+      "localAction": "Импорт",
+      "localSuccess": "Локальный вход Claude Desktop импортирован: {{name}}",
+      "importSuccess": "Вход Claude Desktop импортирован: {{name}}",
+      "switchHint": "Переключить официальный Claude Desktop",
+      "planUnknown": "План неизвестен"
+    },
+    "oauth": {
+      "title": "Авторизация Claude OAuth",
+      "desc": "Откройте официальную страницу авторизации Claude OAuth, затем вставьте callback-ссылку или code для импорта аккаунта.",
+      "start": "Авторизовать OAuth",
+      "proRequiredHint": "Официальный OAuth Claude обычно используется для Claude Code. Если страница останавливается на обновлении тарифа или отказе в доступе, используйте вход Claude Desktop.",
+      "waiting": "Браузер открыл страницу авторизации. После завершения вставьте ниже финальный адрес страницы или показанный code.",
+      "authUrl": "Ссылка авторизации",
+      "callbackPlaceholder": "Вставьте callback-ссылку или code авторизации",
+      "callbackRequired": "Вставьте callback-ссылку или code после завершения авторизации",
+      "authorizeUrlNotCallback": "Это стартовая ссылка авторизации выше, а не code после завершения. Сначала завершите авторизацию в браузере, затем скопируйте финальный адрес страницы или показанный code.",
+      "complete": "Завершить импорт",
+      "emailPlaceholder": "Почта (заполните, если не определена)",
+      "importSuccess": "Авторизация Claude OAuth импортирована: {{name}}"
+    },
+    "plan": {
+      "label": "Метка тарифа",
+      "selectPlaceholder": "Выбрать",
+      "updateFailed": "Не удалось обновить метку тарифа: {{error}}"
+    },
+    "legacyOAuth": {
+      "switchDisabled": "Старые OAuth-аккаунты нельзя переключить в Claude Desktop",
+      "quotaUnsupported": "Старые OAuth-аккаунты больше не поддерживают обновление",
+      "cliUnsupported": "Старые OAuth-аккаунты не могут запускать Claude CLI"
+    },
+    "cli": {
+      "quickLaunch": "Запуск CLI",
+      "selectWorkingDir": "Выберите рабочую папку Claude CLI",
+      "launchSuccess": "Claude CLI запущен",
+      "launchFailed": "Не удалось запустить Claude CLI: {{error}}",
+      "localTitle": "Импортировать текущий Claude Code",
+      "localDesc": "Считывает текущее локальное состояние входа OAuth Claude Code и копирует его как локальный снимок аккаунта.",
+      "localSuccess": "Локальный вход Claude Code импортирован: {{name}}"
+    },
+    "accountNote": {
+      "title": "Заметка аккаунта",
+      "desc": "Добавьте локальную заметку для {{email}}, чтобы легче узнавать аккаунт при переключении.",
+      "label": "Заметка аккаунта",
+      "placeholder": "Например: Free основной, Max 20x, командный аккаунт",
+      "saved": "Заметка аккаунта сохранена",
+      "saveFailed": "Не удалось сохранить заметку: {{error}}",
+      "emptyTitle": "Добавить заметку аккаунта",
+      "short": "Заметка",
+      "addShort": "Заметка"
+    },
+    "account": {
+      "signedInWith": "Вход через {{provider}}",
+      "userId": "ID пользователя",
+      "nickname": "Никнейм"
+    },
+    "selection": {
+      "selected": "Выбрано: {{count}}"
+    },
+    "deleteSelectedLabel": "{{count}} аккаунтов",
+    "subPlatform": {
+      "label": "Подплатформа Claude",
+      "desktop": "Claude Desktop приложение",
+      "cli": "Claude командная строка"
+    },
+    "searchDesktop": "Поиск аккаунтов Claude Desktop...",
+    "searchCli": "Поиск аккаунтов Claude CLI...",
+    "noDesktopAccounts": "Аккаунтов Claude Desktop пока нет",
+    "noCliAccounts": "Аккаунтов Claude CLI пока нет"
   }
 }

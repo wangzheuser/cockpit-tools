@@ -93,6 +93,7 @@ interface InstancesManagerProps<TAccount extends AccountLike> {
   appType?:
     | "antigravity"
     | "codex"
+    | "claude"
     | "vscode"
     | "windsurf"
     | "kiro"
@@ -937,6 +938,7 @@ export function InstancesManager<TAccount extends AccountLike>({
     const rawApp = message.slice("APP_PATH_NOT_FOUND:".length);
     const app =
       rawApp === "codex" ||
+      rawApp === "claude" ||
       rawApp === "antigravity" ||
       rawApp === "vscode" ||
       rawApp === "windsurf" ||

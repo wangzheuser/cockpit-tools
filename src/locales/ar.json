@@ -197,7 +197,7 @@
         "planEndsInHours": "تتم إعادة الضبط خلال {{hours}} ساعة"
       },
       "flowNotice": {
-        "alternative": "بديل: استخدم العزل عبر المثيلات المتعددة (باستخدام --user-data-dir مختلف). سجّل الدخول مرة واحدة لكل مثيل، ثم شغّل حسب المثيل للتبديل السريع إلى بيئة الحساب المستهدف."
+        "alternative": "العزل عبر مثيلات متعددة: استخدم ملفات تعريف مُدارة منفصلة وسجّل الدخول مرة لكل مثيل للتبديل بسرعة بين بيئات الحسابات."
       },
       "injecting": "جارٍ الحقن...",
       "usage": {
@@ -307,7 +307,8 @@
     "switchClassicLayoutDontAskAgain": "عدم إظهار هذا التنبيه مرة أخرى",
     "switchClassicLayoutConfirm": "التبديل الآن",
     "2faManager": "إدارة 2FA",
-    "apiRelay": "الترحيل"
+    "apiRelay": "الترحيل",
+    "claude": "Claude"
   },
   "sponsors": {
     "pageTitle": "الرعاة",
@@ -824,7 +825,10 @@
       "codexAppSpeedFast": "سريع",
       "codexAppSpeedLaunch": "إعادة تشغيل Codex",
       "codexAppSpeedSaveFailed": "فشل حفظ سرعة Codex: {{error}}",
-      "codexAppSpeedLaunchFailed": "فشلت إعادة تشغيل Codex: {{error}}"
+      "codexAppSpeedLaunchFailed": "فشلت إعادة تشغيل Codex: {{error}}",
+      "claudeSettingsTitle": "إعدادات Claude Desktop",
+      "claudeAutoRefresh": "تحديث حصة Claude Desktop تلقائيًا",
+      "claudeAutoRefreshDesc": "يحدّث ذاكرة الحصة المؤقتة لحسابات Claude Desktop تلقائيًا في الخلفية."
     },
     "network": {
       "apiTitle": "واجهة برمجة تطبيقات قمرة القيادة المضادة للجاذبية",
@@ -1308,7 +1312,10 @@
     "switchSuccess": "تم التبديل بنجاح",
     "switched": "تم التبديل إلى {{email}}",
     "tagButton": "تعديل الوسوم",
-    "tagUpdated": "تم تحديث الوسم"
+    "tagUpdated": "تم تحديث الوسم",
+    "plan": {
+      "personal": "شخصي"
+    }
   },
   "overview": {
     "title": "نظرة عامة على الحسابات",
@@ -2332,6 +2339,8 @@
         "repairVisibility": "إصلاح الظهور",
         "restoreSessions": "استعادة الجلسات",
         "copySessionId": "نسخ معرّف الجلسة",
+        "selectAllSessions": "تحديد الكل",
+        "clearSelectedSessions": "إلغاء تحديد الكل",
         "copyToInstance": "نسخ إلى المثيل"
       },
       "confirm": {
@@ -3274,6 +3283,10 @@
       "title": "تذكّر الفلاتر",
       "enable": "تذكّر فلاتر نظرة الحسابات (بدون البحث)",
       "hint": "مغلق افتراضيًا. عند التفعيل تُحفَظ التصفية والوسوم والترتيب لكل منصة."
+    },
+    "claudeRefreshInterval": "تحديث الحصة تلقائيًا",
+    "claude": {
+      "appPath": "مسار Claude Desktop"
     }
   },
   "quotaAlert": {
@@ -4508,6 +4521,16 @@
       "queryFailed": "فشل التحقق من الحصة: {{error}}",
       "saveFailed": "فشلت الكتابة: {{error}}"
     },
+    "models": {
+      "title": "النماذج المتاحة",
+      "desc": "تُقرأ من واجهة النماذج لمفتاح API الحالي، وتُمرَّر إلى Codex أو Claude CLI.",
+      "count": "{{count}} نموذج",
+      "loading": "جارٍ القراءة",
+      "loadingDesc": "جارٍ قراءة قائمة النماذج من API Key الحالي...",
+      "empty": "أدخل API Key لقراءة النماذج المتاحة.",
+      "emptyFromKey": "لم يُرجع API Key الحالي أي نماذج.",
+      "queryFailed": "فشل قراءة قائمة النماذج: {{error}}"
+    },
     "keyManager": {
       "title": "إدارة المفاتيح",
       "desc": "احفظ API Keys للتبديل السريع وفحص الحصة تلقائيًا.",
@@ -4520,9 +4543,197 @@
       "editAlias": "Edit alias​",
       "renamePlaceholder": "Enter alias...​",
       "createdAt": "أُضيف في {{time}}",
-      "saveFlash": "حُفظ الآن"
+      "saveFlash": "حُفظ الآن",
+      "addingToCodex": "تتم الإضافة إلى Codex...",
+      "addedToCodex": "تمت الإضافة إلى Codex",
+      "addToCodexFailed": "فشل الإضافة إلى Codex: {{error}}",
+      "addingToClaude": "تتم الإضافة إلى Claude CLI...",
+      "addedToClaude": "تمت الإضافة إلى Claude CLI",
+      "addToClaudeFailed": "فشل الإضافة إلى Claude CLI: {{error}}",
+      "codexAdded": "تمت إضافة Codex",
+      "claudeAdded": "تمت إضافة Claude",
+      "addToCodex": "إضافة إلى Codex",
+      "addToClaude": "إضافة إلى Claude CLI",
+      "codexShort": "Codex",
+      "claudeShort": "Claude CLI"
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
+  },
+  "claude": {
+    "import": {
+      "localSuccess": "تم استيراد {{count}} حالة تسجيل دخول محلية من Claude Desktop",
+      "localClient": "استيراد Desktop الحالي",
+      "jsonLabel": "بيانات JSON",
+      "jsonPlaceholder": "الصق JSON حساب Claude المصدّر",
+      "localDesc": "يقرأ حالة تسجيل الدخول الحالية من تطبيق Claude Desktop الرسمي وينسخها في هذه الأداة كلقطة حساب محلية.",
+      "desktopJsonPlaceholder": "الصق JSON حساب Claude Desktop المصدّر",
+      "cliJsonPlaceholder": "الصق JSON حساب Claude CLI المصدّر"
+    },
+    "deleteCurrentDisabled": "لا يمكن حذف الحساب الحالي",
+    "flowNotice": {
+      "title": "إدارة حسابات Claude",
+      "desc": "تدير هذه الأداة حالة تسجيل الدخول في Claude Desktop ومفاتيح Anthropic API Key. يكتمل تسجيل Desktop داخل نافذة التفويض في هذه المنصة ويُحفظ محليا أولا؛ ولا يُكتب إلى Claude Desktop الرسمي إلا عند تبديل الحساب.",
+      "permission": "نطاق الأذونات: قراءة/كتابة مجلد بيانات تطبيق Claude Desktop الرسمي. تُحفظ مفاتيح API Key ولقطات Desktop ضمن بيانات الحسابات المحلية لهذه الأداة.",
+      "network": "نطاق الشبكة: تفتح نافذة تسجيل Desktop موقع claude.ai؛ وقد يطلب تحديث الحساب واجهات Claude Web. استيراد API Key بحد ذاته لا يستخدم الشبكة.",
+      "desktopDesc": "تدير هذه الأداة حالة تسجيل الدخول في Claude Desktop. يتم حفظ تسجيل الدخول محليًا أولًا، ولا يُكتب إلى Claude Desktop الرسمي إلا عند تبديل الحسابات.",
+      "cliDesc": "تدير هذه الأداة OAuth الخاص بـ Claude Code و API Key لعدة مزوّدين. تبديل OAuth يكتب في إعدادات Claude Code المحلية؛ وتشغيل API Key يحقن متغيرات بيئة المزوّد.",
+      "desktopPermission": "نطاق الأذونات: قراءة/كتابة دليل بيانات تطبيق Claude Desktop الرسمي. تُحفظ لقطات Desktop في بيانات الحساب المحلية لهذه الأداة.",
+      "cliPermission": "نطاق الأذونات: قراءة/كتابة إعدادات Claude Code المحلية وبيانات Claude Code في macOS Keychain؛ تُحفظ حسابات API Key محليًا في هذه الأداة، وعند التشغيل يُنشأ سكربت محلي مؤقت لمرة واحدة.",
+      "desktopNetwork": "نطاق الشبكة: تفتح نافذة تسجيل الدخول في Desktop موقع claude.ai؛ وقد تطلب عملية تحديث الحساب واجهات Claude Web.",
+      "cliNetwork": "نطاق الشبكة: OAuth يصل إلى تفويض Claude الرسمي ونقاط token/profile/usage؛ استيراد API Key لا يستخدم الشبكة، وبعد التشغيل يتصل Claude CLI بالمزوّد المختار."
+    },
+    "search": "بحث في حسابات Claude...",
+    "noAccounts": "لا توجد حسابات Claude",
+    "addAccount": {
+      "title": "إضافة حساب Claude",
+      "desktopTitle": "إضافة حساب Claude Desktop",
+      "cliTitle": "إضافة حساب Claude CLI"
+    },
+    "deleteConfirm": "حذف حساب Claude {{email}}؟",
+    "switch": {
+      "success": "تم التبديل بنجاح"
+    },
+    "instances": {
+      "unsupportedDescPlatform": "تعدد مثيلات Claude Desktop مدعوم فقط على macOS وWindows وLinux.",
+      "launchDialogTitle": "تشغيل المثيل",
+      "launchCommand": "أمر التشغيل",
+      "executeInTerminal": "تشغيل في الطرفية",
+      "startSuccess": "تم تشغيل Claude Desktop"
+    },
+    "quota": {
+      "title": "الحصة",
+      "fiveHour": "الجلسة الحالية",
+      "sevenDay": "الأسبوع الحالي (كل النماذج)",
+      "sonnet": "سونيت",
+      "extra": "استخدام إضافي",
+      "empty": "لا توجد حصة",
+      "unsupported": "غير قابل للتحديث",
+      "updatedAt": "تحديث: {{time}}",
+      "resetAt": "إعادة {{label}}: {{time}}",
+      "refreshSuccess": "تم تحديث الحصة",
+      "refreshAllDone": "اكتمل تحديث الحصة",
+      "refreshFailed": "فشل تحديث الحصة: {{error}}",
+      "refreshWithWarning": "فشل تحديث الحصة: {{error}}",
+      "notUpdated": "لم يتم تحديث الحصة",
+      "updated": "تم التحديث",
+      "notUpdatedShort": "غير محدثة"
+    },
+    "addTabs": {
+      "desktop": "سطح",
+      "oauth": "OAuth",
+      "apiKey": "مفتاح API",
+      "import": "محلي/JSON"
+    },
+    "authMode": {
+      "oauth": "وضع OAuth",
+      "setup_token": "رمز الإعداد",
+      "api_key": "مفتاح API",
+      "desktop_oauth": "تسجيل Desktop"
+    },
+    "apiKey": {
+      "desc": "يحفظ API Key الخاص بـ Claude CLI كبيانات مستقلة. عند تشغيل CLI تُحقن متغيرات المزوّد دون الكتابة في حالة Claude Desktop.",
+      "nameLabel": "اسم الحساب",
+      "namePlaceholder": "اختياري، مثل APIKEY.FUN",
+      "keyLabel": "مفتاح API",
+      "placeholder": "الصق API Key للمزوّد",
+      "hide": "إخفاء API Key",
+      "show": "إظهار API Key",
+      "hint": "حساب API Key مخصص لتشغيل Claude CLI فقط؛ لا يكتب في Claude Desktop ولا يحدّث حصص الاشتراك.",
+      "importAction": "استيراد API Key",
+      "required": "أدخل API Key",
+      "importSuccess": "تم استيراد حساب Claude API Key: {{name}}",
+      "quotaUnsupported": "حسابات API Key لا تدعم التحديث",
+      "switchDisabled": "لا يمكن تحويل حساب API Key إلى Claude Desktop",
+      "cliUnsupported": "حساب API Key لا يشغّل Claude CLI",
+      "providerLabel": "المزوّد",
+      "customProvider": "مخصص",
+      "endpointLabel": "Endpoint المزوّد",
+      "officialEndpoint": "الافتراضي الرسمي",
+      "baseUrlLabel": "عنوان URL الأساسي",
+      "baseUrlPlaceholder": "اتركه فارغًا لاستخدام عنوان Anthropic الرسمي",
+      "keyFieldLabel": "حقل auth",
+      "baseUrlInvalid": "Base URL ليس رابطًا صالحًا"
+    },
+    "desktopOAuth": {
+      "title": "تسجيل Claude Desktop",
+      "desc": "تسجيل Claude داخل هذه الأداة؛ يدعم Google وApple والبريد وfree.",
+      "start": "فتح الدخول",
+      "hint": "يحفظ محليا أولا ولا يكتب في Claude Desktop إلا عند التبديل.",
+      "nameLabel": "اسم الحساب",
+      "namePlaceholder": "اختياري، مثل Claude Free",
+      "waiting": "أكمل الدخول في نافذة Claude ثم أنه الاستيراد هنا.",
+      "profileDir": "مجلد profile معزول",
+      "complete": "إكمال",
+      "localTitle": "استيراد Desktop الحالي",
+      "localDesc": "ينسخ جلسة Claude Desktop الحالية كلقطة محلية.",
+      "localAction": "استيراد",
+      "localSuccess": "تم استيراد تسجيل Claude Desktop المحلي: {{name}}",
+      "importSuccess": "تم استيراد تسجيل Claude Desktop: {{name}}",
+      "switchHint": "التبديل إلى Claude Desktop الرسمي",
+      "planUnknown": "الخطة غير معروفة"
+    },
+    "oauth": {
+      "title": "تفويض Claude OAuth",
+      "desc": "افتح صفحة تفويض Claude OAuth الرسمية، ثم الصق رابط الرجوع أو الرمز بعد الاكتمال لاستيراد الحساب.",
+      "start": "تفويض OAuth",
+      "proRequiredHint": "يستخدم OAuth الرسمي من Claude عادة لتفويض Claude Code؛ إذا توقفت الصفحة عند الترقية أو عدم الصلاحية، استخدم تسجيل دخول Claude Desktop.",
+      "waiting": "فتح المتصفح صفحة التفويض. بعد الاكتمال، الصق عنوان الصفحة النهائي أو الرمز المعروض أدناه.",
+      "authUrl": "رابط التفويض",
+      "callbackPlaceholder": "الصق رابط الرجوع أو رمز التفويض",
+      "callbackRequired": "الصق رابط الرجوع أو الرمز بعد اكتمال التفويض",
+      "authorizeUrlNotCallback": "ما لصقته هو رابط بدء التفويض أعلاه، وليس الرمز بعد اكتمال التفويض. أكمل التفويض في المتصفح أولا، ثم انسخ عنوان الصفحة النهائي أو الرمز المعروض.",
+      "complete": "إكمال الاستيراد",
+      "emailPlaceholder": "البريد الإلكتروني (املأه إذا تعذر التعرف تلقائيا)",
+      "importSuccess": "تم استيراد تفويض Claude OAuth: {{name}}"
+    },
+    "plan": {
+      "label": "شارة الخطة",
+      "selectPlaceholder": "اختر الخطة",
+      "updateFailed": "فشل تحديث شارة الخطة: {{error}}"
+    },
+    "legacyOAuth": {
+      "switchDisabled": "لا يمكن تحويل حسابات OAuth القديمة إلى Claude Desktop",
+      "quotaUnsupported": "حسابات OAuth القديمة لم تعد تدعم التحديث",
+      "cliUnsupported": "لا يمكن لحسابات OAuth القديمة تشغيل Claude CLI"
+    },
+    "cli": {
+      "quickLaunch": "تشغيل CLI",
+      "selectWorkingDir": "اختر مجلد عمل Claude CLI",
+      "launchSuccess": "تم تشغيل Claude CLI",
+      "launchFailed": "فشل تشغيل Claude CLI: {{error}}",
+      "localTitle": "استيراد Claude Code الحالي",
+      "localDesc": "اقرأ حالة تسجيل دخول OAuth الحالية في Claude Code المحلي وانسخها كلقطة حساب محلية.",
+      "localSuccess": "تم استيراد تسجيل دخول Claude Code المحلي: {{name}}"
+    },
+    "accountNote": {
+      "title": "ملاحظة الحساب",
+      "desc": "أضف ملاحظة محلية لـ {{email}} لتسهيل تمييز الحساب عند التبديل.",
+      "label": "ملاحظة الحساب",
+      "placeholder": "مثال: Free رئيسي، Max 20x، حساب فريق",
+      "saved": "تم حفظ ملاحظة الحساب",
+      "saveFailed": "فشل حفظ ملاحظة الحساب: {{error}}",
+      "emptyTitle": "أضف ملاحظة للحساب",
+      "short": "ملاحظة",
+      "addShort": "ملاحظة"
+    },
+    "account": {
+      "signedInWith": "تم تسجيل الدخول عبر {{provider}}",
+      "userId": "معرّف المستخدم",
+      "nickname": "الاسم المستعار"
+    },
+    "selection": {
+      "selected": "تم تحديد {{count}}"
+    },
+    "deleteSelectedLabel": "{{count}} حسابات",
+    "subPlatform": {
+      "label": "منصة Claude الفرعية",
+      "desktop": "Claude سطح المكتب",
+      "cli": "Claude سطر الأوامر"
+    },
+    "searchDesktop": "البحث في حسابات Claude Desktop...",
+    "searchCli": "البحث في حسابات Claude CLI...",
+    "noDesktopAccounts": "لا توجد حسابات Claude Desktop بعد",
+    "noCliAccounts": "لا توجد حسابات Claude CLI بعد"
   }
 }

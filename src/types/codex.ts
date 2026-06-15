@@ -160,8 +160,11 @@ export interface CodexSessionVisibilityRepairItem {
   targetProvider: string;
   changedRolloutFileCount: number;
   updatedSqliteRowCount: number;
+  updatedSqliteTimestampRowCount: number;
   addedSessionIndexEntryCount: number;
+  updatedSessionIndexEntryCount: number;
   skippedSqliteFile: boolean;
+  metadataRebuildFailed: boolean;
   backupDir?: string | null;
   running: boolean;
 }
@@ -171,8 +174,11 @@ export interface CodexSessionVisibilityRepairSummary {
   mutatedInstanceCount: number;
   changedRolloutFileCount: number;
   updatedSqliteRowCount: number;
+  updatedSqliteTimestampRowCount: number;
   addedSessionIndexEntryCount: number;
+  updatedSessionIndexEntryCount: number;
   skippedSqliteFileCount: number;
+  metadataRebuildFailedCount: number;
   items: CodexSessionVisibilityRepairItem[];
   backupDirs: string[];
   message: string;
@@ -440,6 +446,15 @@ export function isCodexNewApiAccount(account: CodexAccount): boolean {
       isCodexCockpitApiBaseUrl(account.api_base_url) ||
       planType === "COCKPIT API" ||
       planType === "NEW_API_EXCLUSIVE")
+  );
+}
+
+export function isCodexChatCompletionsApiKeyAccount(
+  account: CodexAccount,
+): boolean {
+  return (
+    isCodexApiKeyAccount(account) &&
+    (account.api_wire_api || "").trim().toLowerCase() === "chat_completions"
   );
 }
 

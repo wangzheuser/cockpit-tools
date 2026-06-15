@@ -10,6 +10,7 @@ import type { CodexAppSpeed } from "../../types/codex";
 type PlatformInstanceCommandPrefix =
   | ""
   | "codex"
+  | "claude"
   | "github_copilot"
   | "windsurf"
   | "kiro"

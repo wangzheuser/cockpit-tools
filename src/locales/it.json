@@ -197,7 +197,7 @@
         "planEndsInHours": "Si ripristina tra {{hours}}h"
       },
       "flowNotice": {
-        "alternative": "Alternativa: usa l'isolamento multi-istanza (diverso --user-data-dir). Accedi una volta per istanza e poi avvia per istanza per passare rapidamente all'ambiente account desiderato."
+        "alternative": "Isolamento multi-istanza: usa profili gestiti separati e accedi una volta per istanza per cambiare rapidamente ambiente account."
       },
       "injecting": "Iniezione in corso...",
       "usage": {
@@ -261,7 +261,8 @@
     "switchClassicLayoutDontAskAgain": "Non mostrare più questo avviso",
     "switchClassicLayoutConfirm": "Passa ora",
     "2faManager": "Gestione 2FA",
-    "apiRelay": "Relay API"
+    "apiRelay": "Relay API",
+    "claude": "Claude"
   },
   "sponsors": {
     "pageTitle": "Sponsor",
@@ -778,7 +779,10 @@
       "codexAppSpeedFast": "Rapida",
       "codexAppSpeedLaunch": "Riavvia Codex",
       "codexAppSpeedSaveFailed": "Impossibile salvare la velocità di Codex: {{error}}",
-      "codexAppSpeedLaunchFailed": "Impossibile riavviare Codex: {{error}}"
+      "codexAppSpeedLaunchFailed": "Impossibile riavviare Codex: {{error}}",
+      "claudeSettingsTitle": "Impostazioni Claude Desktop",
+      "claudeAutoRefresh": "Aggiornamento automatico quota Claude Desktop",
+      "claudeAutoRefreshDesc": "Aggiorna automaticamente in background la cache delle quote degli account Claude Desktop."
     },
     "network": {
       "apiTitle": "API della cabina di pilotaggio antigravità",
@@ -1262,7 +1266,10 @@
     "switchSuccess": "Cambio riuscito",
     "switched": "Passato a {{email}}",
     "tagButton": "Modifica tag",
-    "tagUpdated": "Tag aggiornato"
+    "tagUpdated": "Tag aggiornato",
+    "plan": {
+      "personal": "Personale"
+    }
   },
   "overview": {
     "title": "Panoramica Account",
@@ -2286,6 +2293,8 @@
         "repairVisibility": "Ripara visibilità",
         "restoreSessions": "Ripristina sessioni",
         "copySessionId": "Copia ID sessione",
+        "selectAllSessions": "Seleziona tutto",
+        "clearSelectedSessions": "Deseleziona",
         "copyToInstance": "Copia in istanza"
       },
       "confirm": {
@@ -3228,6 +3237,10 @@
       "title": "Memoria filtri",
       "enable": "Ricorda i filtri della panoramica account (esclusa la ricerca)",
       "hint": "Disattivato per impostazione predefinita. Se attivato, ogni piattaforma mantiene filtri, tag e ordinamento."
+    },
+    "claudeRefreshInterval": "Aggiornamento quota automatico",
+    "claude": {
+      "appPath": "Percorso Claude Desktop"
     }
   },
   "quotaAlert": {
@@ -4508,6 +4521,16 @@
       "queryFailed": "Controllo quota non riuscito: {{error}}",
       "saveFailed": "Scrittura non riuscita: {{error}}"
     },
+    "models": {
+      "title": "Modelli disponibili",
+      "desc": "Letti dall’endpoint modelli della API Key corrente e passati a Codex o Claude CLI.",
+      "count": "{{count}} modelli",
+      "loading": "Caricamento",
+      "loadingDesc": "Lettura della lista modelli dalla API Key corrente...",
+      "empty": "Inserisci una API Key per leggere i modelli disponibili.",
+      "emptyFromKey": "La API Key corrente non ha restituito modelli.",
+      "queryFailed": "Lettura lista modelli non riuscita: {{error}}"
+    },
     "keyManager": {
       "title": "Gestione chiavi",
       "desc": "Salva le API Key per cambiare rapidamente e controllare automaticamente la quota.",
@@ -4520,9 +4543,197 @@
       "editAlias": "Edit alias​",
       "renamePlaceholder": "Enter alias...​",
       "createdAt": "Aggiunta il {{time}}",
-      "saveFlash": "Appena salvata"
+      "saveFlash": "Appena salvata",
+      "addingToCodex": "Aggiunta a Codex...",
+      "addedToCodex": "Aggiunto a Codex",
+      "addToCodexFailed": "Aggiunta a Codex fallita: {{error}}",
+      "addingToClaude": "Aggiunta a Claude CLI...",
+      "addedToClaude": "Aggiunto a Claude CLI",
+      "addToClaudeFailed": "Aggiunta a Claude CLI fallita: {{error}}",
+      "codexAdded": "Codex aggiunto",
+      "claudeAdded": "Claude aggiunto",
+      "addToCodex": "Aggiungi a Codex",
+      "addToClaude": "Aggiungi a Claude CLI",
+      "codexShort": "Codex",
+      "claudeShort": "Claude CLI"
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
+  },
+  "claude": {
+    "import": {
+      "localSuccess": "Importati {{count}} accessi locali Claude Desktop",
+      "localClient": "Importa Desktop attuale",
+      "jsonLabel": "Dati JSON",
+      "jsonPlaceholder": "Incolla il JSON account Claude esportato",
+      "localDesc": "Legge lo stato di accesso corrente dell’app ufficiale Claude Desktop e lo copia in questo strumento come snapshot locale dell’account.",
+      "desktopJsonPlaceholder": "Incolla il JSON esportato dell’account Claude Desktop",
+      "cliJsonPlaceholder": "Incolla il JSON esportato dell’account Claude CLI"
+    },
+    "deleteCurrentDisabled": "L’account corrente non può essere eliminato",
+    "flowNotice": {
+      "title": "Account Claude",
+      "desc": "Questo strumento gestisce lo stato di accesso Claude Desktop e le Anthropic API Key. Il login Desktop si completa nella finestra di autorizzazione della piattaforma e viene salvato prima in locale; viene scritto nell’app ufficiale Claude Desktop solo al cambio account.",
+      "permission": "Permessi: lettura/scrittura della cartella dati dell’app ufficiale Claude Desktop. API Key e snapshot Desktop sono salvati nei dati account locali di questo strumento.",
+      "network": "Rete: la finestra di login Desktop apre claude.ai; l’aggiornamento account può chiamare endpoint Claude Web. L’import API Key non usa rete di per sé.",
+      "desktopDesc": "Questo strumento gestisce lo stato di accesso di Claude Desktop. L’accesso viene salvato prima in locale e scritto nel Claude Desktop ufficiale solo al cambio account.",
+      "cliDesc": "Questo strumento gestisce OAuth Claude Code e API Key multi-provider. Il cambio OAuth scrive nella configurazione locale di Claude Code; l’avvio con API Key inietta variabili ambiente del provider.",
+      "desktopPermission": "Ambito permessi: lettura/scrittura della directory dati dell’app ufficiale Claude Desktop. Gli snapshot Desktop sono salvati nei dati account locali di questo strumento.",
+      "cliPermission": "Permessi: legge/scrive la configurazione locale di Claude Code e le credenziali nel Keychain macOS; gli account API Key sono salvati localmente da questo strumento e l’avvio crea uno script temporaneo locale usa e getta.",
+      "desktopNetwork": "Ambito rete: la finestra di accesso Desktop apre claude.ai; l’aggiornamento account può richiedere endpoint Claude Web.",
+      "cliNetwork": "Rete: OAuth usa la pagina ufficiale Claude e gli endpoint token/profile/usage; l’import API Key è offline, poi Claude CLI contatta il provider scelto."
+    },
+    "search": "Cerca account Claude...",
+    "noAccounts": "Nessun account Claude",
+    "addAccount": {
+      "title": "Aggiungi account Claude",
+      "desktopTitle": "Aggiungi account Claude Desktop",
+      "cliTitle": "Aggiungi account Claude CLI"
+    },
+    "deleteConfirm": "Eliminare account Claude {{email}}?",
+    "switch": {
+      "success": "Cambio completato"
+    },
+    "instances": {
+      "unsupportedDescPlatform": "Le istanze multiple di Claude Desktop sono supportate solo su macOS, Windows e Linux.",
+      "launchDialogTitle": "Avvia istanza",
+      "launchCommand": "Comando di avvio",
+      "executeInTerminal": "Esegui nel terminale",
+      "startSuccess": "Claude Desktop avviato"
+    },
+    "quota": {
+      "title": "Limite",
+      "fiveHour": "Sessione attuale",
+      "sevenDay": "Settimana corrente (tutti i modelli)",
+      "sonnet": "Sonnet 7 g",
+      "extra": "Uso extra",
+      "empty": "Nessuna quota",
+      "unsupported": "Non aggiornabile",
+      "updatedAt": "Aggiornato: {{time}}",
+      "resetAt": "{{label}} reset: {{time}}",
+      "refreshSuccess": "Quota aggiornata",
+      "refreshAllDone": "Aggiornamento quota completato",
+      "refreshFailed": "Aggiornamento quota non riuscito: {{error}}",
+      "refreshWithWarning": "Aggiornamento quota non riuscito: {{error}}",
+      "notUpdated": "Quota non aggiornata",
+      "updated": "Aggiornata",
+      "notUpdatedShort": "Non aggiornata"
+    },
+    "addTabs": {
+      "desktop": "Scrivania",
+      "oauth": "OAuth",
+      "apiKey": "Chiave API",
+      "import": "Locale/JSON"
+    },
+    "authMode": {
+      "oauth": "Modalità OAuth",
+      "setup_token": "Token di setup",
+      "api_key": "Chiave API",
+      "desktop_oauth": "Login Desktop"
+    },
+    "apiKey": {
+      "desc": "Salva una API Key Claude CLI come credenziale separata. All’avvio del CLI inietta le variabili del provider senza scrivere nello stato Claude Desktop.",
+      "nameLabel": "Nome account",
+      "namePlaceholder": "Opzionale, es. APIKEY.FUN",
+      "keyLabel": "Chiave API",
+      "placeholder": "Incolla la API Key del provider",
+      "hide": "Nascondi API Key",
+      "show": "Mostra API Key",
+      "hint": "L’account API Key serve solo per avviare Claude CLI; non scrive in Claude Desktop e non aggiorna quote abbonamento.",
+      "importAction": "Importa API Key",
+      "required": "Inserisci una API Key",
+      "importSuccess": "Account Claude API Key importato: {{name}}",
+      "quotaUnsupported": "Gli account API Key non supportano aggiornamento",
+      "switchDisabled": "Un account API Key non può passare a Claude Desktop",
+      "cliUnsupported": "Un account API Key non può avviare Claude CLI",
+      "providerLabel": "Fornitore",
+      "customProvider": "Personalizzato",
+      "endpointLabel": "Endpoint provider",
+      "officialEndpoint": "Predef. ufficiale",
+      "baseUrlLabel": "URL base",
+      "baseUrlPlaceholder": "Vuoto usa Anthropic ufficiale",
+      "keyFieldLabel": "Campo auth",
+      "baseUrlInvalid": "Base URL non è un URL valido"
+    },
+    "desktopOAuth": {
+      "title": "Login Claude Desktop",
+      "desc": "Login Claude in questo strumento; supporta Google, Apple, email e free.",
+      "start": "Apri login",
+      "hint": "Salva localmente; scrive in Claude Desktop solo al cambio.",
+      "nameLabel": "Nome account",
+      "namePlaceholder": "Opzionale, es. Claude Free",
+      "waiting": "Accedi nella finestra Claude e completa qui.",
+      "profileDir": "Directory profile isolata",
+      "complete": "Completa",
+      "localTitle": "Importa Desktop attuale",
+      "localDesc": "Copia la sessione Claude Desktop corrente come snapshot locale.",
+      "localAction": "Importa",
+      "localSuccess": "Login Claude Desktop locale importato: {{name}}",
+      "importSuccess": "Login Claude Desktop importato: {{name}}",
+      "switchHint": "Passa a Claude Desktop ufficiale",
+      "planUnknown": "Piano sconosciuto"
+    },
+    "oauth": {
+      "title": "Autorizzazione Claude OAuth",
+      "desc": "Apri la pagina ufficiale di autorizzazione OAuth di Claude, poi incolla il link di callback o il codice per importare l’account.",
+      "start": "Autorizza OAuth",
+      "proRequiredHint": "L’OAuth ufficiale di Claude è di solito usato per Claude Code. Se la pagina resta su upgrade o accesso negato, usa l’accesso Claude Desktop.",
+      "waiting": "Il browser ha aperto la pagina di autorizzazione. Al termine, incolla sotto l’indirizzo finale o il codice mostrato.",
+      "authUrl": "Link di autorizzazione",
+      "callbackPlaceholder": "Incolla link di callback o codice di autorizzazione",
+      "callbackRequired": "Incolla il link di callback o il codice dopo l’autorizzazione",
+      "authorizeUrlNotCallback": "Hai incollato il link di avvio autorizzazione qui sopra, non il codice finale. Completa prima l’autorizzazione nel browser, poi copia l’indirizzo finale o il codice mostrato.",
+      "complete": "Completa importazione",
+      "emailPlaceholder": "Email (compila se non rilevata)",
+      "importSuccess": "Autorizzazione Claude OAuth importata: {{name}}"
+    },
+    "plan": {
+      "label": "Badge piano",
+      "selectPlaceholder": "Scegli piano",
+      "updateFailed": "Aggiornamento badge piano non riuscito: {{error}}"
+    },
+    "legacyOAuth": {
+      "switchDisabled": "Gli account OAuth legacy non possono passare a Claude Desktop",
+      "quotaUnsupported": "Gli account OAuth legacy non supportano più l’aggiornamento",
+      "cliUnsupported": "Gli account OAuth legacy non possono avviare Claude CLI"
+    },
+    "cli": {
+      "quickLaunch": "Avvia CLI",
+      "selectWorkingDir": "Scegli la cartella di lavoro di Claude CLI",
+      "launchSuccess": "Claude CLI avviata",
+      "launchFailed": "Avvio di Claude CLI non riuscito: {{error}}",
+      "localTitle": "Importa Claude Code attuale",
+      "localDesc": "Legge l’attuale accesso OAuth locale di Claude Code e lo copia come snapshot account locale.",
+      "localSuccess": "Accesso locale Claude Code importato: {{name}}"
+    },
+    "accountNote": {
+      "title": "Nota account",
+      "desc": "Aggiungi una nota locale per {{email}} così riconosci l’account durante il cambio.",
+      "label": "Nota account",
+      "placeholder": "Esempio: Free principale, Max 20x, account team",
+      "saved": "Nota account salvata",
+      "saveFailed": "Salvataggio nota non riuscito: {{error}}",
+      "emptyTitle": "Aggiungi nota account",
+      "short": "Nota",
+      "addShort": "Nota"
+    },
+    "account": {
+      "signedInWith": "Accesso con {{provider}}",
+      "userId": "ID utente",
+      "nickname": "Soprannome"
+    },
+    "selection": {
+      "selected": "{{count}} selezionati"
+    },
+    "deleteSelectedLabel": "{{count}} account",
+    "subPlatform": {
+      "label": "Sottopiattaforma Claude",
+      "desktop": "Claude Desktop app",
+      "cli": "Claude riga di comando"
+    },
+    "searchDesktop": "Cerca account Claude Desktop...",
+    "searchCli": "Cerca account Claude CLI...",
+    "noDesktopAccounts": "Nessun account Claude Desktop",
+    "noCliAccounts": "Nessun account Claude CLI"
   }
 }

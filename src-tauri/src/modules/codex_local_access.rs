@@ -3087,7 +3087,10 @@ fn sidecar_payload_default_service_tier(default_service_tier: Option<&str>) -> O
     rule.insert("models".to_string(), Value::Array(models));
     rule.insert("params".to_string(), Value::Object(params));
     let mut payload = Map::new();
-    payload.insert("default".to_string(), Value::Array(vec![Value::Object(rule)]));
+    payload.insert(
+        "default".to_string(),
+        Value::Array(vec![Value::Object(rule)]),
+    );
     Some(Value::Object(payload))
 }
 
@@ -5508,13 +5511,20 @@ fn read_optional_profile_file(path: &Path) -> Result<Option<String>, String> {
     if !path.exists() {
         return Ok(None);
     }
-    std::fs::read_to_string(path).map(Some).map_err(|e| {
+    let content = std::fs::read_to_string(path).map_err(|e| {
         format!(
             "读取 Codex 配置文件失败: path={}, error={}",
             path.display(),
             e
         )
-    })
+    })?;
+    if path.file_name().and_then(|item| item.to_str()) == Some(CODEX_PROFILE_CONFIG_FILE) {
+        let (normalized, _) =
+            crate::modules::codex_config_format::normalize_codex_config_input(&content);
+        Ok(Some(normalized))
+    } else {
+        Ok(Some(content))
+    }
 }
 
 fn write_optional_profile_file(path: &Path, content: Option<&str>) -> Result<(), String> {
@@ -5527,7 +5537,11 @@ fn write_optional_profile_file(path: &Path, content: Option<&str>) -> Result<(),
             } else {
                 content.to_string()
             };
-            write_string_atomic(path, &content)
+            if path.file_name().and_then(|item| item.to_str()) == Some(CODEX_PROFILE_CONFIG_FILE) {
+                crate::modules::codex_config_format::write_codex_config_toml_atomic(path, &content)
+            } else {
+                write_string_atomic(path, &content)
+            }
         }
         None => {
             if path.exists() {
@@ -5545,7 +5559,8 @@ fn write_optional_profile_file(path: &Path, content: Option<&str>) -> Result<(),
 }
 
 fn is_codex_local_access_config_for_api_key(config_text: &str, api_key: &str) -> bool {
-    let Ok(doc) = config_text.parse::<Document>() else {
+    let Ok(doc) = crate::modules::codex_config_format::read_codex_config_doc_from_str(config_text)
+    else {
         return false;
     };
     let provider_selected = doc
@@ -5600,8 +5615,7 @@ fn inspect_local_access_profile_config(
     expected_base_url: &str,
     expected_api_key: &str,
 ) -> Result<ProfileConfigInspection, String> {
-    let doc = config_text
-        .parse::<Document>()
+    let doc = crate::modules::codex_config_format::read_codex_config_doc_from_str(config_text)
         .map_err(|e| format!("解析 Codex config.toml 失败: {}", e))?;
     let model_provider = doc
         .get("model_provider")
@@ -5729,8 +5743,7 @@ fn remove_codex_local_access_config(config_text: &str) -> Result<String, String>
         return Ok(String::new());
     }
 
-    let mut doc = config_text
-        .parse::<Document>()
+    let mut doc = crate::modules::codex_config_format::read_codex_config_doc_from_str(config_text)
         .map_err(|e| format!("解析 Codex config.toml 失败: {}", e))?;
     if doc
         .get("model_provider")
@@ -5768,16 +5781,17 @@ fn restore_config_toml_from_takeover_backup(
         return Ok(None);
     }
 
-    let mut backup_doc = backup_config
-        .parse::<Document>()
-        .map_err(|e| format!("解析 Codex API 服务接管备份 config.toml 失败: {}", e))?;
+    let mut backup_doc =
+        crate::modules::codex_config_format::read_codex_config_doc_from_str(backup_config)
+            .map_err(|e| format!("解析 Codex API 服务接管备份 config.toml 失败: {}", e))?;
 
     if let Some(current_config) = current_config.filter(|content| !content.trim().is_empty()) {
         let current_without_takeover = remove_codex_local_access_config(current_config)?;
         if !current_without_takeover.trim().is_empty() {
-            let current_doc = current_without_takeover
-                .parse::<Document>()
-                .map_err(|e| format!("解析当前 Codex config.toml 失败: {}", e))?;
+            let current_doc = crate::modules::codex_config_format::read_codex_config_doc_from_str(
+                &current_without_takeover,
+            )
+            .map_err(|e| format!("解析当前 Codex config.toml 失败: {}", e))?;
             if let Some(plugins) = current_doc.get("plugins") {
                 backup_doc["plugins"] = plugins.clone();
             }
@@ -6544,6 +6558,11 @@ fn sidecar_auth_json_for_account(
         "excluded_models": excluded_models,
         "disable_cooling": collection.disable_cooling,
     });
+    if let Some(expired_at) =
+        codex_oauth::jwt_token_expiration_timestamp(&account.tokens.access_token)
+    {
+        value["expired"] = json!(expired_at);
+    }
     if let Some(proxy_url) = proxy_url {
         value["proxy_url"] = Value::String(proxy_url.to_string());
     }
@@ -6856,6 +6875,17 @@ async fn start_legacy_gateway_locked(
     Ok(())
 }
 
+fn sidecar_cached_account_usable_after_prepare_error(account: &CodexAccount) -> bool {
+    if account.is_api_key_auth() {
+        return true;
+    }
+    if account.requires_reauth {
+        return false;
+    }
+    account_has_refresh_token(account)
+        || !codex_oauth::is_token_expired(&account.tokens.access_token)
+}
+
 async fn load_sidecar_account(account_id: &str) -> Option<CodexAccount> {
     match get_prepared_account(account_id).await {
         Ok(account) => Some(account),
@@ -6865,6 +6895,7 @@ async fn load_sidecar_account(account_id: &str) -> Option<CodexAccount> {
                 account_id, error
             ));
             codex_account::load_account(account_id)
+                .filter(sidecar_cached_account_usable_after_prepare_error)
         }
     }
 }
@@ -7238,6 +7269,10 @@ async fn update_sidecar_account_health_from_values(
     if success {
         health.consecutive_failures = 0;
         health.last_success_at = Some(now);
+        health.last_failure_at = None;
+        health.last_failure_status = None;
+        health.last_failure_category = None;
+        health.last_failure_message = None;
         if request_kind_is_image(request_kind) {
             health.image_generation_status = CodexLocalAccessImageGenerationStatus::Available;
             health.image_generation_checked_at = Some(now);
@@ -8753,6 +8788,10 @@ async fn mark_account_success(account: &CodexAccount, request_kind: CodexLocalAc
     health.email = account.email.clone();
     health.consecutive_failures = 0;
     health.last_success_at = Some(now);
+    health.last_failure_at = None;
+    health.last_failure_status = None;
+    health.last_failure_category = None;
+    health.last_failure_message = None;
     if request_kind_is_image(request_kind) {
         health.image_generation_status = CodexLocalAccessImageGenerationStatus::Available;
         health.image_generation_checked_at = Some(now);
@@ -10090,10 +10129,7 @@ fn build_account_health_snapshot(runtime: &GatewayRuntime) -> Vec<CodexLocalAcce
                     .or_else(|| stats_emails.get(account_id.as_str()).copied())
                     .unwrap_or_default()
                     .to_string(),
-                available: cooldowns.is_empty()
-                    && health
-                        .map(|item| item.consecutive_failures < 3)
-                        .unwrap_or(true),
+                available: cooldowns.is_empty() && !account_health_blocks_routing(health),
                 consecutive_failures: health
                     .map(|item| item.consecutive_failures)
                     .unwrap_or_default(),
@@ -10774,13 +10810,12 @@ fn write_local_access_profile_model_override(
     let mut doc = if existing.trim().is_empty() {
         Document::new()
     } else {
-        existing
-            .parse::<Document>()
+        crate::modules::codex_config_format::read_codex_config_doc_from_str(&existing)
             .map_err(|e| format!("解析 Codex config.toml 失败: {}", e))?
     };
     doc["model"] = value(model);
     let content = crate::modules::codex_config_format::codex_config_doc_to_string(&mut doc);
-    write_string_atomic(&config_path, &content)
+    crate::modules::codex_config_format::write_codex_config_toml_atomic(&config_path, &content)
 }
 
 fn write_provider_gateway_model_catalog(
@@ -10817,13 +10852,12 @@ fn write_provider_gateway_model_catalog(
     let mut doc = if existing.trim().is_empty() {
         Document::new()
     } else {
-        existing
-            .parse::<Document>()
+        crate::modules::codex_config_format::read_codex_config_doc_from_str(&existing)
             .map_err(|e| format!("解析 Codex config.toml 失败: {}", e))?
     };
     doc["model_catalog_json"] = value(CODEX_PROVIDER_MODEL_CATALOG_FILE);
     let content = crate::modules::codex_config_format::codex_config_doc_to_string(&mut doc);
-    write_string_atomic(&config_path, &content)
+    crate::modules::codex_config_format::write_codex_config_toml_atomic(&config_path, &content)
 }
 
 fn provider_model_backup_path(profile_dir: &Path) -> PathBuf {
@@ -10871,8 +10905,7 @@ fn backup_current_profile_model_before_provider_gateway(
         delete_provider_model_backup(profile_dir)?;
         return Ok(());
     }
-    let doc = existing
-        .parse::<Document>()
+    let doc = crate::modules::codex_config_format::read_codex_config_doc_from_str(&existing)
         .map_err(|e| format!("解析 Codex config.toml 失败: {}", e))?;
     let Some(model) = doc
         .get("model")
@@ -10915,9 +10948,9 @@ pub fn cleanup_provider_gateway_profile_model_overrides(profile_dir: &Path) -> R
     let config_path = profile_config_path(profile_dir);
     let existing = std::fs::read_to_string(&config_path).unwrap_or_default();
     if !existing.trim().is_empty() {
-        let mut doc = existing
-            .parse::<Document>()
-            .map_err(|e| format!("解析 Codex config.toml 失败: {}", e))?;
+        let mut doc =
+            crate::modules::codex_config_format::read_codex_config_doc_from_str(&existing)
+                .map_err(|e| format!("解析 Codex config.toml 失败: {}", e))?;
         let mut changed = false;
         let uses_managed_catalog = doc.get("model_catalog_json").and_then(|item| item.as_str())
             == Some(CODEX_PROVIDER_MODEL_CATALOG_FILE);
@@ -10944,8 +10977,11 @@ pub fn cleanup_provider_gateway_profile_model_overrides(profile_dir: &Path) -> R
         }
         if changed {
             let content = crate::modules::codex_config_format::codex_config_doc_to_string(&mut doc);
-            write_string_atomic(&config_path, &content)
-                .map_err(|e| format!("写入 Codex config.toml 失败: {}", e))?;
+            crate::modules::codex_config_format::write_codex_config_toml_atomic(
+                &config_path,
+                &content,
+            )
+            .map_err(|e| format!("写入 Codex config.toml 失败: {}", e))?;
         }
     }
 
@@ -15586,6 +15622,14 @@ async fn proxy_request_with_account_pool(
                 {
                     last_status = StatusCode::UNAUTHORIZED.as_u16();
                     invalidate_prepared_account(&account_id).await;
+                    if let Err(err) =
+                        codex_account::mark_access_token_only_account_requires_reauth(&account.id)
+                    {
+                        logger::log_codex_api_warn(&format!(
+                            "[CodexLocalAccess] 标记 access-token-only 账号需重新登录失败: account_id={}, error={}",
+                            account.id, err
+                        ));
+                    }
                     mark_account_failure(
                         &account,
                         Some(last_status),
@@ -16551,6 +16595,14 @@ async fn proxy_websocket_with_account_pool(
                     && !account_has_refresh_token(&account)
                 {
                     invalidate_prepared_account(&account_id).await;
+                    if let Err(err) =
+                        codex_account::mark_access_token_only_account_requires_reauth(&account.id)
+                    {
+                        logger::log_codex_api_warn(&format!(
+                            "[CodexLocalAccess] 标记 access-token-only WebSocket 账号需重新登录失败: account_id={}, error={}",
+                            account.id, err
+                        ));
+                    }
                     mark_account_failure(
                         &account,
                         Some(status),
@@ -17666,10 +17718,11 @@ mod tests {
         resolve_upstream_target, restore_config_toml_from_takeover_backup,
         sanitize_collection_with_accounts, scutil_proxy_map,
         should_retry_single_account_upstream_status, should_treat_response_as_stream,
-        should_try_next_account, sidecar_codex_api_key_auth_id, sidecar_config_fingerprint,
-        sidecar_payload_default_service_tier, sidecar_stable_id, system_proxy_target_scheme,
-        system_proxy_value_url,
-        validate_client_model_visible, visible_codex_model_ids_for_api_key, websocket_accept_value,
+        should_try_next_account, sidecar_auth_json_for_account,
+        sidecar_cached_account_usable_after_prepare_error, sidecar_codex_api_key_auth_id,
+        sidecar_config_fingerprint, sidecar_payload_default_service_tier, sidecar_stable_id,
+        system_proxy_target_scheme, system_proxy_value_url, validate_client_model_visible,
+        visible_codex_model_ids_for_api_key, websocket_accept_value,
         websocket_connect_error_from_http_response, windows_proxy_url_from_server,
         windows_reg_dword_enabled, windows_reg_query_map,
         write_local_access_profile_model_override, write_provider_gateway_model_catalog,
@@ -17797,9 +17850,9 @@ mod tests {
             .collect::<HashSet<_>>();
 
         assert_eq!(models.len(), 3);
-        assert!(models.iter().all(|model| {
-            model.get("name").and_then(Value::as_str) == Some("*")
-        }));
+        assert!(models
+            .iter()
+            .all(|model| { model.get("name").and_then(Value::as_str) == Some("*") }));
         assert!(payload_formats.contains("codex"));
         assert!(payload_formats.contains("openai"));
         assert!(payload_formats.contains("openai-response"));
@@ -18371,6 +18424,76 @@ wire_api = "responses"
         );
         account.plan_type = Some(plan_type.to_string());
         account
+    }
+
+    fn make_test_jwt(payload: Value) -> String {
+        let header = json!({ "alg": "none", "typ": "JWT" });
+        format!(
+            "{}.{}.sig",
+            general_purpose::URL_SAFE_NO_PAD
+                .encode(serde_json::to_vec(&header).expect("serialize jwt header")),
+            general_purpose::URL_SAFE_NO_PAD
+                .encode(serde_json::to_vec(&payload).expect("serialize jwt payload"))
+        )
+    }
+
+    #[test]
+    fn sidecar_oauth_auth_json_includes_access_token_expiry() {
+        let account = CodexAccount::new(
+            "account-exp".to_string(),
+            "exp@example.com".to_string(),
+            CodexTokens {
+                id_token: String::new(),
+                access_token: make_test_jwt(json!({
+                    "sub": "access-exp",
+                    "exp": 4_102_444_800i64,
+                })),
+                refresh_token: Some("refresh-token".to_string()),
+            },
+        );
+        let collection = test_local_access_collection(vec![account.id.clone()]);
+
+        let auth_json = sidecar_auth_json_for_account(&account, &collection, None);
+
+        assert_eq!(
+            auth_json.get("expired").and_then(Value::as_i64),
+            Some(4_102_444_800i64)
+        );
+    }
+
+    #[test]
+    fn sidecar_prepare_error_fallback_rejects_expired_access_token_only_account() {
+        let expired_account = CodexAccount::new(
+            "account-expired".to_string(),
+            "expired@example.com".to_string(),
+            CodexTokens {
+                id_token: String::new(),
+                access_token: make_test_jwt(json!({
+                    "sub": "access-expired",
+                    "exp": 1i64,
+                })),
+                refresh_token: None,
+            },
+        );
+        let valid_account = CodexAccount::new(
+            "account-valid".to_string(),
+            "valid@example.com".to_string(),
+            CodexTokens {
+                id_token: String::new(),
+                access_token: make_test_jwt(json!({
+                    "sub": "access-valid",
+                    "exp": 4_102_444_800i64,
+                })),
+                refresh_token: None,
+            },
+        );
+
+        assert!(!sidecar_cached_account_usable_after_prepare_error(
+            &expired_account
+        ));
+        assert!(sidecar_cached_account_usable_after_prepare_error(
+            &valid_account
+        ));
     }
 
     fn test_instance(
@@ -20825,7 +20948,10 @@ data: {"error":{"code":"server_error","type":"upstream","message":"stream aborte
                 Some("response.create")
             );
             if let Some(expected_stream) = expected_stream {
-                assert_eq!(body.get("stream").and_then(Value::as_bool), Some(expected_stream));
+                assert_eq!(
+                    body.get("stream").and_then(Value::as_bool),
+                    Some(expected_stream)
+                );
             }
             if let Some(expected_effort) = expected_effort {
                 assert_eq!(

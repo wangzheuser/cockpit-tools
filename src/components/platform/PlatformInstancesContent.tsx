@@ -13,6 +13,7 @@ type AccountLike = {
 type InstancesAppType =
   | 'antigravity'
   | 'codex'
+  | 'claude'
   | 'vscode'
   | 'windsurf'
   | 'kiro'

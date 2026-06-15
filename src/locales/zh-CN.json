@@ -204,7 +204,7 @@
         "planEndsInHours": "{{hours}} 小时后重置"
       },
       "flowNotice": {
-        "alternative": "多开实例隔离：使用不同 --user-data-dir 做账号隔离；每个实例登录一次，后续按实例启动即可快速切换到对应账号环境。"
+        "alternative": "多开实例隔离：使用独立受管 profile；每个实例登录一次，后续按实例快速切换账号环境。"
       },
       "injecting": "注入中...",
       "usage": {
@@ -307,7 +307,8 @@
     "switchClassicLayoutDesc": "经典布局将展示完整平台导航，并支持可折叠侧边栏。你可在“设置 > 通用 > 侧边栏布局”中随时切换回原始布局。",
     "switchClassicLayoutDontAskAgain": "不再提示此引导",
     "switchClassicLayoutConfirm": "立即切换",
-    "2faManager": "2FA 管理"
+    "2faManager": "2FA 管理",
+    "claude": "Claude"
   },
   "sponsors": {
     "pageTitle": "赞助商",
@@ -422,14 +423,24 @@
       "success": "已写入配置文件：{{paths}}",
       "failed": "写入配置失败：{{error}}"
     },
-    "error": {
-      "missingApiKey": "请输入 API Key。",
-      "queryFailed": "额度查询失败：{{error}}",
-      "saveFailed": "一键写入失败：{{error}}"
-    },
-    "copyKey": "复制密钥",
-    "clearKey": "清空输入",
-    "keyManager": {
+  "error": {
+    "missingApiKey": "请输入 API Key。",
+    "queryFailed": "额度查询失败：{{error}}",
+    "saveFailed": "一键写入失败：{{error}}"
+  },
+  "models": {
+    "title": "可用模型",
+    "desc": "从当前 API Key 的模型接口读取，保存到 Codex 或 Claude CLI 时会带入这些模型目录。",
+    "count": "{{count}} 个模型",
+    "loading": "读取中",
+    "loadingDesc": "正在从当前 API Key 读取模型列表...",
+    "empty": "输入 API Key 后读取可用模型。",
+    "emptyFromKey": "当前 API Key 未返回模型列表。",
+    "queryFailed": "模型列表读取失败：{{error}}"
+  },
+  "copyKey": "复制密钥",
+  "clearKey": "清空输入",
+  "keyManager": {
       "title": "密钥管理",
       "desc": "保存常用 API Key，点击即可切换并自动查询额度。",
       "saveButton": "保存密钥",
@@ -441,7 +452,19 @@
       "editAlias": "修改别名",
       "renamePlaceholder": "输入新别名...",
       "createdAt": "添加于 {{time}}",
-      "saveFlash": "刚刚保存"
+      "saveFlash": "刚刚保存",
+      "addingToCodex": "正在添加到 Codex...",
+      "addedToCodex": "已添加到 Codex",
+      "addToCodexFailed": "添加到 Codex 失败：{{error}}",
+      "addingToClaude": "正在添加到 Claude CLI...",
+      "addedToClaude": "已添加到 Claude CLI",
+      "addToClaudeFailed": "添加到 Claude CLI 失败：{{error}}",
+      "codexAdded": "Codex 已添加",
+      "claudeAdded": "Claude 已添加",
+      "addToCodex": "添加到 Codex",
+      "addToClaude": "添加到 Claude CLI",
+      "codexShort": "Codex",
+      "claudeShort": "Claude CLI"
     }
   },
   "platformLayout": {
@@ -1107,7 +1130,10 @@
       "codexAppSpeedFast": "快速",
       "codexAppSpeedLaunch": "重启 Codex",
       "codexAppSpeedSaveFailed": "保存 Codex 速度失败：{{error}}",
-      "codexAppSpeedLaunchFailed": "重启 Codex 失败：{{error}}"
+      "codexAppSpeedLaunchFailed": "重启 Codex 失败：{{error}}",
+      "claudeSettingsTitle": "Claude Desktop 设置",
+      "claudeAutoRefresh": "Claude Desktop 自动刷新配额",
+      "claudeAutoRefreshDesc": "后台自动更新 Claude Desktop 账号配额缓存"
     },
     "network": {
       "apiTitle": "反重力驾驶舱 API",
@@ -1433,7 +1459,10 @@
     "switchSuccess": "切换成功",
     "switched": "已切换至 {{email}}",
     "tagButton": "编辑标签",
-    "tagUpdated": "标签已更新"
+    "tagUpdated": "标签已更新",
+    "plan": {
+      "personal": "个人"
+    }
   },
   "overview": {
     "title": "账号总览",
@@ -1856,9 +1885,9 @@
     },
     "apiSwitchNotice": {
       "title": "Codex 会话不可见",
-      "message": "检测到 Codex 已从 {{from}} 切换到 {{to}}。由于官方机制，API 与账号直接切换后，原有会话可能不会自动显示。正在自动修复会话可见性，后续也可以通过「会话管理」里的「修复可见性」功能修复。",
-      "repairing": "正在修复 Codex 会话可见性...",
-      "repairFailed": "自动修复失败。你仍可稍后在「会话管理」中使用「修复可见性」重试。",
+      "message": "检测到 Codex 已从 {{from}} 切换到 {{to}}。由于官方机制，API 与账号直接切换后，原有会话可能不会自动显示。正在自动修复会话索引，后续也可以通过「会话管理」里的「修复索引」功能修复。",
+      "repairing": "正在修复 Codex 会话索引...",
+      "repairFailed": "自动修复失败。你仍可稍后在「会话管理」中使用「修复索引」重试。",
       "type": {
         "api": "API 模式",
         "apiKey": "API 密钥",
@@ -2851,14 +2880,16 @@
     },
     "sessionManager": {
       "title": "会话管理",
-      "desc": "同步、可见性修复、清理与恢复统一放在这里：顶部可一键同步会话、修复历史可见性或从废纸篓恢复，下面按项目展开查看会话并移到废纸篓。",
+      "desc": "同步、索引修复、清理与恢复统一放在这里：顶部可一键同步会话、修复会话索引或从废纸篓恢复，下面按项目展开查看会话并移到废纸篓。",
       "actions": {
         "moveToTrash": "移到废纸篓",
         "syncSessions": "同步会话",
         "copyToInstance": "复制到实例",
-        "repairVisibility": "修复可见性",
+        "repairVisibility": "修复索引",
         "restoreSessions": "恢复会话",
         "copySessionId": "复制会话 ID",
+        "selectAllSessions": "全选会话",
+        "clearSelectedSessions": "取消全选",
         "expand": "展开",
         "collapse": "收起"
       },
@@ -2866,7 +2897,7 @@
         "title": "移到废纸篓",
         "message": "会将所选会话从对应实例中移到废纸篓，便于后续恢复；运行中的实例可能需要重启后才会反映。确认继续？",
         "syncMessage": "会将缺失的 rollout、session_index 条目和会话文件时间同步到所有实例，并触发官方 Codex 重建会话索引；已有内容不会重复写入，写入前会先备份目标文件。确认继续？",
-        "repairVisibilityMessage": "会按各实例 config.toml 根级 model_provider（缺失时按 openai）修复 rollout 文件与 state_5.sqlite 中的 provider 元数据，写入前会先备份将要修改的文件。运行中的实例可能需要重启后显示。确认继续？"
+        "repairVisibilityMessage": "会按 CodexPlusPlus 的同步规则，校正 rollout 中所有 session_meta、SQLite 会话库、session_index.jsonl、会话文件时间与当前 provider，并触发官方 Codex 重建侧边栏索引；写入前会先备份将要修改的文件。确认继续？"
       },
       "empty": {
         "title": "还没有可管理的会话",
@@ -2876,8 +2907,8 @@
         "pickOne": "请至少选择一条会话",
         "pickRestoreOne": "请至少选择一条待恢复会话",
         "syncNeedTwo": "至少需要两个实例才能同步会话",
-        "repairVisibilitySkippedOnly": "未发现需要写入的 provider 差异；已跳过 {{count}} 个无效或损坏的 state_5.sqlite，需由 Codex 重新生成后才能修复其中的 SQLite 记录",
-        "repairVisibilitySkippedWithBase": "{{message}}；已跳过 {{count}} 个无效或损坏的 state_5.sqlite，需由 Codex 重新生成后才能修复其中的 SQLite 记录"
+        "repairVisibilitySkippedOnly": "未发现需要写入的会话索引差异；已跳过 {{count}} 个无效或损坏的 SQLite 会话库，需由 Codex 重新生成后才能修复其中的记录",
+        "repairVisibilitySkippedWithBase": "{{message}}；已跳过 {{count}} 个无效或损坏的 SQLite 会话库，需由 Codex 重新生成后才能修复其中的记录"
       },
       "groupCount": "{{count}} 条会话",
       "updatedAt": "最近更新",
@@ -3499,6 +3530,10 @@
     "workbuddy": {
       "title": "WorkBuddy 设置",
       "appPath": "WorkBuddy 路径"
+    },
+    "claudeRefreshInterval": "配额自动刷新",
+    "claude": {
+      "appPath": "Claude Desktop 路径"
     }
   },
   "quotaAlert": {
@@ -4524,5 +4559,181 @@
     "importErrorMsg": "导入失败，请检查文件格式是否为您之前导出的格式 (JSON Array)。",
     "btnImportTitle": "导入本地的 JSON 文件",
     "btnExportTitle": "导出已保存为 JSON"
+  },
+  "claude": {
+    "import": {
+      "localSuccess": "已导入本机 Claude Desktop 登录态：{{count}} 个",
+      "localClient": "导入当前 Desktop",
+      "jsonLabel": "JSON 数据",
+      "jsonPlaceholder": "粘贴导出的 Claude 账号 JSON",
+      "desktopJsonPlaceholder": "粘贴导出的 Claude Desktop 账号 JSON",
+      "cliJsonPlaceholder": "粘贴导出的 Claude CLI 账号 JSON",
+      "localDesc": "读取本机官方 Claude Desktop 当前登录态，复制为本工具本地账号快照。"
+    },
+    "subPlatform": {
+      "label": "Claude 子平台",
+      "desktop": "Claude Desktop",
+      "cli": "Claude CLI"
+    },
+    "deleteCurrentDisabled": "当前账号不可删除",
+    "flowNotice": {
+      "title": "Claude 账号管理说明（点击展开/收起）",
+      "desc": "本工具可管理 Claude Desktop 登录态与 Anthropic API Key。Desktop 登录会在平台授权窗口完成并先保存到本地账号库；切号时才写入官方 Claude Desktop。",
+      "permission": "权限范围：读取/写入官方 Claude Desktop 应用数据目录；API Key 与 Desktop 快照保存于本工具本地账号数据。",
+      "network": "网络范围：Desktop 登录窗口访问 claude.ai；刷新账号会请求 Claude Web 相关接口；API Key 导入本身不联网。",
+      "desktopDesc": "本工具可管理 Claude Desktop 登录态。登录会先保存到本地账号库；切号时才写入官方 Claude Desktop。",
+      "cliDesc": "本工具可管理 Claude Code OAuth 与多供应商 API Key。OAuth 切号会写入本机 Claude Code 配置；API Key 启动 CLI 时注入供应商环境变量。",
+      "desktopPermission": "权限范围：读取/写入官方 Claude Desktop 应用数据目录；Desktop 快照保存于本工具本地账号数据。",
+      "cliPermission": "权限范围：读取/写入本机 Claude Code 配置目录与 macOS Keychain 中的 Claude Code 凭据；API Key 账号保存于本工具本地账号数据，启动时创建一次性本机临时脚本。",
+      "desktopNetwork": "网络范围：Desktop 登录窗口访问 claude.ai；刷新账号会请求 Claude Web 相关接口。",
+      "cliNetwork": "网络范围：OAuth 授权访问 Claude 官方授权页和 token/profile/usage 接口；API Key 导入不联网，启动后由 Claude CLI 访问所选供应商。"
+    },
+    "search": "搜索 Claude 账号...",
+    "searchDesktop": "搜索 Claude Desktop 账号...",
+    "searchCli": "搜索 Claude CLI 账号...",
+    "noAccounts": "暂无 Claude 账号",
+    "noDesktopAccounts": "暂无 Claude Desktop 账号",
+    "noCliAccounts": "暂无 Claude CLI 账号",
+    "addAccount": {
+      "title": "添加 Claude 账号",
+      "desktopTitle": "添加 Claude Desktop 账号",
+      "cliTitle": "添加 Claude CLI 账号"
+    },
+    "deleteConfirm": "确定删除 Claude 账号 {{email}} 吗？",
+    "switch": {
+      "success": "切号成功"
+    },
+    "instances": {
+      "unsupportedDescPlatform": "Claude Desktop 多开实例仅支持 macOS、Windows 和 Linux。",
+      "launchDialogTitle": "启动实例",
+      "launchCommand": "启动命令",
+      "executeInTerminal": "在终端运行",
+      "startSuccess": "Claude Desktop 已启动"
+    },
+    "quota": {
+      "title": "额度",
+      "fiveHour": "Current session",
+      "sevenDay": "Current week (all models)",
+      "sonnet": "Sonnet额",
+      "extra": "额外用量",
+      "empty": "暂无额度",
+      "unsupported": "不可刷新",
+      "updatedAt": "更新：{{time}}",
+      "resetAt": "{{label}} 重置：{{time}}",
+      "refreshSuccess": "额度已刷新",
+      "refreshAllDone": "额度刷新完成",
+      "refreshFailed": "额度刷新失败：{{error}}",
+      "refreshWithWarning": "额度刷新失败：{{error}}",
+      "notUpdated": "额度未刷新",
+      "updated": "已更新",
+      "notUpdatedShort": "未刷新"
+    },
+    "addTabs": {
+      "desktop": "桌面",
+      "oauth": "OAuth",
+      "apiKey": "API 密钥",
+      "import": "本地/JSON"
+    },
+    "authMode": {
+      "oauth": "OAuth 模式",
+      "setup_token": "设置 Token",
+      "api_key": "API Key 模式",
+      "desktop_oauth": "Desktop 登录"
+    },
+    "apiKey": {
+      "desc": "保存 Claude CLI API Key 作为独立凭证；启动 CLI 时按供应商注入环境变量，不写入 Claude Desktop 登录态。",
+      "nameLabel": "账号名称",
+      "namePlaceholder": "可选，例如 APIKEY.FUN",
+      "keyLabel": "API 密钥",
+      "placeholder": "粘贴供应商 API Key",
+      "hide": "隐藏 API Key",
+      "show": "显示 API Key",
+      "hint": "API Key 账号仅用于 Claude CLI 启动，不写入 Claude Desktop 登录态，也不支持订阅额度刷新。",
+      "importAction": "导入 API Key",
+      "required": "请输入 API Key",
+      "importSuccess": "Claude API Key 账号已导入：{{name}}",
+      "quotaUnsupported": "API Key 账号不支持刷新",
+      "switchDisabled": "API Key 账号不能切换到 Claude Desktop",
+      "cliUnsupported": "API Key 账号不能启动 Claude CLI",
+      "providerLabel": "供应商",
+      "customProvider": "自定义",
+      "endpointLabel": "供应商端点",
+      "officialEndpoint": "官方默认",
+      "baseUrlLabel": "基础 URL",
+      "baseUrlPlaceholder": "留空使用 Anthropic 官方默认地址",
+      "keyFieldLabel": "认证字段",
+      "baseUrlInvalid": "Base URL 不是有效 URL"
+    },
+    "desktopOAuth": {
+      "title": "Claude Desktop 登录",
+      "desc": "在本工具打开 Claude 登录窗口，支持 Google、Apple、邮箱和 free 账号。",
+      "start": "打开登录",
+      "hint": "登录态会先保存到本工具本地账号库，不会立刻写入官方 Claude Desktop；切号时才写回 Claude。",
+      "nameLabel": "账号名称",
+      "namePlaceholder": "可选，例如 Claude Free",
+      "waiting": "请在已打开的 Claude 授权窗口完成登录。看到聊天页后回到这里点击完成导入。",
+      "profileDir": "隔离 profile 目录",
+      "complete": "完成导入",
+      "localTitle": "导入当前 Desktop",
+      "localDesc": "读取本机官方 Claude Desktop 当前登录态，复制为本工具本地账号快照。",
+      "localAction": "导入",
+      "localSuccess": "已导入本机 Claude Desktop 登录态：{{name}}",
+      "importSuccess": "Claude Desktop 登录态已导入：{{name}}",
+      "switchHint": "切换到官方 Claude Desktop",
+      "planUnknown": "订阅未知"
+    },
+    "oauth": {
+      "title": "Claude OAuth 授权",
+      "desc": "打开 Claude 官方 OAuth 授权页，完成后粘贴回调链接或 code 导入账号。",
+      "start": "OAuth 授权",
+      "proRequiredHint": "Claude 官方 OAuth 通常用于 Claude Code 授权；如果页面停在升级或无权限页面，可改用 Claude Desktop 登录。",
+      "waiting": "浏览器已打开授权页。完成授权后，将最终页面地址或页面显示的 code 粘贴到下方。",
+      "authUrl": "授权链接",
+      "callbackPlaceholder": "粘贴回调链接或授权 code",
+      "callbackRequired": "请粘贴授权完成后的回调链接或 code",
+      "authorizeUrlNotCallback": "这里粘贴的是上方授权入口链接，不是授权完成后的 code。请先在浏览器完成授权，然后复制最终页面地址或页面显示的 code。",
+      "complete": "完成导入",
+      "emailPlaceholder": "邮箱（无法自动识别时填写）",
+      "importSuccess": "Claude OAuth 授权导入成功：{{name}}"
+    },
+    "plan": {
+      "label": "订阅标识",
+      "selectPlaceholder": "待选择",
+      "updateFailed": "更新订阅标识失败：{{error}}"
+    },
+    "legacyOAuth": {
+      "switchDisabled": "旧 OAuth 账号不能切换到 Claude Desktop",
+      "quotaUnsupported": "旧 OAuth 账号不再支持刷新",
+      "cliUnsupported": "旧 OAuth 账号不能启动 Claude CLI"
+    },
+    "cli": {
+      "quickLaunch": "CLI 启动",
+      "selectWorkingDir": "选择 Claude CLI 工作目录",
+      "launchSuccess": "已启动 Claude CLI",
+      "launchFailed": "启动 Claude CLI 失败：{{error}}",
+      "localTitle": "导入当前 Claude Code",
+      "localDesc": "读取本机 Claude Code 当前 OAuth 登录态，复制为本工具本地账号快照。",
+      "localSuccess": "已导入本机 Claude Code 登录态：{{name}}"
+    },
+    "accountNote": {
+      "title": "账号备注",
+      "desc": "为 {{email}} 添加本地备注，方便切换账号时识别。",
+      "label": "账号备注",
+      "placeholder": "例如：Free 主号、Max 20x、团队账号",
+      "saved": "账号备注已保存",
+      "saveFailed": "保存账号备注失败：{{error}}",
+      "emptyTitle": "填写账号备注",
+      "short": "账号备注",
+      "addShort": "加备注"
+    },
+    "selection": {
+      "selected": "已选 {{count}}"
+    },
+    "deleteSelectedLabel": "{{count}} 个账号",
+    "account": {
+      "signedInWith": "使用 {{provider}} 登录",
+      "userId": "用户 ID",
+      "nickname": "昵称"
+    }
   }
 }

@@ -2823,7 +2823,7 @@ Start-Process -FilePath $exe{argument_list} -ErrorAction Stop | Out-Null"#,
     Ok(())
 }
 
-fn detect_codex_exec_path() -> Option<std::path::PathBuf> {
+pub(crate) fn detect_codex_exec_path() -> Option<std::path::PathBuf> {
     #[cfg(target_os = "macos")]
     {
         if let Some(path) = find_codex_process_exe() {
@@ -8555,8 +8555,7 @@ pub fn close_codex_instances(codex_homes: &[String], timeout_secs: u64) -> Resul
                     let normalized = normalize_path_for_compare(value);
                     !normalized.is_empty()
                         && (target_app_dirs.contains(&normalized)
-                            || (includes_default
-                                && current_default_app_dirs.contains(&normalized)))
+                            || (includes_default && current_default_app_dirs.contains(&normalized)))
                 }
                 None => includes_default,
             }
