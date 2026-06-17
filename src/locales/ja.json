@@ -2305,7 +2305,17 @@
       },
       "empty": {
         "title": "管理できるセッションはまだありません",
-        "desc": "現在のインスタンスセットではセッション記録が見つかりませんでした。"
+        "desc": "現在のインスタンスセットではセッション記録が見つかりませんでした。",
+        "searchTitle": "一致するセッションがありません",
+        "searchDesc": "タイトルのキーワードを調整してください。"
+      },
+      "search": {
+        "titleLabel": "タイトル",
+        "contentLabel": "会話内容",
+        "titlePlaceholder": "タイトルで検索",
+        "contentPlaceholder": "会話内容を検索",
+        "apply": "検索",
+        "clear": "クリア"
       },
       "messages": {
         "pickOne": "少なくとも1件のセッションを選択してください",
@@ -2339,15 +2349,7 @@
         "confirm": "セッションをコピー"
       },
       "repairModal": {
-        "quickTitle": "表示状態を修復",
-        "quickDesc": "公式 Codex の state DB にあるサイドバー表示用セッション記録を更新します。",
-        "deepTitle": "表示状態を修復",
-        "deepDesc": "公式 Codex の state DB にあるサイドバー表示用セッション記録を更新します。",
-        "quickProgressTitle": "修復の進行状況",
-        "deepProgressTitle": "修復の進行状況",
         "running": "修復中...",
-        "startQuick": "修復を開始",
-        "startDeep": "修復を開始",
         "progress": {
           "queued": "修復タスクを開始しています...",
           "collectInstances": "Codex インスタンスを収集しています...",
@@ -2359,9 +2361,9 @@
           "pruneBackups": "古いバックアップを削除しています...",
           "done": "修復が完了しました",
           "writeSqliteProvider": "{{instance}} の SQLite 可視性を書き込み中...",
-          "writeRolloutFiles": "旧セッションファイルへの書き込みをスキップしています...",
+          "writeRolloutFiles": "旧セッションファイルを書き込み中...",
           "writeSqliteTimestamps": "{{instance}} の SQLite 時刻を修正中...",
-          "writeSessionIndex": "旧インデックスへの書き込みをスキップしています..."
+          "writeSessionIndex": "session_index を書き込み中..."
         },
         "targetProvider": "対象 provider",
         "defaultProvider": "既定",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "Claude 追加済み",
       "addToCodex": "Codex に追加",
       "addToClaude": "Claude CLI に追加",
+      "addToClaudeDesktop": "Claude Desktop に追加",
+      "addToClaudeCli": "Claude CLI に追加",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "APIKEY.FUN の設定を入力しました。Claude Desktop への追加を確認してください。"
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
@@ -4688,7 +4695,8 @@
       "desktop": "デスク",
       "oauth": "OAuth",
       "apiKey": "APIキー",
-      "import": "ローカル/JSON"
+      "import": "ローカル/JSON",
+      "desktopGateway": "ゲートウェイ"
     },
     "authMode": {
       "oauth": "OAuth モード",
@@ -4707,6 +4715,7 @@
       "hint": "API Key アカウントは Claude CLI 専用です。Claude Code settings.json に平文の env として書き込まれ、Claude Desktop のログイン状態には影響せず、サブスク使用量の更新にも対応しません。",
       "importAction": "API Key を取り込む",
       "required": "API Key を入力してください",
+      "templateRequired": "{{label}}を入力してください",
       "importSuccess": "Claude API Key アカウントを取り込みました: {{name}}",
       "quotaUnsupported": "API Key アカウントは更新非対応です",
       "switchDisabled": "API Key アカウントは Claude Desktop に切り替えできません",
@@ -4724,7 +4733,9 @@
       "title": "Claude Desktop ログイン",
       "desc": "このツール内で Claude ログイン。Google、Apple、メール、free に対応。",
       "start": "ログインを開く",
+      "preparingRuntime": "ログイン準備中...",
       "hint": "まずローカル保存し、切替時だけ Claude Desktop へ書き込みます。",
+      "runtimeHint": "初回利用時に Electron ログインコンポーネントをローカルアプリデータフォルダへダウンロードして検証する場合があります。インストーラーには同梱せず、以後はキャッシュを再利用します。",
       "nameLabel": "アカウント名",
       "namePlaceholder": "任意、例: Claude Free",
       "waiting": "Claude ウィンドウでログイン後、ここで取込を完了します。",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "Claude Desktop アカウントを検索...",
     "searchCli": "Claude CLI アカウントを検索...",
     "noDesktopAccounts": "Claude Desktop アカウントはまだありません",
-    "noCliAccounts": "Claude CLI アカウントはまだありません"
+    "noCliAccounts": "Claude CLI アカウントはまだありません",
+    "desktopGateway": {
+      "label": "ゲートウェイ",
+      "authScheme": "認証方式",
+      "importAction": "Gatewayをインポート",
+      "importSuccess": "Claude Desktop Gatewayアカウントをインポートしました: {{name}}",
+      "baseUrlRequired": "Gateway Base URLを入力してください",
+      "noQuota": "GatewayアカウントはClaudeサブスク容量を表示しません",
+      "desc": "Gateway API KeyをClaude Desktop 3P設定として保存します。切り替え時に管理profileへ書き込み、公式Claude Desktopを起動します。",
+      "hint": "GatewayアカウントはClaudeサブスク情報を読みません。API Keyは公式3P設定として管理profileに書き込まれます。",
+      "modelsLabel": "モデルカタログ",
+      "modelsEmpty": "この Gateway はモデルを返しませんでした。",
+      "modelsLoaded": "{{count}} 個のモデルを取得しました。保存前に編集できます。",
+      "modelsLoadFailed": "モデルの取得に失敗しました：{{error}}。",
+      "manualModels": "手動モデル",
+      "modelsPlaceholder": "1行に1つのモデルID",
+      "modelsLoading": "モデルカタログを取得中...",
+      "modelsRequired": "モデルカタログを入力してください",
+      "editTitle": "Claude Desktop Gateway を編集",
+      "updateAction": "Gateway を保存",
+      "updateSuccess": "Claude Desktop Gateway アカウントを更新しました：{{name}}",
+      "connectionMode": "接続方式",
+      "modeDirect": "直結",
+      "modeLocalMapping": "ローカル変換",
+      "mappingsRequired": "モデル対応を設定してください",
+      "mappingDesktopModelInvalid": "左側には Claude Desktop が認識できる Claude モデル名を入力してください",
+      "directModelsInvalid": "直結モードでは Claude Desktop が認識できる Claude モデル名のみ使用できます",
+      "desktopModelPlaceholder": "Claude Desktop のモデル名",
+      "upstreamModelPlaceholder": "上流の実モデル名",
+      "addMapping": "対応を追加"
+    }
   }
 }

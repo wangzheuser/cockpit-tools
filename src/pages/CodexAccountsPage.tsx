@@ -1998,12 +1998,11 @@ export function CodexAccountsPage() {
     setApiSwitchNoticeRepairResult(null);
     setApiSwitchNoticeRepairRunId(runId);
     setApiSwitchNoticeRepairProgress(
-      buildCodexSessionVisibilityInitialProgress("quick", runId),
+      buildCodexSessionVisibilityInitialProgress(runId),
     );
     try {
       const summary =
         await codexInstanceService.repairSessionVisibilityAcrossInstances(
-          "quick",
           runId,
         );
       if (apiSwitchNoticeRepairSeqRef.current === repairSeq) {
@@ -2017,7 +2016,7 @@ export function CodexAccountsPage() {
                 stage: "done",
                 percent: 100,
               }
-            : buildCodexSessionVisibilityInitialProgress("quick", runId),
+            : buildCodexSessionVisibilityInitialProgress(runId),
         );
         apiSwitchNoticeAutoCloseTimerRef.current = window.setTimeout(() => {
           if (apiSwitchNoticeRepairSeqRef.current !== repairSeq) return;
@@ -8143,15 +8142,13 @@ export function CodexAccountsPage() {
                     <Database size={14} />
                   </button>
                 )}
-                {!isApiKeyAccount && !isNewApiAccount && (
-                  <button
-                    className="card-action-btn"
-                    onClick={() => openTagModal(account.id)}
-                    title={t("accounts.editTags", "编辑标签")}
-                  >
-                    <Tag size={14} />
-                  </button>
-                )}
+                <button
+                  className="card-action-btn"
+                  onClick={() => openTagModal(account.id)}
+                  title={t("accounts.editTags", "编辑标签")}
+                >
+                  <Tag size={14} />
+                </button>
                 {!isApiKeyAccount && !isNewApiAccount && (
                   <button
                     className={`card-action-btn ${account.account_note?.trim() ? "active" : ""}`}
@@ -9455,15 +9452,13 @@ export function CodexAccountsPage() {
                   <Database size={14} />
                 </button>
               )}
-              {!isApiKeyAccount && !isNewApiAccount && (
-                <button
-                  className="action-btn"
-                  onClick={() => openTagModal(account.id)}
-                  title={t("accounts.editTags", "编辑标签")}
-                >
-                  <Tag size={14} />
-                </button>
-              )}
+              <button
+                className="action-btn"
+                onClick={() => openTagModal(account.id)}
+                title={t("accounts.editTags", "编辑标签")}
+              >
+                <Tag size={14} />
+              </button>
               {!isApiKeyAccount && !isNewApiAccount && (
                 <button
                   className={`action-btn ${account.account_note?.trim() ? "active" : ""}`}

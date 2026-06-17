@@ -1,6 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
 import type {
   ClaudeAccount,
+  ClaudeDesktopGatewayConnectionMode,
+  ClaudeDesktopGatewayModelMapping,
+  ClaudeDesktopGatewayModelsResult,
   ClaudeDesktopLoginStartResponse,
   ClaudeOAuthStartResponse,
 } from '../types/claude';
@@ -107,6 +110,78 @@ export async function importClaudeApiKey(
     apiKeyField: provider?.apiKeyField?.trim() || null,
     apiModelCatalog: provider?.apiModelCatalog ?? null,
     apiExtraEnv: provider?.apiExtraEnv ?? null,
+  });
+}
+
+type ClaudeDesktopGatewayProviderInput = {
+  apiBaseUrl?: string | null;
+  apiProviderId?: string | null;
+  apiProviderName?: string | null;
+  apiProviderSourceTag?: string | null;
+  apiProviderWebsite?: string | null;
+  apiProviderApiKeyUrl?: string | null;
+  apiModelCatalog?: string[] | null;
+  apiExtraEnv?: Record<string, string> | null;
+  authScheme?: string | null;
+  desktopGatewayModels?: string[] | null;
+  desktopGatewayConnectionMode?: ClaudeDesktopGatewayConnectionMode | string | null;
+  desktopGatewayUpstreamModels?: string[] | null;
+  desktopGatewayModelMappings?: ClaudeDesktopGatewayModelMapping[] | null;
+};
+
+function buildClaudeDesktopGatewayPayload(
+  apiKey: string,
+  accountName?: string,
+  provider?: ClaudeDesktopGatewayProviderInput,
+) {
+  return {
+    apiKey,
+    accountName: accountName?.trim() || null,
+    apiBaseUrl: provider?.apiBaseUrl?.trim() || null,
+    apiProviderId: provider?.apiProviderId?.trim() || null,
+    apiProviderName: provider?.apiProviderName?.trim() || null,
+    apiProviderSourceTag: provider?.apiProviderSourceTag?.trim() || null,
+    apiProviderWebsite: provider?.apiProviderWebsite?.trim() || null,
+    apiProviderApiKeyUrl: provider?.apiProviderApiKeyUrl?.trim() || null,
+    apiModelCatalog: provider?.apiModelCatalog ?? null,
+    apiExtraEnv: provider?.apiExtraEnv ?? null,
+    authScheme: provider?.authScheme?.trim() || null,
+    desktopGatewayModels: provider?.desktopGatewayModels ?? null,
+    desktopGatewayConnectionMode: provider?.desktopGatewayConnectionMode?.trim() || null,
+    desktopGatewayUpstreamModels: provider?.desktopGatewayUpstreamModels ?? null,
+    desktopGatewayModelMappings: provider?.desktopGatewayModelMappings ?? null,
+  };
+}
+
+export async function importClaudeDesktopGateway(
+  apiKey: string,
+  accountName?: string,
+  provider?: ClaudeDesktopGatewayProviderInput,
+): Promise<ClaudeAccount> {
+  return await invoke('import_claude_desktop_gateway', buildClaudeDesktopGatewayPayload(apiKey, accountName, provider));
+}
+
+export async function updateClaudeDesktopGateway(
+  accountId: string,
+  apiKey: string,
+  accountName?: string,
+  provider?: ClaudeDesktopGatewayProviderInput,
+): Promise<ClaudeAccount> {
+  return await invoke('update_claude_desktop_gateway', {
+    accountId,
+    ...buildClaudeDesktopGatewayPayload(apiKey, accountName, provider),
+  });
+}
+
+export async function listClaudeDesktopGatewayModels(input: {
+  apiKey: string;
+  apiBaseUrl: string;
+  authScheme?: string | null;
+}): Promise<ClaudeDesktopGatewayModelsResult> {
+  return await invoke('claude_desktop_gateway_list_models', {
+    apiKey: input.apiKey,
+    apiBaseUrl: input.apiBaseUrl,
+    authScheme: input.authScheme?.trim() || null,
   });
 }
 

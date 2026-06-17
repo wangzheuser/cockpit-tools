@@ -463,8 +463,13 @@
       "claudeAdded": "Claude added",
       "addToCodex": "Add to Codex",
       "addToClaude": "Add to Claude CLI",
+      "addToClaudeDesktop": "Add to Claude Desktop",
+      "addToClaudeCli": "Add to Claude CLI",
       "codexShort": "Codex",
       "claudeShort": "Claude"
+    },
+    "prefill": {
+      "claudeDesktopReady": "APIKEY.FUN settings are filled in. Confirm to add them to Claude Desktop."
     }
   },
   "platformLayout": {
@@ -2903,7 +2908,17 @@
       },
       "empty": {
         "title": "No sessions to manage",
-        "desc": "No session records were found in the current instance set."
+        "desc": "No session records were found in the current instance set.",
+        "searchTitle": "No matching sessions found",
+        "searchDesc": "Adjust the title keywords and try again."
+      },
+      "search": {
+        "titleLabel": "Title",
+        "contentLabel": "Conversation",
+        "titlePlaceholder": "Search titles",
+        "contentPlaceholder": "Search conversation content",
+        "apply": "Search",
+        "clear": "Clear"
       },
       "messages": {
         "pickOne": "Please select at least one session",
@@ -2937,15 +2952,7 @@
         "confirm": "Copy Sessions"
       },
       "repairModal": {
-        "quickTitle": "Repair Visibility",
-        "quickDesc": "Updates the official Codex state DB records that control sidebar session visibility.",
-        "deepTitle": "Repair Visibility",
-        "deepDesc": "Updates the official Codex state DB records that control sidebar session visibility.",
-        "quickProgressTitle": "Repair Progress",
-        "deepProgressTitle": "Repair Progress",
         "running": "Repairing...",
-        "startQuick": "Start Repair",
-        "startDeep": "Start Repair",
         "progress": {
           "queued": "Starting repair task...",
           "collectInstances": "Collecting Codex instances...",
@@ -2957,9 +2964,9 @@
           "pruneBackups": "Cleaning old backups...",
           "done": "Repair complete",
           "writeSqliteProvider": "Writing SQLite visibility for {{instance}}...",
-          "writeRolloutFiles": "Skipping legacy session file writes...",
+          "writeRolloutFiles": "Writing legacy session files...",
           "writeSqliteTimestamps": "Fixing SQLite timestamps for {{instance}}...",
-          "writeSessionIndex": "Skipping legacy index writes..."
+          "writeSessionIndex": "Writing session_index..."
         },
         "targetProvider": "Target provider",
         "defaultProvider": "Default",
@@ -4697,7 +4704,8 @@
       "desktop": "Desktop",
       "oauth": "OAuth",
       "apiKey": "API Key",
-      "import": "Local/JSON"
+      "import": "Local/JSON",
+      "desktopGateway": "Gateway"
     },
     "authMode": {
       "oauth": "OAuth",
@@ -4716,6 +4724,7 @@
       "hint": "API Key accounts are only for Claude CLI. They are written as plaintext env values in Claude Code settings.json, do not affect Claude Desktop sign-in state, and do not support subscription quota refresh.",
       "importAction": "Import API Key",
       "required": "Enter an API Key",
+      "templateRequired": "Enter {{label}}",
       "importSuccess": "Claude API Key account imported: {{name}}",
       "quotaUnsupported": "API Key accounts do not support refresh",
       "switchDisabled": "API Key accounts cannot be switched into Claude Desktop",
@@ -4733,7 +4742,9 @@
       "title": "Claude Desktop sign-in",
       "desc": "Open the Claude sign-in window inside this tool, with Google, Apple, email, and free account support.",
       "start": "Open sign-in",
+      "preparingRuntime": "Preparing sign-in...",
       "hint": "The sign-in state is saved to this tool's local account vault first and is not written to official Claude Desktop until you switch accounts.",
+      "runtimeHint": "First use may download and verify the Electron sign-in component into the local app data folder; it is not bundled in the installer and is reused afterward.",
       "nameLabel": "Account name",
       "namePlaceholder": "Optional, for example Claude Free",
       "waiting": "Finish signing in in the opened Claude authorization window. When the chat page appears, return here and complete the import.",
@@ -4804,6 +4815,36 @@
       "signedInWith": "Signed in with {{provider}}",
       "userId": "User ID",
       "nickname": "Nickname"
+    },
+    "desktopGateway": {
+      "label": "Gateway",
+      "authScheme": "Auth Scheme",
+      "importAction": "Import Gateway",
+      "importSuccess": "Claude Desktop Gateway account imported: {{name}}",
+      "baseUrlRequired": "Enter the Gateway Base URL",
+      "noQuota": "Gateway accounts do not show Claude subscription quota",
+      "desc": "Save a Gateway API key as a Claude Desktop 3P configuration. Switching writes it to a managed profile and starts the official Claude Desktop app.",
+      "hint": "Gateway accounts do not read Claude subscription details. The API key is written to a managed profile using the official 3P config for Claude Desktop startup.",
+      "modelsLabel": "Model Catalog",
+      "modelsEmpty": "This Gateway returned no models.",
+      "modelsLoaded": "Loaded {{count}} models. You can edit them before saving.",
+      "modelsLoadFailed": "Failed to fetch models: {{error}}.",
+      "manualModels": "Manual Models",
+      "modelsPlaceholder": "One model ID per line",
+      "modelsLoading": "Loading model catalog...",
+      "modelsRequired": "Enter the model catalog",
+      "editTitle": "Edit Claude Desktop Gateway",
+      "updateAction": "Save Gateway",
+      "updateSuccess": "Claude Desktop Gateway account updated: {{name}}",
+      "connectionMode": "Connection",
+      "modeDirect": "Direct",
+      "modeLocalMapping": "Local mapping",
+      "mappingsRequired": "Configure model mappings",
+      "mappingDesktopModelInvalid": "Left-side models must be Claude model names recognized by Claude Desktop",
+      "directModelsInvalid": "Direct mode only supports Claude model names recognized by Claude Desktop",
+      "desktopModelPlaceholder": "Claude Desktop model",
+      "upstreamModelPlaceholder": "Upstream model",
+      "addMapping": "Add mapping"
     }
   }
 }

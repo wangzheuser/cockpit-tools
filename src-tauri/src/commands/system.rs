@@ -2818,7 +2818,9 @@ pub fn set_app_path(app: String, path: String) -> Result<(), String> {
     let mut current = config::get_user_config();
     let normalized_path = path.trim().to_string();
     match app.as_str() {
-        "antigravity" => current.antigravity_app_path = normalized_path,
+        "antigravity" | "antigravity_ide" | "antigravity_legacy" => {
+            current.antigravity_app_path = normalized_path
+        }
         "codex" => current.codex_app_path = normalized_path,
         "claude" => current.claude_app_path = normalized_path,
         "zed" => current.zed_app_path = normalized_path,
@@ -2874,11 +2876,10 @@ pub fn detect_app_path(app: String, force: Option<bool>) -> Result<Option<String
         )),
         "cursor" => Ok(modules::cursor_instance::detect_and_save_cursor_launch_path(force)),
         "claude" => Ok(modules::claude_instance::detect_and_save_claude_launch_path(force)),
-        "antigravity" | "codex" | "zed" | "vscode" | "codebuddy" | "codebuddy_cn" | "qoder"
-        | "trae" | "opencode" | "workbuddy" => Ok(modules::process::detect_and_save_app_path(
-            app.as_str(),
-            force,
-        )),
+        "antigravity" | "antigravity_ide" | "antigravity_legacy" | "codex" | "zed" | "vscode"
+        | "codebuddy" | "codebuddy_cn" | "qoder" | "trae" | "opencode" | "workbuddy" => Ok(
+            modules::process::detect_and_save_app_path(app.as_str(), force),
+        ),
         _ => Err("未知应用类型".to_string()),
     }
 }

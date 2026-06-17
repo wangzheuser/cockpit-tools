@@ -3039,6 +3039,7 @@ mod imp {
         matches!(
             account.auth_mode,
             crate::models::claude::ClaudeAuthMode::DesktopOAuth
+                | crate::models::claude::ClaudeAuthMode::DesktopGateway
         )
     }
 

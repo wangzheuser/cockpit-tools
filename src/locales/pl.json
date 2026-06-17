@@ -2305,7 +2305,17 @@
       },
       "empty": {
         "title": "Brak sesji do zarządzania",
-        "desc": "Nie znaleziono żadnych wpisów sesji w bieżącym zestawie instancji."
+        "desc": "Nie znaleziono żadnych wpisów sesji w bieżącym zestawie instancji.",
+        "searchTitle": "Nie znaleziono pasujących sesji",
+        "searchDesc": "Zmień słowa kluczowe tytułu."
+      },
+      "search": {
+        "titleLabel": "Tytuł",
+        "contentLabel": "Treść rozmowy",
+        "titlePlaceholder": "Szukaj po tytule",
+        "contentPlaceholder": "Szukaj w treści rozmowy",
+        "apply": "Szukaj",
+        "clear": "Wyczyść"
       },
       "messages": {
         "pickOne": "Wybierz co najmniej jedną sesję",
@@ -2339,15 +2349,7 @@
         "confirm": "Kopiuj sesje"
       },
       "repairModal": {
-        "quickTitle": "Napraw widoczność",
-        "quickDesc": "Aktualizuje wpisy oficjalnej state DB Codex dla panelu bocznego.",
-        "deepTitle": "Napraw widoczność",
-        "deepDesc": "Aktualizuje wpisy oficjalnej state DB Codex dla panelu bocznego.",
-        "quickProgressTitle": "Postęp naprawy",
-        "deepProgressTitle": "Postęp naprawy",
         "running": "Naprawianie...",
-        "startQuick": "Napraw",
-        "startDeep": "Napraw",
         "progress": {
           "queued": "Uruchamianie naprawy...",
           "collectInstances": "Zbieranie instancji Codex...",
@@ -2359,9 +2361,9 @@
           "pruneBackups": "Czyszczenie starych kopii...",
           "done": "Naprawa zakończona",
           "writeSqliteProvider": "Zapisywanie widoczności SQLite dla {{instance}}...",
-          "writeRolloutFiles": "Pomijanie zapisu starych plików sesji...",
+          "writeRolloutFiles": "Zapisywanie starych plików sesji...",
           "writeSqliteTimestamps": "Poprawianie czasów SQLite dla {{instance}}...",
-          "writeSessionIndex": "Pomijanie zapisu starego indeksu..."
+          "writeSessionIndex": "Zapisywanie session_index..."
         },
         "targetProvider": "Docelowy provider",
         "defaultProvider": "Domyślny",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "Claude dodany",
       "addToCodex": "Dodaj do Codex",
       "addToClaude": "Dodaj do Claude CLI",
+      "addToClaudeDesktop": "Dodaj do Claude Desktop",
+      "addToClaudeCli": "Dodaj do Claude CLI",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "Ustawienia APIKEY.FUN są uzupełnione. Potwierdź dodanie do Claude Desktop."
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
@@ -4688,7 +4695,8 @@
       "desktop": "Pulpit",
       "oauth": "OAuth",
       "apiKey": "Klucz API",
-      "import": "Lokalnie/JSON"
+      "import": "Lokalnie/JSON",
+      "desktopGateway": "Brama"
     },
     "authMode": {
       "oauth": "Tryb OAuth",
@@ -4707,6 +4715,7 @@
       "hint": "Konta API Key są tylko dla Claude CLI. Są zapisywane jako jawne env w Claude Code settings.json, nie wpływają na Claude Desktop i nie obsługują odświeżania limitu subskrypcji.",
       "importAction": "Importuj API Key",
       "required": "Wpisz API Key",
+      "templateRequired": "Wpisz {{label}}",
       "importSuccess": "Konto Claude API Key zaimportowane: {{name}}",
       "quotaUnsupported": "Konta API Key nie obsługują odświeżania",
       "switchDisabled": "Konta API Key nie można przełączyć do Claude Desktop",
@@ -4724,7 +4733,9 @@
       "title": "Logowanie Claude Desktop",
       "desc": "Logowanie Claude w tym narzędziu; obsługuje Google, Apple, e-mail i free.",
       "start": "Otwórz",
+      "preparingRuntime": "Przygotowuję...",
       "hint": "Najpierw lokalnie; zapis do Claude Desktop przy przełączeniu.",
+      "runtimeHint": "Przy pierwszym użyciu komponent logowania Electron może zostać pobrany i zweryfikowany w lokalnym folderze danych aplikacji; nie jest dołączony do instalatora i później jest używany z pamięci podręcznej.",
       "nameLabel": "Nazwa konta",
       "namePlaceholder": "Opcjonalnie, np. Claude Free",
       "waiting": "Zaloguj się w oknie Claude i zakończ import tutaj.",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "Szukaj kont Claude Desktop...",
     "searchCli": "Szukaj kont Claude CLI...",
     "noDesktopAccounts": "Brak kont Claude Desktop",
-    "noCliAccounts": "Brak kont Claude CLI"
+    "noCliAccounts": "Brak kont Claude CLI",
+    "desktopGateway": {
+      "label": "Brama",
+      "authScheme": "Schemat auth",
+      "importAction": "Importuj Gateway",
+      "importSuccess": "Konto Claude Desktop Gateway zaimportowane: {{name}}",
+      "baseUrlRequired": "Wpisz Gateway Base URL",
+      "noQuota": "Konta Gateway nie pokazują limitu subskrypcji Claude",
+      "desc": "Zapisuje Gateway API Key jako konfigurację Claude Desktop 3P. Przy przełączeniu zapisuje ją w profilu zarządzanym i uruchamia oficjalny Claude Desktop.",
+      "hint": "Konta Gateway nie odczytują danych subskrypcji Claude. API Key trafia do profilu zarządzanego jako oficjalna konfiguracja 3P.",
+      "modelsLabel": "Katalog modeli",
+      "modelsEmpty": "Ten Gateway nie zwrócił modeli.",
+      "modelsLoaded": "Pobrano {{count}} modeli. Możesz je zmienić przed zapisem.",
+      "modelsLoadFailed": "Nie udało się pobrać modeli: {{error}}.",
+      "manualModels": "Modele ręczne",
+      "modelsPlaceholder": "Jedno ID modelu w wierszu",
+      "modelsLoading": "Wczytywanie katalogu modeli...",
+      "modelsRequired": "Wpisz katalog modeli",
+      "editTitle": "Edytuj Claude Desktop Gateway",
+      "updateAction": "Zapisz Gateway",
+      "updateSuccess": "Konto Claude Desktop Gateway zaktualizowane: {{name}}",
+      "connectionMode": "Połączenie",
+      "modeDirect": "Bezpośrednio",
+      "modeLocalMapping": "Mapowanie lokalne",
+      "mappingsRequired": "Skonfiguruj mapowanie modeli",
+      "mappingDesktopModelInvalid": "Po lewej muszą być modele Claude rozpoznawane przez Claude Desktop",
+      "directModelsInvalid": "Tryb bezpośredni obsługuje tylko modele Claude rozpoznawane przez Claude Desktop",
+      "desktopModelPlaceholder": "Model Claude Desktop",
+      "upstreamModelPlaceholder": "Rzeczywisty model upstream",
+      "addMapping": "Dodaj mapowanie"
+    }
   }
 }

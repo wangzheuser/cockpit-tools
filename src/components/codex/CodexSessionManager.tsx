@@ -1,7 +1,7 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { confirm as confirmDialog } from '@tauri-apps/plugin-dialog';
-import { Check, ChevronDown, ChevronRight, Copy, Eye, Folder, RefreshCw, RotateCcw, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Copy, Eye, Folder, RefreshCw, RotateCcw, Search, Trash2, X } from 'lucide-react';
 import { ModalErrorMessage, useModalErrorState } from '../ModalErrorMessage';
 import { SingleSelectDropdown, type SingleSelectOption } from '../SingleSelectDropdown';
 import { useEscClose } from '../../hooks/useEscClose';
@@ -172,6 +172,8 @@ export function CodexSessionManager() {
   const [tokenStatsBySessionId, setTokenStatsBySessionId] = useState<SessionTokenStatsMap>({});
   const [loadingTokenGroupCwds, setLoadingTokenGroupCwds] = useState<string[]>([]);
   const [loadedTokenGroupCwds, setLoadedTokenGroupCwds] = useState<string[]>([]);
+  const [titleSearchInput, setTitleSearchInput] = useState('');
+  const [appliedTitleSearch, setAppliedTitleSearch] = useState('');
   const {
     message: restoreModalError,
     scrollKey: restoreModalErrorScrollKey,
@@ -229,6 +231,8 @@ export function CodexSessionManager() {
   }, [selectedSessions, syncTargetInstance]);
   const allSessionsSelected = allSessionIds.length > 0 && allSessionIds.every((id) => selectedIdSet.has(id));
   const instanceCount = instances.length;
+  const hasAppliedSearch = Boolean(appliedTitleSearch);
+  const hasSearchInput = Boolean(titleSearchInput.trim());
 
   const loadSessions = useCallback(async () => {
     if (loadSessionsPromiseRef.current) {
@@ -238,7 +242,9 @@ export function CodexSessionManager() {
     const task = (async () => {
       setLoading(true);
       try {
-        const nextSessions = await listSessionsAcrossInstances();
+        const nextSessions = await listSessionsAcrossInstances({
+          titleQuery: appliedTitleSearch || null,
+        });
         const nextGroups = buildGroups(nextSessions);
         const hasInitializedExpandedGroups = hasInitializedExpandedGroupsRef.current;
         tokenStatsVersionRef.current += 1;
@@ -272,7 +278,7 @@ export function CodexSessionManager() {
         loadSessionsPromiseRef.current = null;
       }
     }
-  }, [listSessionsAcrossInstances]);
+  }, [appliedTitleSearch, listSessionsAcrossInstances]);
 
   const loadTokenStatsForGroups = useCallback(
     async (groups: SessionGroup[]) => {
@@ -338,6 +344,18 @@ export function CodexSessionManager() {
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
+
+  useEffect(() => {
+    const nextTitleQuery = titleSearchInput.trim();
+    const timer = window.setTimeout(() => {
+      setMessage(null);
+      setAppliedTitleSearch((current) => (current === nextTitleQuery ? current : nextTitleQuery));
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [titleSearchInput]);
 
   useEffect(() => {
     const groupsToLoad = groupedSessions.filter(
@@ -525,6 +543,17 @@ export function CodexSessionManager() {
     }
   };
 
+  const handleClearSearch = () => {
+    setTitleSearchInput('');
+    setMessage(null);
+
+    if (!appliedTitleSearch) {
+      return;
+    }
+
+    setAppliedTitleSearch('');
+  };
+
   const handleRepairVisibility = async () => {
     setMessage(null);
     setShowRepairVisibilityModal(true);
@@ -616,6 +645,29 @@ export function CodexSessionManager() {
   return (
     <section className="codex-session-manager">
       <div className="codex-session-manager__header">
+        <div className="codex-session-manager__search">
+          <label className="codex-session-search-field">
+            <div className="codex-session-search-field__control">
+              <Search size={14} />
+              <input
+                type="text"
+                value={titleSearchInput}
+                onChange={(event) => setTitleSearchInput(event.target.value)}
+                placeholder={t('codex.sessionManager.search.titlePlaceholder', '按标题搜索')}
+                disabled={loading}
+              />
+            </div>
+          </label>
+          <button
+            className="btn btn-secondary codex-session-manager__search-button"
+            type="button"
+            onClick={handleClearSearch}
+            disabled={loading || (!hasSearchInput && !hasAppliedSearch)}
+          >
+            <X size={14} />
+            {t('codex.sessionManager.search.clear', '清空')}
+          </button>
+        </div>
         <div className="codex-session-manager__actions">
           <button
             className="btn btn-secondary codex-session-manager__action-button"
@@ -713,8 +765,16 @@ export function CodexSessionManager() {
       {!loading && groupedSessions.length === 0 ? (
         <div className="empty-state codex-session-manager__empty">
           <Folder size={42} className="empty-icon" />
-          <h3>{t('codex.sessionManager.empty.title', '还没有可管理的会话')}</h3>
-          <p>{t('codex.sessionManager.empty.desc', '当前实例集合中还没有发现会话记录。')}</p>
+          <h3>
+            {hasAppliedSearch
+              ? t('codex.sessionManager.empty.searchTitle', '未找到匹配会话')
+              : t('codex.sessionManager.empty.title', '还没有可管理的会话')}
+          </h3>
+          <p>
+            {hasAppliedSearch
+              ? t('codex.sessionManager.empty.searchDesc', '请调整标题关键词后再试。')
+              : t('codex.sessionManager.empty.desc', '当前实例集合中还没有发现会话记录。')}
+          </p>
         </div>
       ) : null}
 

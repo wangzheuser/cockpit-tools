@@ -108,11 +108,17 @@ function renderEntryIcon(entry: SideNavEntry, size: number) {
   }
 
   if (entry.group) {
-    const iconPlatform = entry.group.iconPlatformId ?? entry.targetPlatformId;
+    const iconPlatform = isAntigravitySuitePlatformIds(entry.group.platformIds)
+      ? entry.targetPlatformId
+      : entry.group.iconPlatformId ?? entry.targetPlatformId;
     return iconPlatform ? renderPlatformIcon(iconPlatform, size) : null;
   }
 
   return entry.targetPlatformId ? renderPlatformIcon(entry.targetPlatformId, size) : null;
+}
+
+function isAntigravitySuitePlatformIds(platformIds: PlatformId[]): boolean {
+  return platformIds.includes('antigravity') && platformIds.includes('antigravity_ide');
 }
 
 export function SideNav({
@@ -233,9 +239,12 @@ export function SideNav({
 
         const resolvedTargetPlatformId = resolveEntryDefaultPlatformId(entryId, platformGroups);
         const targetPlatformId =
-          resolvedTargetPlatformId && visiblePlatformIds.includes(resolvedTargetPlatformId)
-            ? resolvedTargetPlatformId
-            : visiblePlatformIds[0];
+          isAntigravitySuitePlatformIds(group.platformIds)
+            && visiblePlatformIds.includes(antigravityRuntimeTarget)
+            ? antigravityRuntimeTarget
+            : resolvedTargetPlatformId && visiblePlatformIds.includes(resolvedTargetPlatformId)
+              ? resolvedTargetPlatformId
+              : visiblePlatformIds[0];
         if (!targetPlatformId) {
           return null;
         }
@@ -275,6 +284,7 @@ export function SideNav({
     platformGroups,
     hiddenSet,
     isPlatformAvailable,
+    antigravityRuntimeTarget,
     t,
   ]);
 

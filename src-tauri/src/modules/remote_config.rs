@@ -13,7 +13,7 @@ const REMOTE_CONFIG_CACHE_FILE: &str = "remote_config_cache.json";
 const REMOTE_CONFIG_LOCAL_OVERRIDE_FILE: &str = "remote-config.local.json";
 const CACHE_TTL_MS: i64 = 3_600_000;
 const DEFAULT_REFRESH_INTERVAL_MS: i64 = 3_600_000;
-const BUILTIN_HIDDEN_PLATFORM_IDS: &[&str] = &["claude", "claude_cli"];
+const BUILTIN_HIDDEN_PLATFORM_IDS: &[&str] = &[];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

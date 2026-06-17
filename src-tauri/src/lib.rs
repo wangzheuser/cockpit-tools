@@ -409,6 +409,9 @@ pub fn run() {
             commands::claude::delete_claude_accounts,
             commands::claude::import_claude_from_json,
             commands::claude::import_claude_api_key,
+            commands::claude::import_claude_desktop_gateway,
+            commands::claude::update_claude_desktop_gateway,
+            commands::claude::claude_desktop_gateway_list_models,
             commands::claude::claude_oauth_login_prepare,
             commands::claude::claude_oauth_login_start,
             commands::claude::claude_oauth_login_complete,
@@ -963,6 +966,15 @@ pub fn run() {
             commands::instance::stop_instance,
             commands::instance::open_instance_window,
             commands::instance::close_all_instances,
+            commands::antigravity_legacy_instance::antigravity_legacy_get_instance_defaults,
+            commands::antigravity_legacy_instance::antigravity_legacy_list_instances,
+            commands::antigravity_legacy_instance::antigravity_legacy_create_instance,
+            commands::antigravity_legacy_instance::antigravity_legacy_update_instance,
+            commands::antigravity_legacy_instance::antigravity_legacy_delete_instance,
+            commands::antigravity_legacy_instance::antigravity_legacy_start_instance,
+            commands::antigravity_legacy_instance::antigravity_legacy_stop_instance,
+            commands::antigravity_legacy_instance::antigravity_legacy_open_instance_window,
+            commands::antigravity_legacy_instance::antigravity_legacy_close_all_instances,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

@@ -17,8 +17,12 @@ const SESSION_INDEX_FILE: &str = "session_index.jsonl";
 const SESSION_DIRS: [&str; 2] = ["sessions", "archived_sessions"];
 const SESSION_TRASH_ROOT_DIR: &str = "cockpit-tools-codex-session-trash";
 const TOKEN_STATS_READ_CHUNK_BYTES: usize = 64 * 1024;
+const CONTENT_SEARCH_READ_CHUNK_BYTES: usize = 64 * 1024;
+const CONTENT_SEARCH_CACHE_MAX_ENTRIES: usize = 512;
 
 static TOKEN_STATS_CACHE: LazyLock<Mutex<HashMap<PathBuf, TokenStatsCacheEntry>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+static CONTENT_SEARCH_CACHE: LazyLock<Mutex<HashMap<ContentSearchCacheKey, bool>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Clone, Serialize)]
@@ -86,6 +90,12 @@ pub struct CodexSessionRestoreSummary {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct CodexSessionSearchFilter {
+    pub title_query: Option<String>,
+    pub content_query: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 struct CodexSyncInstance {
     id: String,
@@ -127,8 +137,19 @@ struct TrashedSessionEntry {
     trashed_rollout_path: PathBuf,
 }
 
+#[derive(Debug, Clone)]
+struct TrashRoot {
+    path: PathBuf,
+    optional: bool,
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 struct RestoreTrashedSessionOutcome {
+    metadata_rebuild_failed: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct TrashSnapshotsOutcome {
     metadata_rebuild_failed: bool,
 }
 
@@ -137,6 +158,14 @@ struct TokenStatsCacheEntry {
     file_len: u64,
     modified_at: Option<SystemTime>,
     stats: Option<(u64, u64, u64)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct ContentSearchCacheKey {
+    rollout_path: PathBuf,
+    query: String,
+    file_len: u64,
+    modified_at_nanos: Option<u128>,
 }
 
 /// 从 rollout JSONL 文件中读取 token 统计信息
@@ -275,14 +304,30 @@ fn parse_token_stats_lines(content: &[u8]) -> Option<(u64, u64, u64)> {
     None
 }
 
-pub fn list_sessions_across_instances() -> Result<Vec<CodexSessionRecord>, String> {
+pub fn list_sessions_across_instances(
+    title_query: Option<String>,
+    content_query: Option<String>,
+) -> Result<Vec<CodexSessionRecord>, String> {
+    let filter = CodexSessionSearchFilter {
+        title_query: normalize_search_query(title_query),
+        content_query: normalize_content_search_query(content_query),
+    };
     let instances = collect_instances()?;
     let process_entries = modules::process::collect_codex_process_entries();
     let mut session_map = HashMap::<String, CodexSessionRecord>::new();
+    let has_search_filter = filter.title_query.is_some() || filter.content_query.is_some();
+    let mut matched_session_ids = HashSet::<String>::new();
 
     for instance in &instances {
         let running = is_instance_running(instance, &process_entries);
         for snapshot in load_thread_snapshots(instance)? {
+            if !has_search_filter
+                || matched_session_ids.contains(&snapshot.id)
+                || matches_session_search_filter(&snapshot, &filter)?
+            {
+                matched_session_ids.insert(snapshot.id.clone());
+            }
+
             let entry =
                 session_map
                     .entry(snapshot.id.clone())
@@ -314,7 +359,10 @@ pub fn list_sessions_across_instances() -> Result<Vec<CodexSessionRecord>, Strin
         }
     }
 
-    let mut sessions = session_map.into_values().collect::<Vec<_>>();
+    let mut sessions = session_map
+        .into_values()
+        .filter(|session| !has_search_filter || matched_session_ids.contains(&session.session_id))
+        .collect::<Vec<_>>();
     sessions.sort_by(|left, right| {
         right
             .updated_at
@@ -324,6 +372,151 @@ pub fn list_sessions_across_instances() -> Result<Vec<CodexSessionRecord>, Strin
             .then_with(|| left.title.cmp(&right.title))
     });
     Ok(sessions)
+}
+
+fn normalize_search_query(value: Option<String>) -> Option<String> {
+    value
+        .map(|item| item.trim().to_lowercase())
+        .filter(|item| !item.is_empty())
+}
+
+fn normalize_content_search_query(value: Option<String>) -> Option<String> {
+    value
+        .map(|item| item.trim().to_string())
+        .filter(|item| !item.is_empty())
+}
+
+fn matches_session_search_filter(
+    snapshot: &ThreadSnapshot,
+    filter: &CodexSessionSearchFilter,
+) -> Result<bool, String> {
+    if let Some(query) = filter.title_query.as_deref() {
+        if !text_contains_query(&snapshot.title, query) {
+            return Ok(false);
+        }
+    }
+
+    if let Some(query) = filter.content_query.as_deref() {
+        if !rollout_conversation_contains_query(&snapshot.rollout_path, query)? {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
+}
+
+fn text_contains_query(value: &str, query: &str) -> bool {
+    value.to_lowercase().contains(query)
+}
+
+fn rollout_conversation_contains_query(path: &Path, query: &str) -> Result<bool, String> {
+    let cache_key = content_search_cache_key(path, query);
+    if let Some(key) = cache_key.as_ref() {
+        let cache = CONTENT_SEARCH_CACHE
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(cached) = cache.get(key) {
+            return Ok(*cached);
+        }
+    }
+
+    let matched = rollout_conversation_contains_query_uncached(path, query)?;
+    if let Some(key) = cache_key {
+        let mut cache = CONTENT_SEARCH_CACHE
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if cache.len() >= CONTENT_SEARCH_CACHE_MAX_ENTRIES {
+            cache.clear();
+        }
+        cache.insert(key, matched);
+    }
+
+    Ok(matched)
+}
+
+fn content_search_cache_key(path: &Path, query: &str) -> Option<ContentSearchCacheKey> {
+    let metadata = fs::metadata(path).ok()?;
+    let modified_at_nanos = metadata
+        .modified()
+        .ok()
+        .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|value| value.as_nanos());
+
+    Some(ContentSearchCacheKey {
+        rollout_path: path.to_path_buf(),
+        query: query.to_string(),
+        file_len: metadata.len(),
+        modified_at_nanos,
+    })
+}
+
+fn rollout_conversation_contains_query_uncached(path: &Path, query: &str) -> Result<bool, String> {
+    let mut file = fs::File::open(path)
+        .map_err(|error| format!("打开 rollout 文件失败 ({}): {}", path.display(), error))?;
+    let query_bytes = query.as_bytes();
+    if query_bytes.is_empty() {
+        return Ok(true);
+    }
+
+    let mut chunk = vec![0u8; CONTENT_SEARCH_READ_CHUNK_BYTES];
+    let mut carry = Vec::<u8>::new();
+    let keep_len = query_bytes.len().saturating_sub(1);
+
+    loop {
+        let bytes_read = file
+            .read(&mut chunk)
+            .map_err(|error| format!("读取 rollout 文件失败 ({}): {}", path.display(), error))?;
+        if bytes_read == 0 {
+            break;
+        }
+
+        let mut haystack = Vec::with_capacity(carry.len() + bytes_read);
+        haystack.extend_from_slice(&carry);
+        haystack.extend_from_slice(&chunk[..bytes_read]);
+        if raw_bytes_contains_normalized_query(&haystack, query_bytes, query.is_ascii()) {
+            return Ok(true);
+        }
+
+        if keep_len == 0 {
+            carry.clear();
+        } else {
+            let next_carry_len = keep_len.min(haystack.len());
+            carry.clear();
+            carry.extend_from_slice(&haystack[haystack.len() - next_carry_len..]);
+        }
+    }
+
+    Ok(false)
+}
+
+fn raw_bytes_contains_normalized_query(
+    value: &[u8],
+    query: &[u8],
+    ascii_case_insensitive: bool,
+) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+    if ascii_case_insensitive {
+        return ascii_case_insensitive_contains(value, query);
+    }
+    value.windows(query.len()).any(|window| window == query)
+}
+
+fn ascii_case_insensitive_contains(value: &[u8], query: &[u8]) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+    if query.len() > value.len() {
+        return false;
+    }
+
+    value.windows(query.len()).any(|window| {
+        window
+            .iter()
+            .zip(query.iter())
+            .all(|(left, right)| left.eq_ignore_ascii_case(right))
+    })
 }
 
 pub fn get_session_token_stats_across_instances(
@@ -394,6 +587,7 @@ pub fn move_sessions_to_trash_across_instances(
     let mut trashed_session_ids = HashSet::new();
     let mut trashed_instance_count = 0usize;
     let mut mutated_running_instance_count = 0usize;
+    let mut metadata_rebuild_failed_count = 0usize;
 
     for instance in &instances {
         let snapshots = load_thread_snapshots(instance)?
@@ -408,7 +602,10 @@ pub fn move_sessions_to_trash_across_instances(
             mutated_running_instance_count += 1;
         }
 
-        trash_snapshots_for_instance(instance, &trash_root, &snapshots)?;
+        let outcome = trash_snapshots_for_instance(instance, &trash_root, &snapshots)?;
+        if outcome.metadata_rebuild_failed {
+            metadata_rebuild_failed_count += 1;
+        }
         trashed_instance_count += 1;
         for snapshot in snapshots {
             trashed_session_ids.insert(snapshot.id);
@@ -425,7 +622,7 @@ pub fn move_sessions_to_trash_across_instances(
         });
     }
 
-    let message = if mutated_running_instance_count > 0 {
+    let mut message = if mutated_running_instance_count > 0 {
         format!(
             "已将 {} 条会话移到废纸篓，并已触发官方 Codex 重建会话索引；运行中的实例可能需要刷新或重启后显示",
             trashed_session_ids.len()
@@ -436,6 +633,12 @@ pub fn move_sessions_to_trash_across_instances(
             trashed_session_ids.len()
         )
     };
+    if metadata_rebuild_failed_count > 0 {
+        message.push_str(&format!(
+            "；{} 个实例的官方侧边栏索引重建未完成，重启 Codex 后会重新加载",
+            metadata_rebuild_failed_count
+        ));
+    }
 
     Ok(CodexSessionTrashSummary {
         requested_session_count: requested_ids.len(),
@@ -729,21 +932,38 @@ fn trash_snapshots_for_instance(
     instance: &CodexSyncInstance,
     trash_root: &Path,
     snapshots: &[ThreadSnapshot],
-) -> Result<(), String> {
+) -> Result<TrashSnapshotsOutcome, String> {
+    trash_snapshots_for_instance_with_rebuild(instance, trash_root, snapshots, |data_dir| {
+        modules::codex_official_app_server::rebuild_thread_metadata(data_dir)
+    })
+}
+
+fn trash_snapshots_for_instance_with_rebuild<F>(
+    instance: &CodexSyncInstance,
+    trash_root: &Path,
+    snapshots: &[ThreadSnapshot],
+    rebuild_metadata: F,
+) -> Result<TrashSnapshotsOutcome, String>
+where
+    F: FnOnce(&Path) -> Result<(), String>,
+{
     for snapshot in snapshots {
         move_snapshot_rollout_to_trash(instance, trash_root, snapshot)?;
     }
 
     rewrite_session_index_without_ids(&instance.data_dir, snapshots)?;
-    modules::codex_official_app_server::rebuild_thread_metadata(&instance.data_dir).map_err(
-        |error| {
-            format!(
-                "会话文件已移到废纸篓，但官方 Codex 重建会话索引失败 ({}): {}",
-                instance.name, error
-            )
-        },
-    )?;
-    Ok(())
+    let mut metadata_rebuild_failed = false;
+    if let Err(error) = rebuild_metadata(&instance.data_dir) {
+        metadata_rebuild_failed = true;
+        modules::logger::log_warn(&format!(
+            "会话文件已移到废纸篓，但官方 Codex 重建会话索引失败 ({}): {}",
+            instance.name, error
+        ));
+    }
+
+    Ok(TrashSnapshotsOutcome {
+        metadata_rebuild_failed,
+    })
 }
 
 fn create_trash_root_dir() -> Result<PathBuf, String> {
@@ -754,8 +974,29 @@ fn create_trash_root_dir() -> Result<PathBuf, String> {
 }
 
 fn get_session_trash_base_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("无法获取用户主目录")?;
-    Ok(home.join(".Trash").join(SESSION_TRASH_ROOT_DIR))
+    Ok(modules::account::get_data_dir()?.join(SESSION_TRASH_ROOT_DIR))
+}
+
+fn get_legacy_session_trash_base_dir() -> Option<PathBuf> {
+    let home = dirs::home_dir()?;
+    Some(home.join(".Trash").join(SESSION_TRASH_ROOT_DIR))
+}
+
+fn get_session_trash_roots_for_read() -> Result<Vec<TrashRoot>, String> {
+    let primary = get_session_trash_base_dir()?;
+    let mut roots = vec![TrashRoot {
+        path: primary.clone(),
+        optional: false,
+    }];
+    if let Some(legacy) = get_legacy_session_trash_base_dir() {
+        if legacy != primary {
+            roots.push(TrashRoot {
+                path: legacy,
+                optional: true,
+            });
+        }
+    }
+    Ok(roots)
 }
 
 fn move_snapshot_rollout_to_trash(
@@ -1014,7 +1255,40 @@ fn parse_deleted_at(value: Option<&str>) -> Option<i64> {
 }
 
 fn load_trash_entries() -> Result<Vec<TrashedSessionEntry>, String> {
-    let root = get_session_trash_base_dir()?;
+    load_trash_entries_from_roots(&get_session_trash_roots_for_read()?)
+}
+
+fn load_trash_entries_from_roots(roots: &[TrashRoot]) -> Result<Vec<TrashedSessionEntry>, String> {
+    let mut entries = Vec::new();
+
+    for root in roots {
+        let mut root_entries = match load_trash_entries_from_root(root) {
+            Ok(root_entries) => root_entries,
+            Err(error) if root.optional => {
+                modules::logger::log_warn(&format!(
+                    "跳过旧会话废纸篓目录，读取失败 ({}): {}",
+                    root.path.display(),
+                    error
+                ));
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
+        entries.append(&mut root_entries);
+    }
+
+    entries.sort_by(|left, right| {
+        parse_deleted_at(right.manifest.deleted_at.as_deref())
+            .unwrap_or_default()
+            .cmp(&parse_deleted_at(left.manifest.deleted_at.as_deref()).unwrap_or_default())
+            .then_with(|| left.manifest.session_id.cmp(&right.manifest.session_id))
+            .then_with(|| left.manifest.instance_id.cmp(&right.manifest.instance_id))
+    });
+    Ok(entries)
+}
+
+fn load_trash_entries_from_root(root: &TrashRoot) -> Result<Vec<TrashedSessionEntry>, String> {
+    let root = &root.path;
     if !root.exists() {
         return Ok(Vec::new());
     }
@@ -1094,13 +1368,6 @@ fn load_trash_entries() -> Result<Vec<TrashedSessionEntry>, String> {
         }
     }
 
-    entries.sort_by(|left, right| {
-        parse_deleted_at(right.manifest.deleted_at.as_deref())
-            .unwrap_or_default()
-            .cmp(&parse_deleted_at(left.manifest.deleted_at.as_deref()).unwrap_or_default())
-            .then_with(|| left.manifest.session_id.cmp(&right.manifest.session_id))
-            .then_with(|| left.manifest.instance_id.cmp(&right.manifest.instance_id))
-    });
     Ok(entries)
 }
 
@@ -1435,6 +1702,178 @@ mod tests {
             ),
         )
         .expect("write rollout");
+    }
+
+    #[test]
+    fn conversation_search_matches_raw_keyword_anywhere_in_rollout() {
+        let base_dir = make_temp_dir("codex-session-keyword-search-test");
+        let rollout_path = base_dir.join("rollout-keyword.jsonl");
+        fs::write(
+            &rollout_path,
+            concat!(
+                "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"output\":\"needle only appears in command output\"}}\n",
+                "{\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"中文关键字\"}}\n",
+            ),
+        )
+        .expect("write rollout");
+
+        assert!(
+            rollout_conversation_contains_query_uncached(&rollout_path, "NEEDLE ONLY")
+                .expect("search ascii keyword")
+        );
+        assert!(
+            rollout_conversation_contains_query_uncached(&rollout_path, "中文关键字")
+                .expect("search unicode keyword")
+        );
+        assert!(
+            !rollout_conversation_contains_query_uncached(&rollout_path, "missing")
+                .expect("search missing keyword")
+        );
+
+        fs::remove_dir_all(&base_dir).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn conversation_search_matches_keyword_across_read_chunks() {
+        let base_dir = make_temp_dir("codex-session-keyword-chunk-test");
+        let rollout_path = base_dir.join("rollout-keyword.jsonl");
+        let mut content = vec![b'a'; CONTENT_SEARCH_READ_CHUNK_BYTES - 3];
+        content.extend_from_slice(b"Sea");
+        content.extend_from_slice(b"rchable");
+        fs::write(&rollout_path, content).expect("write rollout");
+
+        assert!(
+            rollout_conversation_contains_query_uncached(&rollout_path, "searchable")
+                .expect("search chunked keyword")
+        );
+
+        fs::remove_dir_all(&base_dir).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn load_trash_entries_skips_unreadable_optional_legacy_root() {
+        let base_dir = make_temp_dir("codex-session-trash-roots-test");
+        let primary_root = base_dir.join("primary-trash");
+        let session_id = "session-1";
+        let relative_rollout_path =
+            PathBuf::from("sessions/2026/06/02").join(format!("rollout-{}.jsonl", session_id));
+        let entry_dir = primary_root
+            .join("20260613-000000")
+            .join(format!("default--{}", session_id));
+        let trashed_rollout_path = entry_dir.join("files").join(&relative_rollout_path);
+        write_rollout(&trashed_rollout_path, session_id, "trashed");
+        let instance_root = base_dir.join("codex-home");
+        fs::write(
+            entry_dir.join("manifest.json"),
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&json!({
+                    "sessionId": session_id,
+                    "title": "Restored title",
+                    "cwd": "/tmp/project",
+                    "instanceId": DEFAULT_INSTANCE_ID,
+                    "instanceName": DEFAULT_INSTANCE_NAME,
+                    "instanceRoot": instance_root,
+                    "originalRolloutPath": instance_root.join(&relative_rollout_path),
+                    "relativeRolloutPath": relative_rollout_path.to_string_lossy(),
+                    "sessionIndexEntry": {
+                        "id": session_id,
+                        "thread_name": "Restored title",
+                    },
+                    "deletedAt": "2026-06-13T00:00:00Z",
+                }))
+                .expect("serialize manifest")
+            ),
+        )
+        .expect("write manifest");
+        let legacy_root_file = base_dir.join("legacy-trash-file");
+        fs::write(&legacy_root_file, "not a directory").expect("write legacy root file");
+
+        let entries = load_trash_entries_from_roots(&[
+            TrashRoot {
+                path: primary_root,
+                optional: false,
+            },
+            TrashRoot {
+                path: legacy_root_file,
+                optional: true,
+            },
+        ])
+        .expect("load primary trash entries");
+
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].manifest.session_id, session_id);
+
+        fs::remove_dir_all(&base_dir).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn move_to_trash_keeps_file_change_when_metadata_rebuild_fails() {
+        let base_dir = make_temp_dir("codex-session-trash-rebuild-failure-test");
+        let instance_root = base_dir.join("codex-home");
+        let session_id = "session-1";
+        let other_session_id = "session-2";
+        let rollout_path = instance_root
+            .join("sessions")
+            .join("2026")
+            .join("06")
+            .join("02")
+            .join(format!("rollout-{}.jsonl", session_id));
+        write_rollout(&rollout_path, session_id, "active");
+        fs::write(
+            instance_root.join(SESSION_INDEX_FILE),
+            format!(
+                "{{\"id\":\"{}\",\"thread_name\":\"Deleted title\"}}\n{{\"id\":\"{}\",\"thread_name\":\"Kept title\"}}\n",
+                session_id, other_session_id
+            ),
+        )
+        .expect("write session index");
+
+        let instance = CodexSyncInstance {
+            id: DEFAULT_INSTANCE_ID.to_string(),
+            name: DEFAULT_INSTANCE_NAME.to_string(),
+            data_dir: instance_root.clone(),
+            last_pid: None,
+        };
+        let snapshot = ThreadSnapshot {
+            id: session_id.to_string(),
+            title: "Deleted title".to_string(),
+            cwd: "/tmp/project".to_string(),
+            updated_at: Some(1_780_362_123),
+            rollout_path: rollout_path.clone(),
+            session_index_entry: json!({
+                "id": session_id,
+                "thread_name": "Deleted title",
+            }),
+            source_root: instance_root.clone(),
+        };
+        let trash_root = base_dir
+            .join(".Trash")
+            .join(SESSION_TRASH_ROOT_DIR)
+            .join("20260613-000000");
+
+        let outcome =
+            trash_snapshots_for_instance_with_rebuild(&instance, &trash_root, &[snapshot], |_| {
+                Err("spawn denied".to_string())
+            })
+            .expect("trash should succeed with rebuild warning");
+
+        assert!(outcome.metadata_rebuild_failed);
+        assert!(!rollout_path.exists());
+        assert!(trash_root
+            .join(format!("{}--{}", DEFAULT_INSTANCE_ID, session_id))
+            .join("files")
+            .join("sessions")
+            .join("2026")
+            .join("06")
+            .join("02")
+            .join(format!("rollout-{}.jsonl", session_id))
+            .exists());
+        let index_map = read_session_index_map(&instance_root).expect("read index map");
+        assert!(!index_map.contains_key(session_id));
+        assert!(index_map.contains_key(other_session_id));
+
+        fs::remove_dir_all(&base_dir).expect("cleanup temp dir");
     }
 
     fn make_trash_entry(

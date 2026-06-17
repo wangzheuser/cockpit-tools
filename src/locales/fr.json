@@ -2305,7 +2305,17 @@
       },
       "empty": {
         "title": "Aucune session à gérer",
-        "desc": "Aucun enregistrement de session n’a été trouvé dans l’ensemble d’instances actuel."
+        "desc": "Aucun enregistrement de session n’a été trouvé dans l’ensemble d’instances actuel.",
+        "searchTitle": "Aucune session correspondante",
+        "searchDesc": "Ajustez les mots-clés du titre."
+      },
+      "search": {
+        "titleLabel": "Titre",
+        "contentLabel": "Contenu",
+        "titlePlaceholder": "Rechercher par titre",
+        "contentPlaceholder": "Rechercher dans le contenu",
+        "apply": "Rechercher",
+        "clear": "Effacer"
       },
       "messages": {
         "pickOne": "Veuillez sélectionner au moins une session",
@@ -2339,15 +2349,7 @@
         "confirm": "Copier les sessions"
       },
       "repairModal": {
-        "quickTitle": "Réparer la visibilité",
-        "quickDesc": "Met à jour les enregistrements de la state DB officielle de Codex pour la barre latérale.",
-        "deepTitle": "Réparer la visibilité",
-        "deepDesc": "Met à jour les enregistrements de la state DB officielle de Codex pour la barre latérale.",
-        "quickProgressTitle": "Progression",
-        "deepProgressTitle": "Progression",
         "running": "Réparation...",
-        "startQuick": "Démarrer",
-        "startDeep": "Démarrer",
         "progress": {
           "queued": "Démarrage de la réparation...",
           "collectInstances": "Collecte des instances Codex...",
@@ -2359,9 +2361,9 @@
           "pruneBackups": "Nettoyage des anciennes sauvegardes...",
           "done": "Réparation terminée",
           "writeSqliteProvider": "Écriture de la visibilité SQLite pour {{instance}}...",
-          "writeRolloutFiles": "Écriture des anciens fichiers de session ignorée...",
+          "writeRolloutFiles": "Écriture des anciens fichiers de session...",
           "writeSqliteTimestamps": "Correction des dates SQLite de {{instance}}...",
-          "writeSessionIndex": "Écriture de l’ancien index ignorée..."
+          "writeSessionIndex": "Écriture de session_index..."
         },
         "targetProvider": "Provider cible",
         "defaultProvider": "Par défaut",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "Claude ajouté",
       "addToCodex": "Ajouter à Codex",
       "addToClaude": "Ajouter à Claude CLI",
+      "addToClaudeDesktop": "Ajouter à Claude Desktop",
+      "addToClaudeCli": "Ajouter à Claude CLI",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "La configuration APIKEY.FUN est remplie. Confirmez l'ajout à Claude Desktop."
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
@@ -4688,7 +4695,8 @@
       "desktop": "Bureau",
       "oauth": "OAuth",
       "apiKey": "Clé API",
-      "import": "Local ou JSON"
+      "import": "Local ou JSON",
+      "desktopGateway": "Passerelle"
     },
     "authMode": {
       "oauth": "Mode OAuth",
@@ -4707,6 +4715,7 @@
       "hint": "Les comptes API Key servent uniquement à Claude CLI. Ils sont écrits en clair dans env de Claude Code settings.json, n’affectent pas Claude Desktop et ne prennent pas en charge l’actualisation du quota d’abonnement.",
       "importAction": "Importer l’API Key",
       "required": "Saisissez une API Key",
+      "templateRequired": "Saisissez {{label}}",
       "importSuccess": "Compte Claude API Key importé : {{name}}",
       "quotaUnsupported": "Les comptes API Key ne prennent pas en charge l’actualisation",
       "switchDisabled": "Un compte API Key ne peut pas basculer vers Claude Desktop",
@@ -4724,7 +4733,9 @@
       "title": "Connexion Claude Desktop",
       "desc": "Connexion Claude dans cet outil; Google, Apple, e-mail et free pris en charge.",
       "start": "Ouvrir",
+      "preparingRuntime": "Préparation...",
       "hint": "Stockage local d’abord; écriture dans Claude Desktop au changement.",
+      "runtimeHint": "Lors de la première utilisation, le composant de connexion Electron peut être téléchargé et vérifié dans le dossier local des données de l'app ; il n'est pas inclus dans l'installateur et sera réutilisé ensuite.",
       "nameLabel": "Nom du compte",
       "namePlaceholder": "Facultatif, ex. Claude Free",
       "waiting": "Connectez-vous dans la fenêtre Claude, puis terminez ici.",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "Rechercher des comptes Claude Desktop...",
     "searchCli": "Rechercher des comptes Claude CLI...",
     "noDesktopAccounts": "Aucun compte Claude Desktop pour le moment",
-    "noCliAccounts": "Aucun compte Claude CLI pour le moment"
+    "noCliAccounts": "Aucun compte Claude CLI pour le moment",
+    "desktopGateway": {
+      "label": "Passerelle",
+      "authScheme": "Schéma auth",
+      "importAction": "Importer Gateway",
+      "importSuccess": "Compte Claude Desktop Gateway importé : {{name}}",
+      "baseUrlRequired": "Saisissez la Gateway Base URL",
+      "noQuota": "Les comptes Gateway n’affichent pas le quota d’abonnement Claude",
+      "desc": "Enregistre une API Key Gateway comme configuration Claude Desktop 3P. Au changement, elle est écrite dans un profil géré puis Claude Desktop officiel démarre.",
+      "hint": "Les comptes Gateway ne lisent pas les détails d’abonnement Claude. L’API Key est écrite dans un profil géré avec la configuration 3P officielle.",
+      "modelsLabel": "Catalogue de modèles",
+      "modelsEmpty": "Ce Gateway n’a renvoyé aucun modèle.",
+      "modelsLoaded": "{{count}} modèles chargés. Vous pouvez les modifier avant l’enregistrement.",
+      "modelsLoadFailed": "Échec du chargement des modèles : {{error}}.",
+      "manualModels": "Modèles manuels",
+      "modelsPlaceholder": "Un ID de modèle par ligne",
+      "modelsLoading": "Chargement du catalogue...",
+      "modelsRequired": "Renseignez le catalogue de modèles",
+      "editTitle": "Modifier Claude Desktop Gateway",
+      "updateAction": "Enregistrer Gateway",
+      "updateSuccess": "Compte Claude Desktop Gateway mis à jour : {{name}}",
+      "connectionMode": "Connexion",
+      "modeDirect": "Direct",
+      "modeLocalMapping": "Mappage local",
+      "mappingsRequired": "Configurez le mappage des modèles",
+      "mappingDesktopModelInvalid": "À gauche, indiquez des modèles Claude reconnus par Claude Desktop",
+      "directModelsInvalid": "Le mode direct accepte seulement des modèles Claude reconnus par Claude Desktop",
+      "desktopModelPlaceholder": "Modèle Claude Desktop",
+      "upstreamModelPlaceholder": "Modèle amont réel",
+      "addMapping": "Ajouter un mappage"
+    }
   }
 }

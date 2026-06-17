@@ -2351,7 +2351,17 @@
       },
       "empty": {
         "title": "لا توجد جلسات لإدارتها",
-        "desc": "لم يتم العثور على سجلات جلسات في مجموعة المثيلات الحالية."
+        "desc": "لم يتم العثور على سجلات جلسات في مجموعة المثيلات الحالية.",
+        "searchTitle": "لم يتم العثور على جلسات مطابقة",
+        "searchDesc": "جرّب تعديل كلمات العنوان."
+      },
+      "search": {
+        "titleLabel": "العنوان",
+        "contentLabel": "محتوى المحادثة",
+        "titlePlaceholder": "ابحث حسب العنوان",
+        "contentPlaceholder": "ابحث في محتوى المحادثة",
+        "apply": "بحث",
+        "clear": "مسح"
       },
       "messages": {
         "pickOne": "يرجى تحديد جلسة واحدة على الأقل",
@@ -2385,15 +2395,7 @@
         "confirm": "نسخ الجلسات"
       },
       "repairModal": {
-        "quickTitle": "إصلاح الظهور",
-        "quickDesc": "يحدث سجلات state DB الرسمية في Codex لقائمة الجلسات الجانبية.",
-        "deepTitle": "إصلاح الظهور",
-        "deepDesc": "يحدث سجلات state DB الرسمية في Codex لقائمة الجلسات الجانبية.",
-        "quickProgressTitle": "تقدم الإصلاح",
-        "deepProgressTitle": "تقدم الإصلاح",
         "running": "جارٍ الإصلاح...",
-        "startQuick": "إصلاح",
-        "startDeep": "إصلاح",
         "progress": {
           "queued": "جارٍ بدء مهمة الإصلاح...",
           "collectInstances": "جارٍ جمع مثيلات Codex...",
@@ -2405,9 +2407,9 @@
           "pruneBackups": "جارٍ تنظيف النسخ القديمة...",
           "done": "اكتمل الإصلاح",
           "writeSqliteProvider": "جارٍ كتابة ظهور SQLite لـ {{instance}}...",
-          "writeRolloutFiles": "جار تخطي كتابة ملفات الجلسات القديمة...",
+          "writeRolloutFiles": "جارٍ كتابة ملفات الجلسات القديمة...",
           "writeSqliteTimestamps": "جارٍ تصحيح أوقات SQLite لـ {{instance}}...",
-          "writeSessionIndex": "جار تخطي كتابة الفهرس القديم..."
+          "writeSessionIndex": "جارٍ كتابة session_index..."
         },
         "targetProvider": "المزوّد الهدف",
         "defaultProvider": "افتراضي",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "تمت إضافة Claude",
       "addToCodex": "إضافة إلى Codex",
       "addToClaude": "إضافة إلى Claude CLI",
+      "addToClaudeDesktop": "إضافة إلى Claude Desktop",
+      "addToClaudeCli": "إضافة إلى Claude CLI",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "تمت تعبئة إعدادات APIKEY.FUN. أكّد الإضافة إلى Claude Desktop."
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
@@ -4688,7 +4695,8 @@
       "desktop": "سطح",
       "oauth": "OAuth",
       "apiKey": "مفتاح API",
-      "import": "محلي/JSON"
+      "import": "محلي/JSON",
+      "desktopGateway": "بوابة"
     },
     "authMode": {
       "oauth": "وضع OAuth",
@@ -4707,6 +4715,7 @@
       "hint": "حسابات API Key مخصصة لـ Claude CLI فقط. تُكتب كقيم env بنص صريح في Claude Code settings.json ولا تؤثر على Claude Desktop ولا تدعم تحديث حصة الاشتراك.",
       "importAction": "استيراد API Key",
       "required": "أدخل API Key",
+      "templateRequired": "أدخل {{label}}",
       "importSuccess": "تم استيراد حساب Claude API Key: {{name}}",
       "quotaUnsupported": "حسابات API Key لا تدعم التحديث",
       "switchDisabled": "لا يمكن تحويل حساب API Key إلى Claude Desktop",
@@ -4724,7 +4733,9 @@
       "title": "تسجيل Claude Desktop",
       "desc": "تسجيل Claude داخل هذه الأداة؛ يدعم Google وApple والبريد وfree.",
       "start": "فتح الدخول",
+      "preparingRuntime": "جارٍ تجهيز الدخول...",
       "hint": "يحفظ محليا أولا ولا يكتب في Claude Desktop إلا عند التبديل.",
+      "runtimeHint": "قد يُنزّل مكوّن دخول Electron في أول استخدام إلى مجلد بيانات التطبيق المحلي بعد التحقق منه؛ لا يكون ضمن المثبّت وسيُعاد استخدامه لاحقًا.",
       "nameLabel": "اسم الحساب",
       "namePlaceholder": "اختياري، مثل Claude Free",
       "waiting": "أكمل الدخول في نافذة Claude ثم أنه الاستيراد هنا.",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "البحث في حسابات Claude Desktop...",
     "searchCli": "البحث في حسابات Claude CLI...",
     "noDesktopAccounts": "لا توجد حسابات Claude Desktop بعد",
-    "noCliAccounts": "لا توجد حسابات Claude CLI بعد"
+    "noCliAccounts": "لا توجد حسابات Claude CLI بعد",
+    "desktopGateway": {
+      "label": "بوابة",
+      "authScheme": "نظام المصادقة",
+      "importAction": "استيراد Gateway",
+      "importSuccess": "تم استيراد حساب Claude Desktop Gateway: {{name}}",
+      "baseUrlRequired": "أدخل Gateway Base URL",
+      "noQuota": "حسابات Gateway لا تعرض حصة اشتراك Claude",
+      "desc": "احفظ مفتاح Gateway API كإعداد Claude Desktop 3P. عند التبديل، يكتب في ملف profile مُدار ويشغل تطبيق Claude Desktop الرسمي.",
+      "hint": "حسابات Gateway لا تقرأ تفاصيل اشتراك Claude. يكتب مفتاح API في profile مُدار بإعداد 3P الرسمي لتشغيل Claude Desktop.",
+      "modelsLabel": "كتالوج النماذج",
+      "modelsEmpty": "لم يُرجع هذا Gateway أي نماذج.",
+      "modelsLoaded": "تم جلب {{count}} نموذجًا. يمكنك تعديلها قبل الحفظ.",
+      "modelsLoadFailed": "فشل جلب النماذج: {{error}}.",
+      "manualModels": "نماذج يدوية",
+      "modelsPlaceholder": "معرّف نموذج واحد في كل سطر",
+      "modelsLoading": "جارٍ تحميل كتالوج النماذج...",
+      "modelsRequired": "أدخل كتالوج النماذج",
+      "editTitle": "تعديل Claude Desktop Gateway",
+      "updateAction": "حفظ Gateway",
+      "updateSuccess": "تم تحديث حساب Claude Desktop Gateway: {{name}}",
+      "connectionMode": "الاتصال",
+      "modeDirect": "مباشر",
+      "modeLocalMapping": "ربط محلي",
+      "mappingsRequired": "اضبط ربط النماذج",
+      "mappingDesktopModelInvalid": "يجب أن يحتوي الجانب الأيسر على أسماء Claude يتعرف عليها Claude Desktop",
+      "directModelsInvalid": "الوضع المباشر يدعم فقط أسماء Claude التي يتعرف عليها Claude Desktop",
+      "desktopModelPlaceholder": "نموذج Claude Desktop",
+      "upstreamModelPlaceholder": "النموذج الفعلي للمزوّد",
+      "addMapping": "إضافة ربط"
+    }
   }
 }

@@ -1,5 +1,6 @@
 pub mod account;
 pub mod announcement;
+pub mod antigravity_legacy_instance;
 pub mod claude;
 pub mod claude_instance;
 pub mod codebuddy;

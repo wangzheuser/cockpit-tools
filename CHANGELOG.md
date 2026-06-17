@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - **Gemini quota display now uses quota-summary buckets**: Gemini quota refresh reads `retrieveUserQuotaSummary` so account pages, dashboard cards, tray items, and native menus can show Gemini and third-party 5-hour and weekly quota windows more consistently. Thanks @xdd666t.
-- **Codex session visibility repair now uses a single official state DB path**: automatic and manual repair both update only the `state_5.sqlite` session records used by the official sidebar, without scanning or rewriting rollouts, `session_index.jsonl`, or triggering an official app-server rebuild.
+- **Codex session visibility repair now separates light and deep paths**: post-switch automatic repair only updates the `state_5.sqlite` session records used by the official sidebar, while manual Repair Visibility can choose deep repair to scan rollouts, `session_index.jsonl`, and SQLite indexes before rebuilding the official sidebar state.
 - **Codex fast service tier now maps to `priority` more reliably**: fast-tier requests preserve the intended priority behavior through local access, instance launch, Responses payload conversion, and sidecar manifests. Thanks @lcpdeb.
 - **Model-provider usage querying is shared across Codex and APIKEY.FUN**: provider balance and usage checks now use a common service path, keep cached usage visible while refreshing, and classify unsupported usage endpoints consistently.
 

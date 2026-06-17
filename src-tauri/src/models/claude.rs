@@ -10,6 +10,7 @@ pub enum ClaudeAuthMode {
     ApiKey,
     #[serde(rename = "desktop_oauth", alias = "desktop_o_auth")]
     DesktopOAuth,
+    DesktopGateway,
 }
 
 impl Default for ClaudeAuthMode {
@@ -66,6 +67,22 @@ pub struct ClaudeAccount {
     pub api_model_catalog: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api_extra_env: Option<BTreeMap<String, String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_auth_scheme: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_credential_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_config_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_profile_dir: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_models: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_connection_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_upstream_models: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_model_mappings: Option<Vec<ClaudeDesktopGatewayModelMapping>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub desktop_profile_dir: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -152,6 +169,20 @@ pub struct ClaudeAccountSummary {
     pub api_key_field: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api_model_catalog: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_auth_scheme: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_credential_kind: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_profile_dir: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_models: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_connection_mode: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_upstream_models: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub desktop_gateway_model_mappings: Option<Vec<ClaudeDesktopGatewayModelMapping>>,
     pub created_at: i64,
     pub last_used: i64,
 }
@@ -178,6 +209,32 @@ pub struct ClaudeOAuthStartResponse {
     pub verification_uri: String,
     pub expires_in: u64,
     pub interval_seconds: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeDesktopGatewayModel {
+    pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeDesktopGatewayModelMapping {
+    pub desktop_model: String,
+    pub upstream_model: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClaudeDesktopGatewayModelsResult {
+    pub models: Vec<ClaudeDesktopGatewayModel>,
+    pub latency_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_mode: Option<String>,
+    #[serde(default)]
+    pub has_claude_models: bool,
 }
 
 impl ClaudeAccountIndex {
@@ -216,6 +273,13 @@ impl ClaudeAccount {
             api_provider_api_key_url: self.api_provider_api_key_url.clone(),
             api_key_field: self.api_key_field.clone(),
             api_model_catalog: self.api_model_catalog.clone(),
+            desktop_gateway_auth_scheme: self.desktop_gateway_auth_scheme.clone(),
+            desktop_gateway_credential_kind: self.desktop_gateway_credential_kind.clone(),
+            desktop_gateway_profile_dir: self.desktop_gateway_profile_dir.clone(),
+            desktop_gateway_models: self.desktop_gateway_models.clone(),
+            desktop_gateway_connection_mode: self.desktop_gateway_connection_mode.clone(),
+            desktop_gateway_upstream_models: self.desktop_gateway_upstream_models.clone(),
+            desktop_gateway_model_mappings: self.desktop_gateway_model_mappings.clone(),
             created_at: self.created_at,
             last_used: self.last_used,
         }

@@ -9,6 +9,7 @@ import type { CodexAppSpeed } from "../../types/codex";
 
 type PlatformInstanceCommandPrefix =
   | ""
+  | "antigravity_legacy"
   | "codex"
   | "claude"
   | "github_copilot"

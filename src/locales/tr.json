@@ -2305,7 +2305,17 @@
       },
       "empty": {
         "title": "Yönetilecek oturum yok",
-        "desc": "Geçerli örnek kümesinde oturum kaydı bulunamadı."
+        "desc": "Geçerli örnek kümesinde oturum kaydı bulunamadı.",
+        "searchTitle": "Eşleşen oturum bulunamadı",
+        "searchDesc": "Başlık anahtar sözcüklerini değiştirin."
+      },
+      "search": {
+        "titleLabel": "Başlık",
+        "contentLabel": "Konuşma içeriği",
+        "titlePlaceholder": "Başlığa göre ara",
+        "contentPlaceholder": "Konuşma içeriğinde ara",
+        "apply": "Ara",
+        "clear": "Temizle"
       },
       "messages": {
         "pickOne": "Lütfen en az bir oturum seçin",
@@ -2339,15 +2349,7 @@
         "confirm": "Oturumları kopyala"
       },
       "repairModal": {
-        "quickTitle": "Görünürlüğü onar",
-        "quickDesc": "Yan çubuk için resmi Codex state DB kayıtlarını günceller.",
-        "deepTitle": "Görünürlüğü onar",
-        "deepDesc": "Yan çubuk için resmi Codex state DB kayıtlarını günceller.",
-        "quickProgressTitle": "Onarım ilerlemesi",
-        "deepProgressTitle": "Onarım ilerlemesi",
         "running": "Onarılıyor...",
-        "startQuick": "Onar",
-        "startDeep": "Onar",
         "progress": {
           "queued": "Onarım görevi başlatılıyor...",
           "collectInstances": "Codex örnekleri toplanıyor...",
@@ -2359,9 +2361,9 @@
           "pruneBackups": "Eski yedekler temizleniyor...",
           "done": "Onarım tamamlandı",
           "writeSqliteProvider": "{{instance}} için SQLite görünürlüğü yazılıyor...",
-          "writeRolloutFiles": "Eski oturum dosyası yazımı atlanıyor...",
+          "writeRolloutFiles": "Eski oturum dosyaları yazılıyor...",
           "writeSqliteTimestamps": "{{instance}} SQLite zamanları düzeltiliyor...",
-          "writeSessionIndex": "Eski indeks yazımı atlanıyor..."
+          "writeSessionIndex": "session_index yazılıyor..."
         },
         "targetProvider": "Hedef provider",
         "defaultProvider": "Varsayılan",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "Claude eklendi",
       "addToCodex": "Codex’e ekle",
       "addToClaude": "Claude CLI’ye ekle",
+      "addToClaudeDesktop": "Claude Desktop’a ekle",
+      "addToClaudeCli": "Claude CLI’ye ekle",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "APIKEY.FUN ayarları dolduruldu. Claude Desktop’a eklemek için onaylayın."
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
@@ -4688,7 +4695,8 @@
       "desktop": "Masa",
       "oauth": "OAuth",
       "apiKey": "API anahtarı",
-      "import": "Yerel/JSON"
+      "import": "Yerel/JSON",
+      "desktopGateway": "Geçit"
     },
     "authMode": {
       "oauth": "OAuth modu",
@@ -4707,6 +4715,7 @@
       "hint": "API Key hesapları yalnızca Claude CLI içindir. Claude Code settings.json içine düz metin env olarak yazılır, Claude Desktop oturumunu etkilemez ve abonelik kota yenilemeyi desteklemez.",
       "importAction": "API Key içe aktar",
       "required": "API Key girin",
+      "templateRequired": "{{label}} girin",
       "importSuccess": "Claude API Key hesabı içe aktarıldı: {{name}}",
       "quotaUnsupported": "API Key hesapları yenilenmez",
       "switchDisabled": "API Key hesabı Claude Desktop’a geçirilemez",
@@ -4724,7 +4733,9 @@
       "title": "Claude Desktop oturumu",
       "desc": "Bu araçta Claude girişi; Google, Apple, e-posta ve free destekler.",
       "start": "Girişi aç",
+      "preparingRuntime": "Giriş hazırlanıyor...",
       "hint": "Önce yerelde saklar; Claude Desktop’a geçişte yazar.",
+      "runtimeHint": "İlk kullanımda Electron giriş bileşeni yerel uygulama veri klasörüne indirilip doğrulanabilir; yükleyiciye dahil değildir ve sonra önbellekten yeniden kullanılır.",
       "nameLabel": "Hesap adı",
       "namePlaceholder": "İsteğe bağlı, örn. Claude Free",
       "waiting": "Claude penceresinde giriş yapın, burada içe aktarmayı bitirin.",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "Claude Desktop hesaplarında ara...",
     "searchCli": "Claude CLI hesaplarında ara...",
     "noDesktopAccounts": "Henüz Claude Desktop hesabı yok",
-    "noCliAccounts": "Henüz Claude CLI hesabı yok"
+    "noCliAccounts": "Henüz Claude CLI hesabı yok",
+    "desktopGateway": {
+      "label": "Geçit",
+      "authScheme": "Auth şeması",
+      "importAction": "Gateway içe aktar",
+      "importSuccess": "Claude Desktop Gateway hesabı içe aktarıldı: {{name}}",
+      "baseUrlRequired": "Gateway Base URL girin",
+      "noQuota": "Gateway hesapları Claude abonelik kotasını göstermez",
+      "desc": "Gateway API Key değerini Claude Desktop 3P yapılandırması olarak kaydeder. Geçişte yönetilen profile yazar ve resmi Claude Desktop’ı başlatır.",
+      "hint": "Gateway hesapları Claude abonelik ayrıntılarını okumaz. API Key resmi 3P yapılandırmasıyla yönetilen profile yazılır.",
+      "modelsLabel": "Model kataloğu",
+      "modelsEmpty": "Bu Gateway model döndürmedi.",
+      "modelsLoaded": "{{count}} model alındı. Kaydetmeden önce düzenleyebilirsiniz.",
+      "modelsLoadFailed": "Modeller alınamadı: {{error}}.",
+      "manualModels": "Elle modeller",
+      "modelsPlaceholder": "Satır başına bir model ID",
+      "modelsLoading": "Model kataloğu yükleniyor...",
+      "modelsRequired": "Model kataloğunu girin",
+      "editTitle": "Claude Desktop Gateway düzenle",
+      "updateAction": "Gateway kaydet",
+      "updateSuccess": "Claude Desktop Gateway hesabı güncellendi: {{name}}",
+      "connectionMode": "Bağlantı",
+      "modeDirect": "Doğrudan",
+      "modeLocalMapping": "Yerel eşleme",
+      "mappingsRequired": "Model eşlemesini yapılandırın",
+      "mappingDesktopModelInvalid": "Solda Claude Desktop tarafından tanınan Claude model adları olmalı",
+      "directModelsInvalid": "Doğrudan mod yalnızca Claude Desktop tarafından tanınan Claude modellerini destekler",
+      "desktopModelPlaceholder": "Claude Desktop modeli",
+      "upstreamModelPlaceholder": "Gerçek üst model",
+      "addMapping": "Eşleme ekle"
+    }
   }
 }

@@ -9,7 +9,6 @@ import { useEscClose } from "../../hooks/useEscClose";
 import { useCodexInstanceStore } from "../../stores/useCodexInstanceStore";
 import type {
   CodexSessionVisibilityRepairInstanceList,
-  CodexSessionVisibilityRepairMode,
   CodexSessionVisibilityRepairProgress,
   CodexSessionVisibilityRepairSummary,
 } from "../../types/codex";
@@ -42,13 +41,10 @@ function createRepairRunId() {
     .slice(2, 8)}`;
 }
 
-function buildInitialProgress(
-  mode: CodexSessionVisibilityRepairMode,
-  runId: string,
-): CodexSessionVisibilityRepairProgress {
+function buildInitialProgress(runId: string): CodexSessionVisibilityRepairProgress {
   return {
     runId,
-    mode,
+    mode: "quick",
     stage: "queued",
     percent: 8,
     current: 0,
@@ -57,10 +53,9 @@ function buildInitialProgress(
 }
 
 export function buildCodexSessionVisibilityInitialProgress(
-  mode: CodexSessionVisibilityRepairMode,
   runId: string,
 ): CodexSessionVisibilityRepairProgress {
-  return buildInitialProgress(mode, runId);
+  return buildInitialProgress(runId);
 }
 
 export function createCodexSessionVisibilityRepairRunId() {
@@ -361,12 +356,12 @@ export function CodexSessionVisibilityRepairModal({
       selectedInstanceScope === "target" ? [selectedInstanceId] : null;
     runIdRef.current = runId;
     setStatus("running");
-    setProgress(buildInitialProgress("quick", runId));
+    setProgress(buildInitialProgress(runId));
     setResult(null);
     setError(null);
     onRunningChange?.(true);
     try {
-      const summary = await repairSessionVisibilityAcrossInstances("quick", runId, {
+      const summary = await repairSessionVisibilityAcrossInstances(runId, {
         targetInstanceId: selectedInstanceId,
         repairInstanceIds,
         sessionIds,

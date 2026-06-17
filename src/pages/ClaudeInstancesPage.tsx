@@ -16,7 +16,7 @@ import {
   getClaudePlanBadge,
   getClaudePlanBadgeClass,
   getClaudeQuotaClass,
-  isClaudeDesktopOAuthAccount,
+  isClaudeDesktopRuntimeAccount,
 } from '../types/claude';
 import type { InstanceLaunchMode, InstanceProfile } from '../types/instance';
 
@@ -108,7 +108,7 @@ export function ClaudeInstancesContent({
     account: ClaudeAccount,
     launchMode: InstanceLaunchMode,
   ) => {
-    const isDesktop = isClaudeDesktopOAuthAccount(account);
+    const isDesktop = isClaudeDesktopRuntimeAccount(account);
     return launchMode === 'cli' ? !isDesktop : isDesktop;
   };
 

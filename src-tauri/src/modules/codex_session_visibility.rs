@@ -175,6 +175,7 @@ enum RolloutProviderUpdate {
 struct CodexSessionVisibilityRepairOptions {
     mode: CodexSessionVisibilityRepairMode,
     repair_rollout: bool,
+    repair_referenced_rollouts: bool,
     rewrite_all_session_meta: bool,
     sqlite_scope: SqliteRepairScope,
     repair_sqlite_timestamps: bool,
@@ -273,6 +274,7 @@ impl CodexSessionVisibilityRepairOptions {
         Self {
             mode: CodexSessionVisibilityRepairMode::Quick,
             repair_rollout: false,
+            repair_referenced_rollouts: true,
             rewrite_all_session_meta: false,
             sqlite_scope: SqliteRepairScope::OfficialStateDbs,
             repair_sqlite_timestamps: false,
@@ -508,6 +510,13 @@ fn repair_session_visibility_across_instances_with_options(
         let target_provider = selection.target_provider_for(&instance.data_dir)?;
         let rollout_changes = if options.repair_rollout {
             collect_rollout_provider_changes(
+                &instance.data_dir,
+                &target_provider,
+                options,
+                &selection,
+            )?
+        } else if options.repair_referenced_rollouts {
+            collect_referenced_rollout_provider_changes(
                 &instance.data_dir,
                 &target_provider,
                 options,
@@ -1106,12 +1115,11 @@ fn build_summary_message(
     if mutated_instance_count == 0 {
         if metadata_rebuild_failed_count > 0 {
             return format!(
-                "所有 Codex 实例的 rollout、session_index 与 SQLite 会话索引均一致；{} 个实例的官方侧边栏索引重建未完成，重启 Codex 后会重新加载",
+                "所有 Codex 实例的会话文件与 SQLite 可见性记录均一致；{} 个实例的官方侧边栏状态刷新未完成，重启 Codex 后会重新加载",
                 metadata_rebuild_failed_count
             );
         }
-        return "所有 Codex 实例的 rollout、session_index 与 SQLite 会话索引均一致，已重建官方侧边栏索引"
-            .to_string();
+        return "所有 Codex 实例的会话文件与 SQLite 可见性记录均一致".to_string();
     }
 
     let added_index_suffix = if added_session_index_entry_count > 0 {
@@ -1145,7 +1153,7 @@ fn build_summary_message(
     };
 
     format!(
-        "已为 {} 个实例修复会话索引：校正 {} 个 rollout 文件，更新 {} 条 SQLite 可见性记录，校正 {} 条 SQLite 时间记录{}{}{}{}",
+        "已为 {} 个实例修复会话可见性：校正 {} 个会话文件，更新 {} 条 SQLite 可见性记录，校正 {} 条 SQLite 时间记录{}{}{}{}",
         mutated_instance_count,
         changed_rollout_file_count,
         updated_sqlite_row_count,
@@ -1516,6 +1524,154 @@ fn collect_rollout_provider_changes(
 
     changes.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     Ok(changes)
+}
+
+fn collect_referenced_rollout_provider_changes(
+    data_dir: &Path,
+    target_provider: &str,
+    options: CodexSessionVisibilityRepairOptions,
+    selection: &RepairTargetSelection,
+) -> Result<Vec<RolloutProviderChange>, String> {
+    let mut candidates: HashMap<PathBuf, Option<SystemTime>> = HashMap::new();
+    for db_path in sqlite_candidate_paths_for_options(data_dir, options) {
+        collect_referenced_rollout_paths_for_db(data_dir, &db_path, selection, &mut candidates)?;
+    }
+
+    let mut changes = Vec::new();
+    for (rollout_path, target_modified_at) in candidates {
+        if !rollout_path.exists() {
+            continue;
+        }
+        let content = fs::read_to_string(&rollout_path).map_err(|error| {
+            format!(
+                "读取 rollout 文件失败 ({}): {}",
+                rollout_path.display(),
+                error
+            )
+        })?;
+        let rewrite = rewrite_rollout_session_meta_providers(&content, target_provider)?;
+        if rewrite.session_meta_count == 0 || !rewrite.rewrite_needed {
+            continue;
+        }
+        let Some(relative_path) = rollout_path
+            .strip_prefix(data_dir)
+            .ok()
+            .map(Path::to_path_buf)
+        else {
+            modules::logger::log_warn(&format!(
+                "跳过 Codex 会话可见性修复中的实例外 rollout: data_dir={}, rollout={}",
+                data_dir.display(),
+                rollout_path.display()
+            ));
+            continue;
+        };
+        changes.push(RolloutProviderChange {
+            relative_path,
+            absolute_path: rollout_path,
+            updated_content: rewrite.updated_content,
+            target_modified_at,
+        });
+    }
+
+    changes.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    Ok(changes)
+}
+
+fn collect_referenced_rollout_paths_for_db(
+    data_dir: &Path,
+    db_path: &Path,
+    selection: &RepairTargetSelection,
+    candidates: &mut HashMap<PathBuf, Option<SystemTime>>,
+) -> Result<(), String> {
+    if !db_path.exists() {
+        return Ok(());
+    }
+    let connection = match Connection::open_with_flags(db_path, OpenFlags::SQLITE_OPEN_READ_ONLY) {
+        Ok(connection) => connection,
+        Err(error) if modules::db::is_unusable_sqlite_database_error(&error) => {
+            log_skipped_sqlite_database(db_path, &error.to_string());
+            return Ok(());
+        }
+        Err(error) => {
+            return Err(format!(
+                "打开实例数据库失败 ({}): {}",
+                db_path.display(),
+                error
+            ));
+        }
+    };
+
+    let mut table_info = connection
+        .prepare("PRAGMA table_info(threads)")
+        .map_err(|error| {
+            format_sqlite_read_error(db_path, "读取 SQLite threads 表结构失败", &error)
+        })?;
+    let names = table_info
+        .query_map([], |row| row.get::<usize, String>(1))
+        .map_err(|error| {
+            format_sqlite_read_error(db_path, "读取 SQLite threads 表结构失败", &error)
+        })?
+        .collect::<Result<HashSet<_>, _>>()
+        .map_err(|error| {
+            format_sqlite_read_error(db_path, "读取 SQLite threads 表结构失败", &error)
+        })?;
+    drop(table_info);
+
+    if !names.contains("id") || !names.contains("rollout_path") {
+        return Ok(());
+    }
+    let updated_at_expr = if names.contains("updated_at") {
+        "updated_at"
+    } else {
+        "NULL"
+    };
+    let updated_at_ms_expr = if names.contains("updated_at_ms") {
+        "updated_at_ms"
+    } else {
+        "NULL"
+    };
+    let sql = format!(
+        "SELECT id, rollout_path, {updated_at_expr}, {updated_at_ms_expr} FROM threads WHERE rollout_path IS NOT NULL AND rollout_path <> ''"
+    );
+    let mut statement = connection.prepare(sql.as_str()).map_err(|error| {
+        format_sqlite_read_error(db_path, "准备 SQLite rollout 引用查询失败", &error)
+    })?;
+    let rows = statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<i64>>(2)?,
+                row.get::<_, Option<i64>>(3)?,
+            ))
+        })
+        .map_err(|error| {
+            format_sqlite_read_error(db_path, "查询 SQLite rollout 引用失败", &error)
+        })?;
+
+    for row in rows {
+        let (thread_id, rollout_path, updated_at, updated_at_ms) = row.map_err(|error| {
+            format_sqlite_read_error(db_path, "读取 SQLite rollout 引用失败", &error)
+        })?;
+        if !selection.includes_session_id(&thread_id) {
+            continue;
+        }
+        let rollout_path = resolve_rollout_path(data_dir, &rollout_path);
+        let target_modified_at = updated_at_ms
+            .or_else(|| updated_at.map(|value| value * 1000))
+            .and_then(|value| {
+                modules::codex_session_file_time::system_time_from_unix_millis(value as i128)
+            });
+        candidates
+            .entry(rollout_path)
+            .and_modify(|existing| {
+                if existing.is_none() {
+                    *existing = target_modified_at;
+                }
+            })
+            .or_insert(target_modified_at);
+    }
+    Ok(())
 }
 
 #[derive(Debug, Default)]
@@ -3758,6 +3914,84 @@ mod tests {
     }
 
     #[test]
+    fn quick_repair_updates_rollouts_referenced_by_official_state_dbs() {
+        let data_dir = make_temp_dir("codex-session-quick-referenced-rollout-test");
+        let sqlite_dir = data_dir.join(SQLITE_DIR_NAME);
+        fs::create_dir_all(&sqlite_dir).expect("create sqlite dir");
+        let official_db_path = sqlite_dir.join(OFFICIAL_STATE_DB_FILE);
+        let connection = Connection::open(&official_db_path).expect("open sqlite");
+        connection
+            .execute(
+                "CREATE TABLE threads (
+                    id TEXT PRIMARY KEY,
+                    rollout_path TEXT,
+                    model_provider TEXT,
+                    has_user_event INTEGER,
+                    first_user_message TEXT,
+                    thread_source TEXT
+                )",
+                [],
+            )
+            .expect("create threads table");
+
+        let rollout_dir = data_dir.join("sessions").join("2026").join("06").join("17");
+        fs::create_dir_all(&rollout_dir).expect("create rollout dir");
+        let referenced_rollout = rollout_dir.join("rollout-thread-1.jsonl");
+        let unreferenced_rollout = rollout_dir.join("rollout-thread-2.jsonl");
+        let referenced_relative = referenced_rollout
+            .strip_prefix(&data_dir)
+            .expect("relative rollout")
+            .to_string_lossy()
+            .replace('\\', "/");
+        connection
+            .execute(
+                "INSERT INTO threads (id, rollout_path, model_provider, has_user_event, first_user_message, thread_source)
+                 VALUES ('thread-1', ?1, 'old', 0, 'hello', '')",
+                [referenced_relative.as_str()],
+            )
+            .expect("insert thread");
+        drop(connection);
+
+        let old_line =
+            "{\"type\":\"session_meta\",\"payload\":{\"id\":\"thread-1\",\"model_provider\":\"old\"}}\n";
+        let unreferenced_line =
+            "{\"type\":\"session_meta\",\"payload\":{\"id\":\"thread-2\",\"model_provider\":\"old\"}}\n";
+        fs::write(&referenced_rollout, old_line).expect("write referenced rollout");
+        fs::write(&unreferenced_rollout, unreferenced_line).expect("write unreferenced rollout");
+
+        let options = repair_options(CodexSessionVisibilityRepairMode::Quick);
+        let selection = RepairTargetSelection::default();
+        let rollout_changes =
+            collect_referenced_rollout_provider_changes(&data_dir, "relay", options, &selection)
+                .expect("collect referenced rollout changes");
+        assert_eq!(rollout_changes.len(), 1);
+        assert_eq!(rollout_changes[0].absolute_path, referenced_rollout);
+
+        let repaired = repair_single_instance(
+            &data_dir,
+            "relay",
+            &rollout_changes,
+            true,
+            false,
+            false,
+            options,
+            &selection,
+        )
+        .expect("quick repair");
+        assert_eq!(repaired.updated_sqlite_rows, 1);
+
+        let referenced_content =
+            fs::read_to_string(&referenced_rollout).expect("read referenced rollout");
+        assert!(referenced_content.contains("\"model_provider\":\"relay\""));
+        assert_eq!(
+            fs::read_to_string(&unreferenced_rollout).expect("read unreferenced rollout"),
+            unreferenced_line
+        );
+
+        fs::remove_dir_all(&data_dir).expect("cleanup temp dir");
+    }
+
+    #[test]
     fn deep_mode_is_kept_as_compatibility_for_official_state_db_repair() {
         let data_dir = make_temp_dir("codex-session-deep-compat-official-state-test");
         let sqlite_dir = data_dir.join(SQLITE_DIR_NAME);
@@ -3789,10 +4023,15 @@ mod tests {
 
         let options = repair_options(CodexSessionVisibilityRepairMode::Deep);
         assert_eq!(options.mode, CodexSessionVisibilityRepairMode::Quick);
+        assert_eq!(options.sqlite_scope, SqliteRepairScope::OfficialStateDbs);
+        assert!(!options.repair_rollout);
+        assert!(options.repair_referenced_rollouts);
+        assert!(!options.repair_session_index);
+        assert!(!options.rebuild_metadata);
 
         let selection = RepairTargetSelection::default();
         let scan = count_sqlite_rows_to_update_for_options(&data_dir, "relay", options, &selection)
-            .expect("scan compat sqlite");
+            .expect("scan compatibility sqlite");
         assert_eq!(scan.rows_to_update, 1);
 
         let repaired = repair_single_instance(
@@ -3805,30 +4044,43 @@ mod tests {
             options,
             &selection,
         )
-        .expect("compat repair");
+        .expect("compatibility repair");
         assert_eq!(repaired.updated_sqlite_rows, 1);
 
         let connection = Connection::open(&official_db_path).expect("reopen official sqlite");
-        let provider = connection
+        let official_provider = connection
             .query_row(
                 "SELECT model_provider FROM threads WHERE id = 'thread-1'",
                 [],
                 |row| row.get::<usize, String>(0),
             )
             .expect("read official provider");
-        assert_eq!(provider, "relay");
+        assert_eq!(official_provider, "relay");
 
         let connection = Connection::open(&unrelated_db_path).expect("reopen unrelated sqlite");
-        let provider = connection
+        let unrelated_provider = connection
             .query_row(
                 "SELECT model_provider FROM threads WHERE id = 'thread-1'",
                 [],
                 |row| row.get::<usize, String>(0),
             )
             .expect("read unrelated provider");
-        assert_eq!(provider, "old");
+        assert_eq!(unrelated_provider, "old");
 
         fs::remove_dir_all(&data_dir).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn auto_repair_mode_stays_on_official_state_db_only() {
+        let options = CodexSessionVisibilityRepairOptions::for_auto_repair_mode(
+            CodexSessionVisibilityAutoRepairMode::Current,
+        );
+        assert_eq!(options.mode, CodexSessionVisibilityRepairMode::Quick);
+        assert_eq!(options.sqlite_scope, SqliteRepairScope::OfficialStateDbs);
+        assert!(!options.repair_rollout);
+        assert!(options.repair_referenced_rollouts);
+        assert!(!options.repair_session_index);
+        assert!(!options.rebuild_metadata);
     }
 
     #[test]

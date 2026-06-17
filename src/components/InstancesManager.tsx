@@ -92,6 +92,7 @@ interface InstancesManagerProps<TAccount extends AccountLike> {
   getAccountSearchText?: (account: TAccount) => string;
   appType?:
     | "antigravity"
+    | "antigravity_ide"
     | "codex"
     | "claude"
     | "vscode"
@@ -978,9 +979,13 @@ export function InstancesManager<TAccount extends AccountLike>({
       rawApp === "qoder"
         ? rawApp
         : appType;
+    const runtimeTarget =
+      appType === "antigravity" || appType === "antigravity_ide"
+        ? appType
+        : undefined;
     const retry = instanceId
-      ? { kind: "instance" as const, instanceId }
-      : { kind: "default" as const };
+      ? { kind: "instance" as const, instanceId, runtimeTarget }
+      : { kind: "default" as const, runtimeTarget };
     window.dispatchEvent(
       new CustomEvent("app-path-missing", { detail: { app, retry } }),
     );

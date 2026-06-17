@@ -202,8 +202,8 @@ type AppPathMissingDetail = {
     | 'trae'
     | 'zed';
   retry?:
-    | { kind: 'default' }
-    | { kind: 'instance'; instanceId?: string }
+    | { kind: 'default'; runtimeTarget?: string }
+    | { kind: 'instance'; instanceId?: string; runtimeTarget?: string }
     | { kind: 'switchAccount'; accountId?: string; runtimeTarget?: string };
 };
 
@@ -2765,6 +2765,10 @@ function MainApp() {
     try {
       const app = appPathMissing.app;
       const retry = appPathMissing.retry;
+      const antigravityInstanceStartCommand =
+        app === 'antigravity' && retry?.runtimeTarget === 'antigravity'
+          ? 'antigravity_legacy_start_instance'
+          : 'start_instance';
       await invoke('set_app_path', { app, path });
       if (retry?.kind === 'switchAccount' && retry.accountId && app === 'zed') {
         await useZedAccountStore.getState().switchAccount(retry.accountId);
@@ -2800,7 +2804,7 @@ function MainApp() {
         } else if (app === 'zed') {
           await invoke('zed_start_default_session');
         } else {
-          await invoke('start_instance', { instanceId: retry.instanceId });
+          await invoke(antigravityInstanceStartCommand, { instanceId: retry.instanceId });
         }
       } else {
         if (app === 'codex') {
@@ -2824,7 +2828,7 @@ function MainApp() {
         } else if (app === 'zed') {
           await invoke('zed_start_default_session');
         } else {
-          await invoke('start_instance', { instanceId: '__default__' });
+          await invoke(antigravityInstanceStartCommand, { instanceId: '__default__' });
         }
       }
       setAppPathMissing(null);
@@ -2840,8 +2844,14 @@ function MainApp() {
     if (!appPathMissing || appPathSetting || appPathDetecting) return;
     setAppPathDetecting(true);
     try {
+      const detectApp =
+        appPathMissing.app === 'antigravity' && appPathMissing.retry?.runtimeTarget === 'antigravity'
+          ? 'antigravity_legacy'
+          : appPathMissing.app === 'antigravity' && appPathMissing.retry?.runtimeTarget === 'antigravity_ide'
+            ? 'antigravity_ide'
+            : appPathMissing.app;
       const detected = await invoke<string | null>('detect_app_path', {
-        app: appPathMissing.app,
+        app: detectApp,
         force: true,
       });
       setAppPathActionError('');
@@ -3007,6 +3017,7 @@ function MainApp() {
     </div>
   );
 
+  const appPathMissingRuntimeTarget = appPathMissing?.retry?.runtimeTarget;
   const appPathMissingAppName = appPathMissing
     ? appPathMissing.app === 'codex'
       ? 'Codex'
@@ -3026,7 +3037,9 @@ function MainApp() {
                 ? 'Qoder'
               : appPathMissing.app === 'trae'
                 ? 'Trae'
-              : 'Antigravity IDE'
+              : appPathMissing.app === 'antigravity' && appPathMissingRuntimeTarget === 'antigravity'
+                ? 'Antigravity'
+                : 'Antigravity IDE'
     : '';
 
   const appPathMissingPathLabel = appPathMissing

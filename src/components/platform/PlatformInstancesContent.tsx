@@ -12,6 +12,7 @@ type AccountLike = {
 
 type InstancesAppType =
   | 'antigravity'
+  | 'antigravity_ide'
   | 'codex'
   | 'claude'
   | 'vscode'

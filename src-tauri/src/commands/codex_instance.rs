@@ -674,8 +674,10 @@ pub async fn codex_list_session_visibility_repair_instances(
 
 #[tauri::command]
 pub async fn codex_list_sessions_across_instances(
+    title_query: Option<String>,
+    content_query: Option<String>,
 ) -> Result<Vec<modules::codex_session_manager::CodexSessionRecord>, String> {
-    modules::codex_session_manager::list_sessions_across_instances()
+    modules::codex_session_manager::list_sessions_across_instances(title_query, content_query)
 }
 
 #[tauri::command]

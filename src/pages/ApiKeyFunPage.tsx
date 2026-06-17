@@ -135,6 +135,11 @@ function normalizeModelCatalog(values: readonly string[]): string[] {
   return models;
 }
 
+function isClaudeModelId(value: string): boolean {
+  const model = value.trim().toLowerCase();
+  return model.startsWith('claude-') || model.startsWith('anthropic/claude-');
+}
+
 export function ApiKeyFunPage() {
   const { t } = useTranslation();
   const [apiKey, setApiKey] = useState('');
@@ -180,8 +185,8 @@ export function ApiKeyFunPage() {
     [apiKeyFunModelCatalog],
   );
   const canAddCurrentKeyToCodex = modelCatalogText.includes('gpt');
-  // Claude CLI 入口暂时隐藏，保留预填逻辑方便后续恢复。
-  // const canAddCurrentKeyToClaude = modelCatalogText.includes('claude');
+  const canAddCurrentKeyToClaude = apiKeyFunModelCatalog.some(isClaudeModelId);
+  const canShowTargetActions = canAddCurrentKeyToCodex || canAddCurrentKeyToClaude;
   const canPrefillCurrentKey =
     Boolean(currentSavedKey) && !queryingModels && apiKeyFunModelCatalog.length > 0;
 
@@ -377,7 +382,11 @@ export function ApiKeyFunPage() {
       return;
     }
     const page = getApiKeyFunPrefillPage(target);
-    const targetName = target === 'codex' ? 'Codex' : 'Claude CLI';
+    const targetName = target === 'codex'
+      ? 'Codex'
+      : target === 'claude_desktop'
+        ? 'Claude Desktop'
+        : 'Claude CLI';
     window.dispatchEvent(new CustomEvent<typeof page>('app-request-navigate', { detail: page }));
     window.setTimeout(() => {
       dispatchApiKeyFunPrefillEvent({
@@ -571,7 +580,7 @@ export function ApiKeyFunPage() {
                   </span>
                 )}
               </div>
-              {canAddCurrentKeyToCodex && (
+              {canShowTargetActions && (
                 <div className="apikey-fun-target-actions">
                   {canAddCurrentKeyToCodex && (
                     <button
@@ -585,7 +594,18 @@ export function ApiKeyFunPage() {
                       <span>{t('apiKeyFun.keyManager.addToCodex', '添加到 Codex')}</span>
                     </button>
                   )}
-                  {/*
+                  {canAddCurrentKeyToClaude && (
+                    <button
+                      type="button"
+                      className="btn apikey-fun-target-btn"
+                      disabled={!canPrefillCurrentKey}
+                      onClick={() => {
+                        if (currentSavedKey) handlePrefillTarget('claude_desktop', currentSavedKey);
+                      }}
+                    >
+                      <span>{t('apiKeyFun.keyManager.addToClaudeDesktop', '添加到 Claude Desktop')}</span>
+                    </button>
+                  )}
                   {canAddCurrentKeyToClaude && (
                     <button
                       type="button"
@@ -595,10 +615,9 @@ export function ApiKeyFunPage() {
                         if (currentSavedKey) handlePrefillTarget('claude_cli', currentSavedKey);
                       }}
                     >
-                      <span>{t('apiKeyFun.keyManager.addToClaude', '添加到 Claude CLI')}</span>
+                      <span>{t('apiKeyFun.keyManager.addToClaudeCli', '添加到 Claude CLI')}</span>
                     </button>
                   )}
-                  */}
                 </div>
               )}
             </div>

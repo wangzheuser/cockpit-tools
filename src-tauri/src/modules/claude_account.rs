@@ -1,6 +1,7 @@
 use crate::models::claude::{
-    ClaudeAccount, ClaudeAccountIndex, ClaudeAuthMode, ClaudeDesktopLoginStartResponse,
-    ClaudeOAuthStartResponse, ClaudeQuota, ClaudeQuotaErrorInfo,
+    ClaudeAccount, ClaudeAccountIndex, ClaudeAuthMode, ClaudeDesktopGatewayModel,
+    ClaudeDesktopGatewayModelMapping, ClaudeDesktopGatewayModelsResult,
+    ClaudeDesktopLoginStartResponse, ClaudeOAuthStartResponse, ClaudeQuota, ClaudeQuotaErrorInfo,
 };
 use crate::modules::{account, atomic_write, logger};
 #[cfg(target_os = "macos")]
@@ -23,7 +24,8 @@ use serde_json::{json, Value};
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
-use std::fs;
+use std::fs::{self, File};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -71,12 +73,15 @@ const CLAUDE_OAUTH_SCOPES: [&str; 6] = [
 ];
 const CLAUDE_DESKTOP_LOGIN_STATE_FILE: &str = "claude_desktop_login_pending.json";
 const CLAUDE_DESKTOP_PROFILES_DIR: &str = "claude_desktop_profiles";
+const CLAUDE_DESKTOP_GATEWAY_PROFILES_DIR: &str = "claude_desktop_gateway_profiles";
 const CLAUDE_DESKTOP_LOGIN_DIR: &str = "claude_desktop_login";
 const CLAUDE_DESKTOP_BACKUPS_DIR: &str = "claude_desktop_backups";
 const CLAUDE_DESKTOP_AUTH_HELPER_SCRIPT: &str = "scripts/claude-desktop-auth-helper.cjs";
 const CLAUDE_DESKTOP_AUTH_STATUS_FILE: &str = "claude_desktop_auth_status.json";
 const CLAUDE_DESKTOP_AUTH_EXPORT_FILE: &str = "claude_desktop_auth_export.json";
 const CLAUDE_DESKTOP_COOKIE_EXPORT_FILE: &str = "claude_desktop_cookie_probe_cookies.json";
+const CLAUDE_DESKTOP_ELECTRON_RUNTIME_DIR: &str = "electron_runtime";
+const CLAUDE_DESKTOP_ELECTRON_VERSION: &str = "42.4.0";
 const CLAUDE_DESKTOP_BUNDLE_ID_MACOS: &str = "com.anthropic.claudefordesktop";
 const CLAUDE_DESKTOP_LOGIN_TIMEOUT_SECONDS: i64 = 30 * 60;
 const CLAUDE_DESKTOP_AUTH_EXPORT_WAIT_SECONDS: u64 = 8;
@@ -116,6 +121,8 @@ static CLAUDE_PENDING_OAUTH_LOGIN: std::sync::LazyLock<Mutex<Option<PendingClaud
 static CLAUDE_PENDING_DESKTOP_LOGIN: std::sync::LazyLock<
     Mutex<Option<PendingClaudeDesktopLoginState>>,
 > = std::sync::LazyLock::new(|| Mutex::new(None));
+static CLAUDE_DESKTOP_ELECTRON_RUNTIME_LOCK: std::sync::LazyLock<Mutex<()>> =
+    std::sync::LazyLock::new(|| Mutex::new(()));
 static EMAIL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"(?i)[a-z0-9._%+\-]{1,64}@[a-z0-9.\-]{2,253}\.[a-z]{2,24}")
         .expect("valid email regex")
@@ -789,6 +796,13 @@ fn get_desktop_profiles_dir() -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+fn get_desktop_gateway_profiles_dir() -> Result<PathBuf, String> {
+    let dir = get_data_dir()?.join(CLAUDE_DESKTOP_GATEWAY_PROFILES_DIR);
+    fs::create_dir_all(&dir)
+        .map_err(|e| format!("创建 Claude Desktop Gateway profile 目录失败: {}", e))?;
+    Ok(dir)
+}
+
 fn get_desktop_login_root_dir() -> Result<PathBuf, String> {
     let dir = get_data_dir()?.join(CLAUDE_DESKTOP_LOGIN_DIR);
     fs::create_dir_all(&dir).map_err(|e| format!("创建 Claude Desktop 登录工作目录失败: {}", e))?;
@@ -1216,6 +1230,27 @@ fn build_api_key_display_name(
     format!("API Key {}", suffix)
 }
 
+fn build_desktop_gateway_account_id(api_key: &str, api_base_url: &str) -> String {
+    let identity = format!("{}:{}", api_base_url.trim().to_ascii_lowercase(), api_key);
+    format!(
+        "claude_desktop_gateway_{:x}",
+        md5::compute(identity.as_bytes())
+    )
+}
+
+fn normalize_desktop_gateway_auth_scheme(value: Option<&str>) -> String {
+    match value
+        .and_then(|item| normalize_non_empty(Some(item)))
+        .map(|item| item.to_ascii_lowercase().replace('_', "-"))
+        .as_deref()
+    {
+        Some("auto") => "auto".to_string(),
+        Some("x-api-key") => "x-api-key".to_string(),
+        Some("sso") => "sso".to_string(),
+        _ => "bearer".to_string(),
+    }
+}
+
 fn normalize_api_provider_base_url(raw: Option<&str>) -> Result<Option<String>, String> {
     let Some(value) = raw.and_then(|value| normalize_non_empty(Some(value))) else {
         return Ok(None);
@@ -1225,6 +1260,138 @@ fn normalize_api_provider_base_url(raw: Option<&str>) -> Result<Option<String>, 
         return Err("供应商 Base URL 仅支持 http/https".to_string());
     }
     Ok(Some(value.trim_end_matches('/').to_string()))
+}
+
+fn claude_desktop_gateway_models_url(base_url: &str) -> Result<String, String> {
+    let trimmed = base_url.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        return Err("PROVIDER_BASE_URL_INVALID".to_string());
+    }
+    let mut url = Url::parse(trimmed).map_err(|_| "PROVIDER_BASE_URL_INVALID".to_string())?;
+    match url.scheme() {
+        "http" | "https" => {}
+        _ => return Err("PROVIDER_BASE_URL_INVALID".to_string()),
+    }
+    let path = url.path().trim_end_matches('/');
+    let next_path = if path.is_empty() || path == "/" {
+        "/v1/models".to_string()
+    } else if path.ends_with("/v1") || path == "/v1" {
+        format!("{}/models", path)
+    } else {
+        format!("{}/v1/models", path)
+    };
+    url.set_path(&next_path);
+    url.set_query(None);
+    Ok(url.to_string())
+}
+
+fn parse_desktop_gateway_models(body: &Value) -> Vec<ClaudeDesktopGatewayModel> {
+    let mut seen = BTreeSet::new();
+    body.get("data")
+        .and_then(Value::as_array)
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| {
+                    let id = item.get("id").and_then(Value::as_str)?.trim();
+                    if id.is_empty() {
+                        return None;
+                    }
+                    let key = id.to_ascii_lowercase();
+                    if !seen.insert(key) {
+                        return None;
+                    }
+                    Some(ClaudeDesktopGatewayModel {
+                        id: id.to_string(),
+                        display_name: item
+                            .get("display_name")
+                            .or_else(|| item.get("displayName"))
+                            .and_then(Value::as_str)
+                            .map(str::trim)
+                            .filter(|value| !value.is_empty())
+                            .map(str::to_string),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+async fn list_desktop_gateway_models_with_scheme(
+    base_url: &str,
+    api_key: &str,
+    auth_scheme: &str,
+) -> Result<ClaudeDesktopGatewayModelsResult, String> {
+    let url = claude_desktop_gateway_models_url(base_url)?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .build()
+        .map_err(|e| format!("CREATE_HTTP_CLIENT_FAILED: {}", e))?;
+    let started = Instant::now();
+    let mut request = client.get(&url).header(ACCEPT, "application/json");
+    if auth_scheme == "x-api-key" {
+        request = request.header("x-api-key", api_key);
+    } else {
+        request = request.bearer_auth(api_key);
+    }
+    let response = request
+        .send()
+        .await
+        .map_err(|e| format!("PROVIDER_MODELS_NETWORK_FAILED: {}", e))?;
+    let latency_ms = started.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
+    let status = response.status();
+    let text = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(format!(
+            "PROVIDER_MODELS_HTTP_{}: {}",
+            status.as_u16(),
+            text.chars().take(300).collect::<String>()
+        ));
+    }
+    let parsed = serde_json::from_str::<Value>(&text)
+        .map_err(|e| format!("PROVIDER_MODELS_PARSE_FAILED: {}", e))?;
+    let models = parse_desktop_gateway_models(&parsed);
+    let has_claude_models = models
+        .iter()
+        .any(|model| crate::modules::claude_desktop_gateway::is_claude_desktop_model(&model.id));
+    Ok(ClaudeDesktopGatewayModelsResult {
+        models,
+        latency_ms,
+        recommended_mode: Some(
+            if has_claude_models {
+                "direct"
+            } else {
+                "local_mapping"
+            }
+            .to_string(),
+        ),
+        has_claude_models,
+    })
+}
+
+pub async fn list_desktop_gateway_models(
+    base_url: &str,
+    api_key: &str,
+    auth_scheme: Option<&str>,
+) -> Result<ClaudeDesktopGatewayModelsResult, String> {
+    let api_key = normalize_claude_api_key(api_key, false)?;
+    let base_url = normalize_api_provider_base_url(Some(base_url))?
+        .ok_or_else(|| "请输入 Gateway Base URL".to_string())?;
+    let auth_scheme = normalize_desktop_gateway_auth_scheme(auth_scheme);
+    if auth_scheme == "auto" {
+        match list_desktop_gateway_models_with_scheme(&base_url, &api_key, "bearer").await {
+            Ok(result) => Ok(result),
+            Err(error)
+                if error.starts_with("PROVIDER_MODELS_HTTP_401")
+                    || error.starts_with("PROVIDER_MODELS_HTTP_403") =>
+            {
+                list_desktop_gateway_models_with_scheme(&base_url, &api_key, "x-api-key").await
+            }
+            Err(error) => Err(error),
+        }
+    } else {
+        list_desktop_gateway_models_with_scheme(&base_url, &api_key, &auth_scheme).await
+    }
 }
 
 fn normalize_api_key_field(value: Option<&str>, api_base_url: Option<&str>) -> String {
@@ -1509,6 +1676,14 @@ fn derive_account_from_snapshots(
         api_key_field: None,
         api_model_catalog: None,
         api_extra_env: None,
+        desktop_gateway_auth_scheme: None,
+        desktop_gateway_credential_kind: None,
+        desktop_gateway_config_id: None,
+        desktop_gateway_profile_dir: None,
+        desktop_gateway_models: None,
+        desktop_gateway_connection_mode: None,
+        desktop_gateway_upstream_models: None,
+        desktop_gateway_model_mappings: None,
         desktop_profile_dir: None,
         desktop_profile_imported_at: None,
         claude_credentials_raw: None,
@@ -1542,6 +1717,14 @@ fn derive_account_from_snapshots(
     account.api_key_field = None;
     account.api_model_catalog = None;
     account.api_extra_env = None;
+    account.desktop_gateway_auth_scheme = None;
+    account.desktop_gateway_credential_kind = None;
+    account.desktop_gateway_config_id = None;
+    account.desktop_gateway_profile_dir = None;
+    account.desktop_gateway_models = None;
+    account.desktop_gateway_connection_mode = None;
+    account.desktop_gateway_upstream_models = None;
+    account.desktop_gateway_model_mappings = None;
     account.claude_credentials_raw = Some(credentials_raw);
     account.claude_config_raw = Some(config_raw);
     account.last_used = now;
@@ -1625,6 +1808,14 @@ pub fn import_api_key(
         api_key_field: None,
         api_model_catalog: None,
         api_extra_env: None,
+        desktop_gateway_auth_scheme: None,
+        desktop_gateway_credential_kind: None,
+        desktop_gateway_config_id: None,
+        desktop_gateway_profile_dir: None,
+        desktop_gateway_models: None,
+        desktop_gateway_connection_mode: None,
+        desktop_gateway_upstream_models: None,
+        desktop_gateway_model_mappings: None,
         desktop_profile_dir: None,
         desktop_profile_imported_at: None,
         claude_credentials_raw: None,
@@ -1673,6 +1864,14 @@ pub fn import_api_key(
     account.api_key_field = Some(api_key_field.clone());
     account.api_model_catalog = api_model_catalog.clone();
     account.api_extra_env = api_extra_env.clone();
+    account.desktop_gateway_auth_scheme = None;
+    account.desktop_gateway_credential_kind = None;
+    account.desktop_gateway_config_id = None;
+    account.desktop_gateway_profile_dir = None;
+    account.desktop_gateway_models = None;
+    account.desktop_gateway_connection_mode = None;
+    account.desktop_gateway_upstream_models = None;
+    account.desktop_gateway_model_mappings = None;
     account.desktop_profile_dir = None;
     account.desktop_profile_imported_at = None;
     account.claude_credentials_raw = Some(json!({
@@ -1689,6 +1888,292 @@ pub fn import_api_key(
         },
         "hasCompletedOnboarding": true,
     }));
+    account.last_used = now;
+    save_account_and_index(account)
+}
+
+pub fn import_desktop_gateway(
+    api_key: &str,
+    account_name: Option<&str>,
+    provider_config: ClaudeApiKeyProviderConfig,
+    auth_scheme: Option<&str>,
+    desktop_gateway_models: Option<Vec<String>>,
+    desktop_gateway_connection_mode: Option<&str>,
+    desktop_gateway_upstream_models: Option<Vec<String>>,
+    desktop_gateway_model_mappings: Option<Vec<ClaudeDesktopGatewayModelMapping>>,
+) -> Result<ClaudeAccount, String> {
+    save_desktop_gateway(
+        None,
+        api_key,
+        account_name,
+        provider_config,
+        auth_scheme,
+        desktop_gateway_models,
+        desktop_gateway_connection_mode,
+        desktop_gateway_upstream_models,
+        desktop_gateway_model_mappings,
+    )
+}
+
+pub fn update_desktop_gateway(
+    account_id: &str,
+    api_key: &str,
+    account_name: Option<&str>,
+    provider_config: ClaudeApiKeyProviderConfig,
+    auth_scheme: Option<&str>,
+    desktop_gateway_models: Option<Vec<String>>,
+    desktop_gateway_connection_mode: Option<&str>,
+    desktop_gateway_upstream_models: Option<Vec<String>>,
+    desktop_gateway_model_mappings: Option<Vec<ClaudeDesktopGatewayModelMapping>>,
+) -> Result<ClaudeAccount, String> {
+    save_desktop_gateway(
+        Some(account_id),
+        api_key,
+        account_name,
+        provider_config,
+        auth_scheme,
+        desktop_gateway_models,
+        desktop_gateway_connection_mode,
+        desktop_gateway_upstream_models,
+        desktop_gateway_model_mappings,
+    )
+}
+
+fn save_desktop_gateway(
+    account_id_override: Option<&str>,
+    api_key: &str,
+    account_name: Option<&str>,
+    provider_config: ClaudeApiKeyProviderConfig,
+    auth_scheme: Option<&str>,
+    desktop_gateway_models: Option<Vec<String>>,
+    desktop_gateway_connection_mode: Option<&str>,
+    desktop_gateway_upstream_models: Option<Vec<String>>,
+    desktop_gateway_model_mappings: Option<Vec<ClaudeDesktopGatewayModelMapping>>,
+) -> Result<ClaudeAccount, String> {
+    let api_base_url = normalize_api_provider_base_url(provider_config.api_base_url.as_deref())?
+        .ok_or_else(|| "请输入 Gateway Base URL".to_string())?;
+    let api_key = normalize_claude_api_key(api_key, false)?;
+    let auth_scheme = normalize_desktop_gateway_auth_scheme(auth_scheme);
+    let credential_kind = "static".to_string();
+    let api_provider_name = normalize_non_empty(provider_config.api_provider_name.as_deref())
+        .or_else(|| {
+            Url::parse(&api_base_url).ok().and_then(|url| {
+                url.host_str()
+                    .map(|host| host.trim_start_matches("www.").to_string())
+            })
+        })
+        .or_else(|| Some("Gateway".to_string()));
+    let api_provider_id = normalize_non_empty(provider_config.api_provider_id.as_deref());
+    let api_provider_source_tag =
+        normalize_non_empty(provider_config.api_provider_source_tag.as_deref());
+    let api_provider_website = normalize_non_empty(provider_config.api_provider_website.as_deref());
+    let api_provider_api_key_url =
+        normalize_non_empty(provider_config.api_provider_api_key_url.as_deref());
+    let api_extra_env = normalize_api_extra_env(provider_config.api_extra_env);
+    let connection_mode = crate::modules::claude_desktop_gateway::normalize_connection_mode(
+        desktop_gateway_connection_mode,
+    );
+    let desktop_gateway_upstream_models = normalize_model_catalog(desktop_gateway_upstream_models);
+    let mut desktop_gateway_model_mappings =
+        crate::modules::claude_desktop_gateway::normalize_model_mappings(
+            desktop_gateway_model_mappings,
+        );
+    let mut desktop_gateway_models = normalize_model_catalog(desktop_gateway_models);
+    if connection_mode == "local_mapping" {
+        if desktop_gateway_model_mappings.is_none() {
+            if let (Some(desktop_models), Some(upstream_models)) = (
+                desktop_gateway_models.as_ref(),
+                desktop_gateway_upstream_models.as_ref(),
+            ) {
+                desktop_gateway_model_mappings = Some(
+                    crate::modules::claude_desktop_gateway::build_default_model_mappings(
+                        desktop_models,
+                        upstream_models,
+                    ),
+                );
+            }
+        }
+        let mappings = desktop_gateway_model_mappings
+            .as_ref()
+            .filter(|items| !items.is_empty())
+            .ok_or_else(|| "请配置模型映射".to_string())?;
+        if mappings.iter().any(|mapping| {
+            !crate::modules::claude_desktop_gateway::is_claude_desktop_model(&mapping.desktop_model)
+        }) {
+            return Err("映射左侧必须是 Claude Desktop 可识别的 Claude 模型名".to_string());
+        }
+        desktop_gateway_models = normalize_model_catalog(Some(
+            mappings
+                .iter()
+                .map(|mapping| mapping.desktop_model.clone())
+                .collect(),
+        ));
+    } else {
+        let models = desktop_gateway_models
+            .as_ref()
+            .filter(|items| !items.is_empty())
+            .ok_or_else(|| "请填写模型目录".to_string())?;
+        if models
+            .iter()
+            .any(|model| !crate::modules::claude_desktop_gateway::is_claude_desktop_model(model))
+        {
+            return Err(
+                "直连模式的模型目录必须使用 Claude Desktop 可识别的 Claude 模型名".to_string(),
+            );
+        }
+        desktop_gateway_model_mappings = None;
+    }
+    if desktop_gateway_models
+        .as_ref()
+        .map_or(true, |items| items.is_empty())
+    {
+        return Err("请填写模型目录".to_string());
+    }
+    let id = account_id_override
+        .and_then(|value| normalize_non_empty(Some(value)))
+        .unwrap_or_else(|| build_desktop_gateway_account_id(&api_key, &api_base_url));
+    let display_name =
+        build_api_key_display_name(&api_key, account_name, api_provider_name.as_deref());
+    let existing_account = load_account_file(&id);
+    if account_id_override.is_some()
+        && existing_account
+            .as_ref()
+            .map(|account| account.auth_mode != ClaudeAuthMode::DesktopGateway)
+            .unwrap_or(true)
+    {
+        return Err("Claude Desktop Gateway 账号不存在".to_string());
+    }
+    let config_id = existing_account
+        .as_ref()
+        .and_then(|account| account.desktop_gateway_config_id.clone())
+        .filter(|value| UUID_RE.is_match(value))
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let profile_dir = if let Some(existing_profile_dir) = existing_account
+        .as_ref()
+        .and_then(|account| account.desktop_gateway_profile_dir.as_deref())
+        .and_then(|value| normalize_non_empty(Some(value)))
+    {
+        PathBuf::from(existing_profile_dir)
+    } else {
+        get_desktop_gateway_profiles_dir()?.join(&id)
+    };
+    let profile_dir_string = profile_dir.to_string_lossy().to_string();
+    let now = now_ts_ms();
+    let provider_snapshot = json!({
+        "id": api_provider_id.clone(),
+        "name": api_provider_name.clone(),
+        "baseUrl": api_base_url.clone(),
+        "sourceTag": api_provider_source_tag.clone(),
+        "website": api_provider_website.clone(),
+        "apiKeyUrl": api_provider_api_key_url.clone(),
+        "extraEnv": api_extra_env.clone(),
+        "authScheme": auth_scheme.clone(),
+        "credentialKind": credential_kind.clone(),
+        "configId": config_id.clone(),
+        "manualModels": desktop_gateway_models.clone(),
+        "connectionMode": connection_mode.clone(),
+        "upstreamModels": desktop_gateway_upstream_models.clone(),
+        "modelMappings": desktop_gateway_model_mappings.clone(),
+    });
+
+    let mut account = existing_account.unwrap_or_else(|| ClaudeAccount {
+        id: id.clone(),
+        email: display_name.clone(),
+        auth_mode: ClaudeAuthMode::DesktopGateway,
+        account_uuid: None,
+        organization_uuid: None,
+        organization_name: None,
+        plan_type: None,
+        avatar_url: None,
+        profile_updated_at: None,
+        quota: None,
+        quota_error: None,
+        usage_updated_at: None,
+        status: None,
+        status_reason: None,
+        api_key: None,
+        api_base_url: None,
+        api_provider_id: None,
+        api_provider_name: None,
+        api_provider_source_tag: None,
+        api_provider_website: None,
+        api_provider_api_key_url: None,
+        api_key_field: None,
+        api_model_catalog: None,
+        api_extra_env: None,
+        desktop_gateway_auth_scheme: None,
+        desktop_gateway_credential_kind: None,
+        desktop_gateway_config_id: None,
+        desktop_gateway_profile_dir: None,
+        desktop_gateway_models: None,
+        desktop_gateway_connection_mode: None,
+        desktop_gateway_upstream_models: None,
+        desktop_gateway_model_mappings: None,
+        desktop_profile_dir: None,
+        desktop_profile_imported_at: None,
+        claude_credentials_raw: None,
+        claude_config_raw: None,
+        claude_usage_raw: None,
+        tags: None,
+        account_note: None,
+        created_at: now,
+        last_used: now,
+    });
+    let key_hash = format!("{:x}", md5::compute(api_key.as_bytes()));
+    account.id = id;
+    account.email = display_name;
+    account.auth_mode = ClaudeAuthMode::DesktopGateway;
+    account.account_uuid = None;
+    account.organization_uuid = None;
+    account.organization_name = api_provider_name.clone();
+    account.plan_type = Some("Gateway".to_string());
+    account.avatar_url = None;
+    account.profile_updated_at = None;
+    account.quota = None;
+    account.quota_error = None;
+    account.usage_updated_at = None;
+    account.status = None;
+    account.status_reason = None;
+    account.api_key = Some(api_key.clone());
+    account.api_base_url = Some(api_base_url.clone());
+    account.api_provider_id = api_provider_id.clone();
+    account.api_provider_name = api_provider_name.clone();
+    account.api_provider_source_tag = api_provider_source_tag.clone();
+    account.api_provider_website = api_provider_website.clone();
+    account.api_provider_api_key_url = api_provider_api_key_url.clone();
+    account.api_key_field = None;
+    account.api_model_catalog = None;
+    account.api_extra_env = api_extra_env.clone();
+    account.desktop_gateway_auth_scheme = Some(auth_scheme.clone());
+    account.desktop_gateway_credential_kind = Some(credential_kind.clone());
+    account.desktop_gateway_config_id = Some(config_id.clone());
+    account.desktop_gateway_profile_dir = Some(profile_dir_string);
+    account.desktop_gateway_models = desktop_gateway_models.clone();
+    account.desktop_gateway_connection_mode = Some(connection_mode.clone());
+    account.desktop_gateway_upstream_models = desktop_gateway_upstream_models.clone();
+    account.desktop_gateway_model_mappings = desktop_gateway_model_mappings.clone();
+    account.desktop_profile_dir = None;
+    account.desktop_profile_imported_at = None;
+    account.claude_credentials_raw = Some(json!({
+        "authMode": "desktop_gateway",
+        "gatewayApiKey": api_key,
+        "gatewayAuthScheme": auth_scheme,
+        "gatewayCredentialKind": credential_kind,
+        "gatewayModels": desktop_gateway_models,
+        "gatewayConnectionMode": connection_mode,
+        "gatewayUpstreamModels": desktop_gateway_upstream_models,
+        "gatewayModelMappings": desktop_gateway_model_mappings,
+        "apiProvider": provider_snapshot.clone(),
+    }));
+    account.claude_config_raw = Some(json!({
+        "desktopGateway": {
+            "label": account.email.clone(),
+            "keyHash": key_hash,
+            "provider": provider_snapshot,
+        },
+        "hasCompletedOnboarding": true,
+    }));
+    account.claude_usage_raw = None;
     account.last_used = now;
     save_account_and_index(account)
 }
@@ -2861,6 +3346,212 @@ fn restore_desktop_profile_snapshot(snapshot_dir: &Path, target_dir: &Path) -> R
     Ok(())
 }
 
+fn desktop_gateway_account_profile_dir(account: &ClaudeAccount) -> Result<PathBuf, String> {
+    account
+        .desktop_gateway_profile_dir
+        .as_deref()
+        .and_then(|value| normalize_non_empty(Some(value)))
+        .map(PathBuf::from)
+        .or_else(|| {
+            get_desktop_gateway_profiles_dir()
+                .ok()
+                .map(|dir| dir.join(&account.id))
+        })
+        .ok_or_else(|| "Claude Desktop Gateway profile 目录不可用".to_string())
+}
+
+fn build_desktop_gateway_provider_config(account: &ClaudeAccount) -> Result<Value, String> {
+    if account.auth_mode != ClaudeAuthMode::DesktopGateway {
+        return Err("账号不是 Claude Desktop Gateway 类型".to_string());
+    }
+    let connection_mode = crate::modules::claude_desktop_gateway::normalize_connection_mode(
+        account.desktop_gateway_connection_mode.as_deref(),
+    );
+    let (base_url, api_key, auth_scheme) = if connection_mode == "local_mapping" {
+        let endpoint = crate::modules::claude_desktop_gateway::ensure_gateway_for_account(account)?;
+        (endpoint.base_url, endpoint.api_key, "bearer".to_string())
+    } else {
+        let api_key = account
+            .api_key
+            .as_deref()
+            .and_then(|value| normalize_non_empty(Some(value)))
+            .ok_or_else(|| "Claude Desktop Gateway 账号缺少 API Key".to_string())?;
+        let base_url = account
+            .api_base_url
+            .as_deref()
+            .and_then(|value| normalize_non_empty(Some(value)))
+            .ok_or_else(|| "Claude Desktop Gateway 账号缺少 Base URL".to_string())?;
+        let auth_scheme =
+            normalize_desktop_gateway_auth_scheme(account.desktop_gateway_auth_scheme.as_deref());
+        (
+            base_url,
+            api_key.to_string(),
+            if auth_scheme == "auto" {
+                "bearer".to_string()
+            } else {
+                auth_scheme
+            },
+        )
+    };
+    let credential_kind = account
+        .desktop_gateway_credential_kind
+        .as_deref()
+        .and_then(|value| normalize_non_empty(Some(value)))
+        .unwrap_or_else(|| "static".to_string());
+    if credential_kind != "static" {
+        return Err("当前仅支持 static Gateway API Key".to_string());
+    }
+    let mut config = json!({
+        "inferenceProvider": "gateway",
+        "inferenceCredentialKind": credential_kind,
+        "inferenceGatewayBaseUrl": base_url,
+        "inferenceGatewayApiKey": api_key,
+        "inferenceGatewayAuthScheme": auth_scheme,
+    });
+    if let Some(models) = account
+        .desktop_gateway_models
+        .as_ref()
+        .filter(|items| !items.is_empty())
+    {
+        config["inferenceModels"] = Value::Array(
+            models
+                .iter()
+                .filter_map(|model| {
+                    normalize_non_empty(Some(model)).map(|name| json!({ "name": name }))
+                })
+                .collect(),
+        );
+    }
+    Ok(config)
+}
+
+fn is_claude_desktop_gateway_config(value: &Value) -> bool {
+    value
+        .get("inferenceProvider")
+        .and_then(Value::as_str)
+        .is_some_and(|provider| provider.eq_ignore_ascii_case("gateway"))
+        || value
+            .get("deploymentMode")
+            .and_then(Value::as_str)
+            .is_some_and(|mode| mode.eq_ignore_ascii_case("3p"))
+}
+
+fn config_library_contains_gateway_config(config_library_dir: &Path) -> Result<bool, String> {
+    if !config_library_dir.exists() {
+        return Ok(false);
+    }
+    let meta_path = config_library_dir.join("_meta.json");
+    if let Some(meta) = read_config_file(&meta_path)? {
+        if meta
+            .get("entries")
+            .and_then(Value::as_array)
+            .map(|entries| {
+                entries.iter().any(|entry| {
+                    entry
+                        .get("provider")
+                        .and_then(Value::as_str)
+                        .is_some_and(|provider| provider.eq_ignore_ascii_case("gateway"))
+                })
+            })
+            .unwrap_or(false)
+        {
+            return Ok(true);
+        }
+        if let Some(applied_id) = meta.get("appliedId").and_then(Value::as_str) {
+            let applied_path = config_library_dir.join(format!("{}.json", applied_id));
+            if let Some(config) = read_config_file(&applied_path)? {
+                if is_claude_desktop_gateway_config(&config) {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+
+    for entry in fs::read_dir(config_library_dir).map_err(|e| {
+        format!(
+            "读取 Claude Desktop configLibrary 失败: path={}, error={}",
+            config_library_dir.display(),
+            e
+        )
+    })? {
+        let entry =
+            entry.map_err(|e| format!("读取 Claude Desktop configLibrary 项失败: {}", e))?;
+        let path = entry.path();
+        if path.file_name().and_then(|value| value.to_str()) == Some("_meta.json")
+            || path.extension().and_then(|value| value.to_str()) != Some("json")
+        {
+            continue;
+        }
+        if let Some(config) = read_config_file(&path)? {
+            if is_claude_desktop_gateway_config(&config) {
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
+fn remove_desktop_gateway_profile_config(target_dir: &Path) -> Result<(), String> {
+    let desktop_config_path = target_dir.join("claude_desktop_config.json");
+    if let Some(config) = read_config_file(&desktop_config_path)? {
+        if is_claude_desktop_gateway_config(&config) {
+            remove_path_if_exists(&desktop_config_path)?;
+        }
+    }
+
+    let config_library_dir = target_dir.join("configLibrary");
+    if config_library_contains_gateway_config(&config_library_dir)? {
+        remove_path_if_exists(&config_library_dir)?;
+    }
+    Ok(())
+}
+
+fn write_desktop_gateway_profile(account: &ClaudeAccount, target_dir: &Path) -> Result<(), String> {
+    let config_id = account
+        .desktop_gateway_config_id
+        .as_deref()
+        .filter(|value| UUID_RE.is_match(value))
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let account_name = account.email.trim();
+    let entry_name = if account_name.is_empty() {
+        "Default"
+    } else {
+        account_name
+    };
+    let base_url = account.api_base_url.clone().unwrap_or_default();
+    fs::create_dir_all(target_dir)
+        .map_err(|e| format!("创建 Claude Desktop Gateway profile 失败: {}", e))?;
+    let config_library_dir = target_dir.join("configLibrary");
+    fs::create_dir_all(&config_library_dir)
+        .map_err(|e| format!("创建 Claude Desktop Gateway configLibrary 失败: {}", e))?;
+
+    write_config_file(
+        &target_dir.join("claude_desktop_config.json"),
+        &json!({
+            "deploymentMode": "3p",
+            "disableDeploymentModeChooser": true,
+        }),
+    )?;
+    write_config_file(
+        &config_library_dir.join("_meta.json"),
+        &json!({
+            "appliedId": config_id.clone(),
+            "entries": [{
+                "id": config_id.clone(),
+                "name": entry_name,
+                "provider": "gateway",
+                "note": base_url,
+            }],
+        }),
+    )?;
+    write_config_file(
+        &config_library_dir.join(format!("{}.json", config_id)),
+        &build_desktop_gateway_provider_config(account)?,
+    )?;
+    Ok(())
+}
+
 pub fn restore_desktop_account_to_profile(
     account_id: &str,
     target_dir: &Path,
@@ -2880,7 +3571,29 @@ pub fn restore_desktop_account_to_profile(
     if backup_existing {
         let _backup_dir = backup_current_desktop_profile(target_dir)?;
     }
+    remove_desktop_gateway_profile_config(target_dir)?;
     restore_desktop_profile_snapshot(&snapshot_dir, target_dir)?;
+    remove_desktop_gateway_profile_config(target_dir)?;
+
+    let mut updated = account.clone();
+    updated.last_used = now_ts_ms();
+    save_account_and_index(updated)?;
+    Ok(())
+}
+
+pub fn restore_desktop_gateway_account_to_profile(
+    account_id: &str,
+    target_dir: &Path,
+    backup_existing: bool,
+) -> Result<(), String> {
+    let account = load_account(account_id).ok_or_else(|| "Claude 账号不存在".to_string())?;
+    if account.auth_mode != ClaudeAuthMode::DesktopGateway {
+        return Err("绑定账号不是 Claude Desktop Gateway 类型。".to_string());
+    }
+    if backup_existing {
+        let _backup_dir = backup_current_desktop_profile(target_dir)?;
+    }
+    write_desktop_gateway_profile(&account, target_dir)?;
 
     let mut updated = account.clone();
     updated.last_used = now_ts_ms();
@@ -2940,6 +3653,322 @@ fn find_desktop_auth_helper_script() -> Result<PathBuf, String> {
         })
 }
 
+#[derive(Debug, Clone)]
+struct ElectronRuntimeAsset {
+    platform_key: &'static str,
+    file_name: &'static str,
+    sha256: &'static str,
+    executable_relative: &'static str,
+}
+
+fn electron_runtime_asset_for_current_platform() -> Result<ElectronRuntimeAsset, String> {
+    let arch = std::env::consts::ARCH;
+    #[cfg(target_os = "macos")]
+    {
+        return match arch {
+            "aarch64" => Ok(ElectronRuntimeAsset {
+                platform_key: "darwin-arm64",
+                file_name: "electron-v42.4.0-darwin-arm64.zip",
+                sha256: "3ce55988c9998bcd1e9c69478dd26887b90e8f8010441172e520e94ba575e520",
+                executable_relative: "Electron.app/Contents/MacOS/Electron",
+            }),
+            "x86_64" => Ok(ElectronRuntimeAsset {
+                platform_key: "darwin-x64",
+                file_name: "electron-v42.4.0-darwin-x64.zip",
+                sha256: "0f141809eebe3f3f8c8f8377c10c93f21a39433f71526598de5e989f452cae29",
+                executable_relative: "Electron.app/Contents/MacOS/Electron",
+            }),
+            _ => Err(format!(
+                "当前 macOS 架构暂不支持自动下载 Electron: {}",
+                arch
+            )),
+        };
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return match arch {
+            "x86_64" => Ok(ElectronRuntimeAsset {
+                platform_key: "win32-x64",
+                file_name: "electron-v42.4.0-win32-x64.zip",
+                sha256: "ffc056685b4a769d7977ef3d58bdc332446d081f025ee074d77b498d2962e2cd",
+                executable_relative: "electron.exe",
+            }),
+            "aarch64" => Ok(ElectronRuntimeAsset {
+                platform_key: "win32-arm64",
+                file_name: "electron-v42.4.0-win32-arm64.zip",
+                sha256: "5d576f908c9e88209dfe8a17f7e84c4949288c2ef611637c301d562bc8d08d61",
+                executable_relative: "electron.exe",
+            }),
+            _ => Err(format!(
+                "当前 Windows 架构暂不支持自动下载 Electron: {}",
+                arch
+            )),
+        };
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        return match arch {
+            "x86_64" => Ok(ElectronRuntimeAsset {
+                platform_key: "linux-x64",
+                file_name: "electron-v42.4.0-linux-x64.zip",
+                sha256: "9a8194635548490a56099cc4c2b116738ae56834dee4472506d5a8b262bcbda4",
+                executable_relative: "electron",
+            }),
+            "aarch64" => Ok(ElectronRuntimeAsset {
+                platform_key: "linux-arm64",
+                file_name: "electron-v42.4.0-linux-arm64.zip",
+                sha256: "d3bf612de0b651302fb46e50ed3282b609ea9d4d99bb296f7c9bb8ffd92fd69b",
+                executable_relative: "electron",
+            }),
+            _ => Err(format!(
+                "当前 Linux 架构暂不支持自动下载 Electron: {}",
+                arch
+            )),
+        };
+    }
+
+    #[allow(unreachable_code)]
+    Err(format!(
+        "当前平台暂不支持自动下载 Electron: {}-{}",
+        std::env::consts::OS,
+        arch
+    ))
+}
+
+fn electron_runtime_root_dir() -> Result<PathBuf, String> {
+    Ok(get_data_dir()?
+        .join(CLAUDE_DESKTOP_ELECTRON_RUNTIME_DIR)
+        .join(CLAUDE_DESKTOP_ELECTRON_VERSION))
+}
+
+fn electron_runtime_download_url(asset: &ElectronRuntimeAsset) -> String {
+    format!(
+        "https://github.com/electron/electron/releases/download/v{}/{}",
+        CLAUDE_DESKTOP_ELECTRON_VERSION, asset.file_name
+    )
+}
+
+fn sha256_file_hex(path: &Path) -> Result<String, String> {
+    let mut file =
+        File::open(path).map_err(|e| format!("读取 Electron runtime 文件失败: {}", e))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 1024 * 256];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|e| format!("读取 Electron runtime 文件失败: {}", e))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    let digest = hasher.finalize();
+    Ok(hex_encode(&digest))
+}
+
+fn electron_runtime_zip_path(asset: &ElectronRuntimeAsset) -> Result<PathBuf, String> {
+    Ok(electron_runtime_root_dir()?.join(asset.file_name))
+}
+
+fn verify_cached_electron_zip(asset: &ElectronRuntimeAsset, zip_path: &Path) -> bool {
+    if !zip_path.exists() {
+        return false;
+    }
+    match sha256_file_hex(zip_path) {
+        Ok(actual) if actual.eq_ignore_ascii_case(asset.sha256) => true,
+        Ok(actual) => {
+            logger::log_warn(&format!(
+                "[Claude Desktop Auth] Electron runtime 缓存校验失败，准备重新下载: path={}, expected={}, actual={}",
+                zip_path.display(),
+                asset.sha256,
+                actual
+            ));
+            let _ = fs::remove_file(zip_path);
+            false
+        }
+        Err(error) => {
+            logger::log_warn(&format!(
+                "[Claude Desktop Auth] Electron runtime 缓存读取失败，准备重新下载: path={}, error={}",
+                zip_path.display(),
+                error
+            ));
+            let _ = fs::remove_file(zip_path);
+            false
+        }
+    }
+}
+
+fn download_electron_runtime_zip(
+    asset: &ElectronRuntimeAsset,
+    zip_path: &Path,
+) -> Result<(), String> {
+    if verify_cached_electron_zip(asset, zip_path) {
+        return Ok(());
+    }
+
+    if let Some(parent) = zip_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("创建 Electron runtime 缓存目录失败: {}", e))?;
+    }
+
+    let url = electron_runtime_download_url(asset);
+    logger::log_info(&format!(
+        "[Claude Desktop Auth] 开始下载 Electron runtime: url={}, target={}",
+        url,
+        zip_path.display()
+    ));
+
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("Cockpit-Tools")
+        .timeout(Duration::from_secs(15 * 60))
+        .build()
+        .map_err(|e| format!("创建 Electron runtime 下载客户端失败: {}", e))?;
+    let mut response = client
+        .get(&url)
+        .send()
+        .map_err(|e| format!("下载 Electron runtime 失败: {}", e))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "下载 Electron runtime 失败: HTTP {} ({})",
+            response.status(),
+            url
+        ));
+    }
+
+    let temp_path = zip_path.with_extension("zip.part");
+    let mut temp_file = File::create(&temp_path)
+        .map_err(|e| format!("创建 Electron runtime 临时文件失败: {}", e))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 1024 * 256];
+    let mut downloaded: u64 = 0;
+    const MAX_ELECTRON_RUNTIME_DOWNLOAD_BYTES: u64 = 350 * 1024 * 1024;
+    loop {
+        let read = response
+            .read(&mut buffer)
+            .map_err(|e| format!("读取 Electron runtime 下载数据失败: {}", e))?;
+        if read == 0 {
+            break;
+        }
+        downloaded += read as u64;
+        if downloaded > MAX_ELECTRON_RUNTIME_DOWNLOAD_BYTES {
+            let _ = fs::remove_file(&temp_path);
+            return Err("Electron runtime 下载内容超过预期大小，已停止。".to_string());
+        }
+        hasher.update(&buffer[..read]);
+        temp_file
+            .write_all(&buffer[..read])
+            .map_err(|e| format!("写入 Electron runtime 临时文件失败: {}", e))?;
+    }
+    temp_file
+        .sync_all()
+        .map_err(|e| format!("同步 Electron runtime 临时文件失败: {}", e))?;
+    drop(temp_file);
+
+    let actual = hex_encode(&hasher.finalize());
+    if !actual.eq_ignore_ascii_case(asset.sha256) {
+        let _ = fs::remove_file(&temp_path);
+        return Err(format!(
+            "Electron runtime 校验失败: expected={}, actual={}",
+            asset.sha256, actual
+        ));
+    }
+
+    if zip_path.exists() {
+        let _ = fs::remove_file(zip_path);
+    }
+    fs::rename(&temp_path, zip_path)
+        .map_err(|e| format!("保存 Electron runtime 缓存失败: {}", e))?;
+    logger::log_info(&format!(
+        "[Claude Desktop Auth] Electron runtime 下载完成: path={}, bytes={}",
+        zip_path.display(),
+        downloaded
+    ));
+    Ok(())
+}
+
+fn extract_electron_runtime_zip(
+    asset: &ElectronRuntimeAsset,
+    zip_path: &Path,
+    runtime_dir: &Path,
+) -> Result<(), String> {
+    let parent = runtime_dir
+        .parent()
+        .ok_or_else(|| format!("无法定位 Electron runtime 目录: {}", runtime_dir.display()))?;
+    fs::create_dir_all(parent).map_err(|e| format!("创建 Electron runtime 目录失败: {}", e))?;
+    let staging_dir = parent.join(format!(
+        ".{}.extracting.{}",
+        asset.platform_key,
+        std::process::id()
+    ));
+    let _ = remove_path_if_exists(&staging_dir);
+    fs::create_dir_all(&staging_dir)
+        .map_err(|e| format!("创建 Electron runtime 解压目录失败: {}", e))?;
+
+    let archive_file =
+        File::open(zip_path).map_err(|e| format!("打开 Electron runtime 压缩包失败: {}", e))?;
+    let mut archive = zip::ZipArchive::new(archive_file)
+        .map_err(|e| format!("解析 Electron runtime 压缩包失败: {}", e))?;
+    archive
+        .extract(&staging_dir)
+        .map_err(|e| format!("解压 Electron runtime 失败: {}", e))?;
+
+    let executable = staging_dir.join(asset.executable_relative);
+    if !executable.exists() {
+        let _ = remove_path_if_exists(&staging_dir);
+        return Err(format!(
+            "Electron runtime 解压后缺少可执行文件: {}",
+            executable.display()
+        ));
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&executable, fs::Permissions::from_mode(0o755));
+    }
+
+    if runtime_dir.exists() {
+        remove_path_if_exists(runtime_dir)?;
+    }
+    fs::rename(&staging_dir, runtime_dir)
+        .map_err(|e| format!("保存 Electron runtime 解压目录失败: {}", e))?;
+    Ok(())
+}
+
+fn ensure_downloaded_electron_runtime() -> Result<PathBuf, String> {
+    let _guard = CLAUDE_DESKTOP_ELECTRON_RUNTIME_LOCK
+        .lock()
+        .map_err(|_| "Electron runtime 下载锁已损坏".to_string())?;
+    let asset = electron_runtime_asset_for_current_platform()?;
+    let runtime_dir = electron_runtime_root_dir()?.join(asset.platform_key);
+    let executable = runtime_dir.join(asset.executable_relative);
+    if executable.exists() {
+        logger::log_info(&format!(
+            "[Claude Desktop Auth] 使用已缓存 Electron runtime: {}",
+            executable.display()
+        ));
+        return Ok(executable);
+    }
+
+    let zip_path = electron_runtime_zip_path(&asset)?;
+    download_electron_runtime_zip(&asset, &zip_path)?;
+    extract_electron_runtime_zip(&asset, &zip_path, &runtime_dir)?;
+    let executable = runtime_dir.join(asset.executable_relative);
+    if executable.exists() {
+        logger::log_info(&format!(
+            "[Claude Desktop Auth] Electron runtime 已准备: {}",
+            executable.display()
+        ));
+        return Ok(executable);
+    }
+    Err(format!(
+        "Electron runtime 已下载但不可用: {}",
+        executable.display()
+    ))
+}
+
 fn find_electron_executable_for_desktop_auth() -> Result<PathBuf, String> {
     if let Ok(value) = std::env::var("CLAUDE_DESKTOP_AUTH_ELECTRON") {
         let trimmed = value.trim();
@@ -2952,22 +3981,13 @@ fn find_electron_executable_for_desktop_auth() -> Result<PathBuf, String> {
     }
 
     let mut candidates = Vec::new();
-    if let Some(resource_dir) = get_desktop_auth_resource_dir() {
-        candidates.extend(electron_resource_executable_candidates(&resource_dir));
-    }
     if let Ok(current_dir) = std::env::current_dir() {
         candidates.extend(electron_node_modules_executable_candidates(&current_dir));
-        candidates.extend(electron_resource_executable_candidates(
-            &current_dir.join("src-tauri").join("resources"),
-        ));
     }
     if let Ok(exe) = std::env::current_exe() {
         let mut current = exe.parent();
         while let Some(dir) = current {
             candidates.extend(electron_node_modules_executable_candidates(dir));
-            candidates.extend(electron_resource_executable_candidates(
-                &dir.join("src-tauri").join("resources"),
-            ));
             current = dir.parent();
         }
     }
@@ -2994,37 +4014,20 @@ fn find_electron_executable_for_desktop_auth() -> Result<PathBuf, String> {
         }
     }
 
-    Err(format!(
-        "未找到 Electron 运行时，无法在平台内打开 Claude Desktop 授权窗口。请确认安装包包含 electron 资源；开发环境请先执行 npm install，或设置 CLAUDE_DESKTOP_AUTH_ELECTRON。已检查: {}",
-        checked
-    ))
-}
-
-fn electron_resource_executable_candidates(resource_dir: &Path) -> Vec<PathBuf> {
-    let electron_root = resource_dir.join("electron");
-    let mut candidates = Vec::new();
-    #[cfg(target_os = "windows")]
-    {
-        candidates.push(electron_root.join("electron.exe"));
-        candidates.push(electron_root.join("dist").join("electron.exe"));
+    match ensure_downloaded_electron_runtime() {
+        Ok(path) => return Ok(path),
+        Err(error) => {
+            let checked_detail = if checked.is_empty() {
+                "(无本地候选路径)".to_string()
+            } else {
+                checked
+            };
+            return Err(format!(
+                "未找到本地 Electron 运行时，且自动准备失败: {}。已检查: {}",
+                error, checked_detail
+            ));
+        }
     }
-    #[cfg(target_os = "macos")]
-    {
-        candidates.push(
-            electron_root
-                .join("Electron.app")
-                .join("Contents")
-                .join("MacOS")
-                .join("Electron"),
-        );
-        candidates.push(electron_root.join("electron"));
-    }
-    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
-    {
-        candidates.push(electron_root.join("electron"));
-        candidates.push(electron_root.join("dist").join("electron"));
-    }
-    candidates
 }
 
 fn electron_node_modules_executable_candidates(root: &Path) -> Vec<PathBuf> {
@@ -3057,6 +4060,73 @@ fn electron_node_modules_executable_candidates(root: &Path) -> Vec<PathBuf> {
     }
 
     candidates
+}
+
+#[cfg(test)]
+fn test_electron_runtime_asset_for(os: &str, arch: &str) -> Option<ElectronRuntimeAsset> {
+    match (os, arch) {
+        ("macos", "aarch64") => Some(ElectronRuntimeAsset {
+            platform_key: "darwin-arm64",
+            file_name: "electron-v42.4.0-darwin-arm64.zip",
+            sha256: "3ce55988c9998bcd1e9c69478dd26887b90e8f8010441172e520e94ba575e520",
+            executable_relative: "Electron.app/Contents/MacOS/Electron",
+        }),
+        ("macos", "x86_64") => Some(ElectronRuntimeAsset {
+            platform_key: "darwin-x64",
+            file_name: "electron-v42.4.0-darwin-x64.zip",
+            sha256: "0f141809eebe3f3f8c8f8377c10c93f21a39433f71526598de5e989f452cae29",
+            executable_relative: "Electron.app/Contents/MacOS/Electron",
+        }),
+        ("windows", "x86_64") => Some(ElectronRuntimeAsset {
+            platform_key: "win32-x64",
+            file_name: "electron-v42.4.0-win32-x64.zip",
+            sha256: "ffc056685b4a769d7977ef3d58bdc332446d081f025ee074d77b498d2962e2cd",
+            executable_relative: "electron.exe",
+        }),
+        ("windows", "aarch64") => Some(ElectronRuntimeAsset {
+            platform_key: "win32-arm64",
+            file_name: "electron-v42.4.0-win32-arm64.zip",
+            sha256: "5d576f908c9e88209dfe8a17f7e84c4949288c2ef611637c301d562bc8d08d61",
+            executable_relative: "electron.exe",
+        }),
+        ("linux", "x86_64") => Some(ElectronRuntimeAsset {
+            platform_key: "linux-x64",
+            file_name: "electron-v42.4.0-linux-x64.zip",
+            sha256: "9a8194635548490a56099cc4c2b116738ae56834dee4472506d5a8b262bcbda4",
+            executable_relative: "electron",
+        }),
+        ("linux", "aarch64") => Some(ElectronRuntimeAsset {
+            platform_key: "linux-arm64",
+            file_name: "electron-v42.4.0-linux-arm64.zip",
+            sha256: "d3bf612de0b651302fb46e50ed3282b609ea9d4d99bb296f7c9bb8ffd92fd69b",
+            executable_relative: "electron",
+        }),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod electron_runtime_tests {
+    use super::{electron_runtime_download_url, test_electron_runtime_asset_for};
+
+    #[test]
+    fn electron_runtime_assets_are_pinned_with_sha256() {
+        for (os, arch, platform_key) in [
+            ("macos", "aarch64", "darwin-arm64"),
+            ("macos", "x86_64", "darwin-x64"),
+            ("windows", "x86_64", "win32-x64"),
+            ("windows", "aarch64", "win32-arm64"),
+            ("linux", "x86_64", "linux-x64"),
+            ("linux", "aarch64", "linux-arm64"),
+        ] {
+            let asset = test_electron_runtime_asset_for(os, arch).expect("asset should exist");
+            assert_eq!(asset.platform_key, platform_key);
+            assert!(asset.file_name.starts_with("electron-v42.4.0-"));
+            assert_eq!(asset.sha256.len(), 64);
+            assert!(asset.sha256.chars().all(|ch| ch.is_ascii_hexdigit()));
+            assert!(electron_runtime_download_url(&asset).contains(asset.file_name));
+        }
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -3182,25 +4252,38 @@ fn launch_platform_desktop_auth_helper_with_args(
     Ok(child_id)
 }
 
+#[cfg(target_os = "macos")]
 fn terminate_desktop_auth_helper(pid: Option<u32>) {
     let Some(pid) = pid else {
         return;
     };
-    #[cfg(unix)]
-    {
-        unsafe {
-            let _ = libc::kill(pid as i32, libc::SIGTERM);
-        }
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let mut command = std::process::Command::new("taskkill");
-        command.args(["/PID", &pid.to_string(), "/T", "/F"]);
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x08000000);
-        let _ = command.output();
-    }
-    std::thread::sleep(std::time::Duration::from_millis(500));
+    let _ = std::process::Command::new("kill")
+        .arg("-TERM")
+        .arg(pid.to_string())
+        .status();
+}
+
+#[cfg(target_os = "windows")]
+fn terminate_desktop_auth_helper(pid: Option<u32>) {
+    let Some(pid) = pid else {
+        return;
+    };
+    use std::os::windows::process::CommandExt;
+    let _ = std::process::Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/T", "/F"])
+        .creation_flags(0x08000000)
+        .status();
+}
+
+#[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+fn terminate_desktop_auth_helper(pid: Option<u32>) {
+    let Some(pid) = pid else {
+        return;
+    };
+    let _ = std::process::Command::new("kill")
+        .arg("-TERM")
+        .arg(pid.to_string())
+        .status();
 }
 
 #[cfg(target_os = "macos")]
@@ -3210,6 +4293,44 @@ fn is_claude_desktop_running() -> bool {
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false)
+}
+
+#[cfg(target_os = "macos")]
+fn collect_claude_desktop_main_pids() -> Vec<u32> {
+    let output = std::process::Command::new("pgrep")
+        .args(["-x", "Claude"])
+        .output();
+    let mut pids = output
+        .ok()
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .map(|stdout| {
+            stdout
+                .lines()
+                .filter_map(|line| line.trim().parse::<u32>().ok())
+                .filter(|pid| *pid != 0)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    pids.sort_unstable();
+    pids.dedup();
+    pids
+}
+
+#[cfg(target_os = "macos")]
+fn force_kill_claude_desktop_main_processes() {
+    let pids = collect_claude_desktop_main_pids();
+    if pids.is_empty() {
+        return;
+    }
+    logger::log_warn(&format!(
+        "[Claude Desktop] force killing main processes before profile write: {}",
+        crate::modules::process::summarize_pid_list_for_log(&pids)
+    ));
+    for pid in pids {
+        let _ = std::process::Command::new("kill")
+            .args(["-9", &pid.to_string()])
+            .output();
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -3238,6 +4359,7 @@ fn quit_claude_desktop_for_profile_write() -> Result<(), String> {
     if !is_claude_desktop_running() {
         return Ok(());
     }
+    logger::log_info("[Claude Desktop] closing Claude before profile write");
     let _ = std::process::Command::new("osascript")
         .args([
             "-e",
@@ -3247,12 +4369,40 @@ fn quit_claude_desktop_for_profile_write() -> Result<(), String> {
             ),
         ])
         .output();
-    for _ in 0..30 {
+    for _ in 0..40 {
         if !is_claude_desktop_running() {
+            std::thread::sleep(std::time::Duration::from_millis(300));
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(250));
     }
+
+    if let Ok(target_dir) = get_default_claude_desktop_user_data_dir() {
+        let target_dir = target_dir.to_string_lossy().to_string();
+        if let Err(error) = crate::modules::claude_instance::close_claude(&[target_dir], 8) {
+            logger::log_warn(&format!(
+                "[Claude Desktop] managed close before profile write failed: {}",
+                error
+            ));
+        }
+    }
+    for _ in 0..24 {
+        if !is_claude_desktop_running() {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+
+    force_kill_claude_desktop_main_processes();
+    for _ in 0..20 {
+        if !is_claude_desktop_running() {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+
     Err("Claude Desktop 仍在运行，无法安全写入登录态。请先退出 Claude 后重试。".to_string())
 }
 
@@ -3442,6 +4592,14 @@ fn import_desktop_profile_snapshot(
         api_key_field: None,
         api_model_catalog: None,
         api_extra_env: None,
+        desktop_gateway_auth_scheme: None,
+        desktop_gateway_credential_kind: None,
+        desktop_gateway_config_id: None,
+        desktop_gateway_profile_dir: None,
+        desktop_gateway_models: None,
+        desktop_gateway_connection_mode: None,
+        desktop_gateway_upstream_models: None,
+        desktop_gateway_model_mappings: None,
         desktop_profile_dir: Some(snapshot_dir.to_string_lossy().to_string()),
         desktop_profile_imported_at: Some(now),
         claude_credentials_raw: Some(json!({
@@ -3643,6 +4801,187 @@ pub fn cancel_desktop_login(login_id: Option<&str>) -> Result<(), String> {
 }
 
 fn parse_import_item(value: &Value) -> Result<ClaudeAccount, String> {
+    if value
+        .get("auth_mode")
+        .or_else(|| value.get("authMode"))
+        .and_then(|item| item.as_str())
+        .map(|mode| {
+            mode.eq_ignore_ascii_case("desktop_gateway")
+                || mode.eq_ignore_ascii_case("desktopGateway")
+        })
+        .unwrap_or(false)
+    {
+        if let Some(api_key) = value
+            .get("api_key")
+            .or_else(|| value.get("apiKey"))
+            .or_else(|| value.get("gatewayApiKey"))
+            .and_then(|item| item.as_str())
+        {
+            let provider_value = value
+                .get("apiProvider")
+                .or_else(|| value.get("api_provider"))
+                .or_else(|| {
+                    value
+                        .get("claude_credentials_raw")
+                        .and_then(|item| item.get("apiProvider"))
+                })
+                .or_else(|| {
+                    value
+                        .get("claudeCredentialsRaw")
+                        .and_then(|item| item.get("apiProvider"))
+                });
+            let account_name = value
+                .get("email")
+                .or_else(|| value.get("accountName"))
+                .or_else(|| value.get("name"))
+                .and_then(|item| item.as_str());
+            let api_model_catalog = value
+                .get("api_model_catalog")
+                .or_else(|| value.get("apiModelCatalog"))
+                .or_else(|| provider_value.and_then(|provider| provider.get("modelCatalog")))
+                .and_then(|item| item.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.as_str().map(ToString::to_string))
+                        .collect::<Vec<_>>()
+                });
+            let desktop_gateway_models = value
+                .get("desktop_gateway_models")
+                .or_else(|| value.get("desktopGatewayModels"))
+                .or_else(|| value.get("inferenceModels"))
+                .or_else(|| provider_value.and_then(|provider| provider.get("manualModels")))
+                .and_then(|item| item.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| {
+                            item.as_str().map(ToString::to_string).or_else(|| {
+                                item.get("name")
+                                    .or_else(|| item.get("id"))
+                                    .and_then(|value| value.as_str())
+                                    .map(ToString::to_string)
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                });
+            let api_extra_env = value
+                .get("api_extra_env")
+                .or_else(|| value.get("apiExtraEnv"))
+                .or_else(|| provider_value.and_then(|provider| provider.get("extraEnv")))
+                .and_then(|item| item.as_object())
+                .map(|object| {
+                    object
+                        .iter()
+                        .filter_map(|(key, value)| {
+                            value.as_str().map(|value| (key.clone(), value.to_string()))
+                        })
+                        .collect::<BTreeMap<_, _>>()
+                });
+            let desktop_gateway_connection_mode = value
+                .get("desktop_gateway_connection_mode")
+                .or_else(|| value.get("desktopGatewayConnectionMode"))
+                .or_else(|| value.get("gatewayConnectionMode"))
+                .or_else(|| provider_value.and_then(|provider| provider.get("connectionMode")))
+                .and_then(|item| item.as_str());
+            let desktop_gateway_upstream_models = value
+                .get("desktop_gateway_upstream_models")
+                .or_else(|| value.get("desktopGatewayUpstreamModels"))
+                .or_else(|| value.get("gatewayUpstreamModels"))
+                .or_else(|| provider_value.and_then(|provider| provider.get("upstreamModels")))
+                .and_then(|item| item.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| item.as_str().map(ToString::to_string))
+                        .collect::<Vec<_>>()
+                });
+            let desktop_gateway_model_mappings = value
+                .get("desktop_gateway_model_mappings")
+                .or_else(|| value.get("desktopGatewayModelMappings"))
+                .or_else(|| value.get("gatewayModelMappings"))
+                .or_else(|| provider_value.and_then(|provider| provider.get("modelMappings")))
+                .and_then(|item| item.as_array())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(|item| {
+                            Some(ClaudeDesktopGatewayModelMapping {
+                                desktop_model: item
+                                    .get("desktop_model")
+                                    .or_else(|| item.get("desktopModel"))
+                                    .or_else(|| item.get("name"))
+                                    .and_then(Value::as_str)?
+                                    .to_string(),
+                                upstream_model: item
+                                    .get("upstream_model")
+                                    .or_else(|| item.get("upstreamModel"))
+                                    .or_else(|| item.get("target"))
+                                    .and_then(Value::as_str)?
+                                    .to_string(),
+                            })
+                        })
+                        .collect::<Vec<_>>()
+                });
+            return import_desktop_gateway(
+                api_key,
+                account_name,
+                ClaudeApiKeyProviderConfig {
+                    api_base_url: value
+                        .get("api_base_url")
+                        .or_else(|| value.get("apiBaseUrl"))
+                        .or_else(|| value.get("inferenceGatewayBaseUrl"))
+                        .or_else(|| provider_value.and_then(|provider| provider.get("baseUrl")))
+                        .and_then(|item| item.as_str())
+                        .map(ToString::to_string),
+                    api_provider_id: value
+                        .get("api_provider_id")
+                        .or_else(|| value.get("apiProviderId"))
+                        .or_else(|| provider_value.and_then(|provider| provider.get("id")))
+                        .and_then(|item| item.as_str())
+                        .map(ToString::to_string),
+                    api_provider_name: value
+                        .get("api_provider_name")
+                        .or_else(|| value.get("apiProviderName"))
+                        .or_else(|| provider_value.and_then(|provider| provider.get("name")))
+                        .and_then(|item| item.as_str())
+                        .map(ToString::to_string),
+                    api_provider_source_tag: value
+                        .get("api_provider_source_tag")
+                        .or_else(|| value.get("apiProviderSourceTag"))
+                        .or_else(|| provider_value.and_then(|provider| provider.get("sourceTag")))
+                        .and_then(|item| item.as_str())
+                        .map(ToString::to_string),
+                    api_provider_website: value
+                        .get("api_provider_website")
+                        .or_else(|| value.get("apiProviderWebsite"))
+                        .or_else(|| provider_value.and_then(|provider| provider.get("website")))
+                        .and_then(|item| item.as_str())
+                        .map(ToString::to_string),
+                    api_provider_api_key_url: value
+                        .get("api_provider_api_key_url")
+                        .or_else(|| value.get("apiProviderApiKeyUrl"))
+                        .or_else(|| provider_value.and_then(|provider| provider.get("apiKeyUrl")))
+                        .and_then(|item| item.as_str())
+                        .map(ToString::to_string),
+                    api_key_field: None,
+                    api_model_catalog,
+                    api_extra_env,
+                },
+                value
+                    .get("desktop_gateway_auth_scheme")
+                    .or_else(|| value.get("desktopGatewayAuthScheme"))
+                    .or_else(|| value.get("inferenceGatewayAuthScheme"))
+                    .or_else(|| provider_value.and_then(|provider| provider.get("authScheme")))
+                    .and_then(|item| item.as_str()),
+                desktop_gateway_models,
+                desktop_gateway_connection_mode,
+                desktop_gateway_upstream_models,
+                desktop_gateway_model_mappings,
+            );
+        }
+    }
+
     if value
         .get("auth_mode")
         .or_else(|| value.get("authMode"))
@@ -5487,16 +6826,22 @@ fn inject_api_key_to_claude_code_settings(
 }
 
 #[cfg(target_os = "macos")]
-fn claude_code_keychain_service_name() -> String {
-    let hash_suffix = std::env::var("CLAUDE_CONFIG_DIR")
+fn claude_code_keychain_service_name(config_dir: &Path) -> String {
+    let env_config_dir = std::env::var("CLAUDE_CONFIG_DIR")
         .ok()
-        .and_then(|value| normalize_non_empty(Some(&value)))
-        .map(|value| {
-            let digest = Sha256::digest(value.as_bytes());
-            let hex = hex_encode(&digest);
-            format!("-{}", &hex[..8])
-        })
-        .unwrap_or_default();
+        .and_then(|value| normalize_non_empty(Some(&value)));
+    let default_unscoped_dir = env_config_dir.is_none()
+        && dirs::home_dir()
+            .map(|home| home.join(".claude") == config_dir)
+            .unwrap_or(false);
+    let hash_suffix = if default_unscoped_dir {
+        String::new()
+    } else {
+        let value = config_dir.to_string_lossy();
+        let digest = Sha256::digest(value.as_bytes());
+        let hex = hex_encode(&digest);
+        format!("-{}", &hex[..8])
+    };
     format!(
         "{}{}{}",
         CLAUDE_CODE_KEYCHAIN_SERVICE_PREFIX, CLAUDE_CODE_KEYCHAIN_CREDENTIALS_SUFFIX, hash_suffix
@@ -5517,8 +6862,8 @@ fn claude_code_keychain_account_name() -> String {
 }
 
 #[cfg(target_os = "macos")]
-fn read_claude_code_keychain_credentials() -> Option<Value> {
-    let service = claude_code_keychain_service_name();
+fn read_claude_code_keychain_credentials(config_dir: &Path) -> Option<Value> {
+    let service = claude_code_keychain_service_name(config_dir);
     let account = claude_code_keychain_account_name();
     let output = std::process::Command::new("security")
         .args([
@@ -5539,8 +6884,11 @@ fn read_claude_code_keychain_credentials() -> Option<Value> {
 }
 
 #[cfg(target_os = "macos")]
-fn write_claude_code_keychain_credentials(credentials: &Value) -> Result<(), String> {
-    let service = claude_code_keychain_service_name();
+fn write_claude_code_keychain_credentials(
+    config_dir: &Path,
+    credentials: &Value,
+) -> Result<(), String> {
+    let service = claude_code_keychain_service_name(config_dir);
     let account = claude_code_keychain_account_name();
     let content = serde_json::to_string(credentials)
         .map_err(|e| format!("序列化 Claude Code Keychain credentials 失败: {}", e))?;
@@ -5574,8 +6922,8 @@ fn write_claude_code_keychain_credentials(credentials: &Value) -> Result<(), Str
 }
 
 #[cfg(target_os = "macos")]
-fn delete_claude_code_keychain_credentials() {
-    let service = claude_code_keychain_service_name();
+fn delete_claude_code_keychain_credentials(config_dir: &Path) {
+    let service = claude_code_keychain_service_name(config_dir);
     let account = claude_code_keychain_account_name();
     let _ = std::process::Command::new("security")
         .args([
@@ -5596,7 +6944,7 @@ fn read_plaintext_claude_code_credentials(config_dir: &Path) -> Option<Value> {
 
 fn read_claude_code_credentials(config_dir: &Path) -> Value {
     #[cfg(target_os = "macos")]
-    if let Some(value) = read_claude_code_keychain_credentials() {
+    if let Some(value) = read_claude_code_keychain_credentials(config_dir) {
         return value;
     }
     read_plaintext_claude_code_credentials(config_dir).unwrap_or_else(|| json!({}))
@@ -5612,7 +6960,7 @@ fn write_plaintext_claude_code_credentials(
 fn write_claude_code_credentials(config_dir: &Path, credentials: &Value) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        match write_claude_code_keychain_credentials(credentials) {
+        match write_claude_code_keychain_credentials(config_dir, credentials) {
             Ok(()) => {
                 let _ = remove_path_if_exists(&get_claude_code_credentials_path(config_dir));
                 return Ok(());
@@ -5623,7 +6971,7 @@ fn write_claude_code_credentials(config_dir: &Path, credentials: &Value) -> Resu
                     error
                 ));
                 write_plaintext_claude_code_credentials(config_dir, credentials)?;
-                delete_claude_code_keychain_credentials();
+                delete_claude_code_keychain_credentials(config_dir);
                 return Ok(());
             }
         }
@@ -5687,6 +7035,28 @@ fn inject_oauth_account_to_claude_code(
 
 pub fn inject_to_claude_config(account_id: &str, config_dir: Option<&Path>) -> Result<(), String> {
     let account = load_account(account_id).ok_or_else(|| "Claude 账号不存在".to_string())?;
+    if account.auth_mode == ClaudeAuthMode::DesktopGateway {
+        if let Some(target_dir) = config_dir {
+            restore_desktop_gateway_account_to_profile(account_id, target_dir, false)?;
+            return Ok(());
+        }
+        let profile_dir = desktop_gateway_account_profile_dir(&account)?;
+        write_desktop_gateway_profile(&account, &profile_dir)?;
+        quit_claude_desktop_for_profile_write()?;
+        crate::modules::claude_instance::ensure_claude_launch_path_configured()?;
+        let profile_dir_string = profile_dir.to_string_lossy().to_string();
+        let _pid = crate::modules::claude_instance::start_claude_with_args_with_new_window(
+            &profile_dir_string,
+            &[],
+            true,
+        )?;
+
+        let mut updated = account.clone();
+        updated.desktop_gateway_profile_dir = Some(profile_dir_string);
+        updated.last_used = now_ts_ms();
+        save_account_and_index(updated)?;
+        return Ok(());
+    }
     if account.auth_mode == ClaudeAuthMode::DesktopOAuth {
         if config_dir.is_some() {
             return Err(
@@ -5702,7 +7072,9 @@ pub fn inject_to_claude_config(account_id: &str, config_dir: Option<&Path>) -> R
         let target_dir = get_default_claude_desktop_user_data_dir()?;
         quit_claude_desktop_for_profile_write()?;
         let _backup_dir = backup_current_desktop_profile(&target_dir)?;
+        remove_desktop_gateway_profile_config(&target_dir)?;
         restore_desktop_profile_snapshot(&snapshot_dir, &target_dir)?;
+        remove_desktop_gateway_profile_config(&target_dir)?;
 
         let mut updated = account.clone();
         updated.last_used = now_ts_ms();
@@ -5770,6 +7142,24 @@ pub fn remove_accounts(account_ids: &[String]) -> Result<(), String> {
                             format!(
                                 "删除 Claude Desktop 快照失败: path={}, error={}",
                                 snapshot_path.display(),
+                                e
+                            )
+                        })?;
+                    }
+                }
+            }
+            if account.auth_mode == ClaudeAuthMode::DesktopGateway {
+                if let Some(profile_dir) = account
+                    .desktop_gateway_profile_dir
+                    .as_deref()
+                    .and_then(|value| normalize_non_empty(Some(value)))
+                {
+                    let profile_path = PathBuf::from(profile_dir);
+                    if profile_path.exists() {
+                        fs::remove_dir_all(&profile_path).map_err(|e| {
+                            format!(
+                                "删除 Claude Desktop Gateway profile 失败: path={}, error={}",
+                                profile_path.display(),
                                 e
                             )
                         })?;
@@ -5992,13 +7382,20 @@ async fn request_usage(access_token: &str) -> Result<Value, String> {
 
 pub async fn refresh_account_quota(account_id: &str) -> Result<ClaudeAccount, String> {
     let mut account = load_account(account_id).ok_or_else(|| "Claude 账号不存在".to_string())?;
-    if account.auth_mode == ClaudeAuthMode::ApiKey {
+    if matches!(
+        account.auth_mode,
+        ClaudeAuthMode::ApiKey | ClaudeAuthMode::DesktopGateway
+    ) {
         account.quota = None;
         account.quota_error = Some(ClaudeQuotaErrorInfo {
             code: Some("unsupported_auth_mode".to_string()),
-            message:
+            message: if account.auth_mode == ClaudeAuthMode::DesktopGateway {
+                "Claude Desktop Gateway 账号不支持 Claude 订阅配额刷新，请在供应商后台查看用量。"
+                    .to_string()
+            } else {
                 "Claude API Key 账号不支持 Claude 订阅配额刷新，请在 Anthropic Console 查看用量。"
-                    .to_string(),
+                    .to_string()
+            },
             timestamp: now_ts(),
         });
         account.usage_updated_at = Some(now_ts_ms());
@@ -6465,6 +7862,14 @@ mod tests {
             api_key_field: None,
             api_model_catalog: None,
             api_extra_env: None,
+            desktop_gateway_auth_scheme: None,
+            desktop_gateway_credential_kind: None,
+            desktop_gateway_config_id: None,
+            desktop_gateway_profile_dir: None,
+            desktop_gateway_models: None,
+            desktop_gateway_connection_mode: None,
+            desktop_gateway_upstream_models: None,
+            desktop_gateway_model_mappings: None,
             desktop_profile_dir: snapshot_dir.map(ToString::to_string),
             desktop_profile_imported_at: Some(last_used),
             claude_credentials_raw: None,

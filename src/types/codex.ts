@@ -169,7 +169,7 @@ export interface CodexSessionVisibilityRepairItem {
   running: boolean;
 }
 
-export type CodexSessionVisibilityRepairMode = 'quick' | 'deep';
+export type CodexSessionVisibilityRepairMode = 'quick';
 export type CodexSessionVisibilityAutoRepairMode =
   | 'legacy_before_4eb75d96'
   | 'legacy_4eb75d96'
@@ -248,6 +248,11 @@ export interface CodexSessionRecord {
   updatedAt?: number | null;
   locationCount: number;
   locations: CodexSessionLocation[];
+}
+
+export interface CodexSessionSearchOptions {
+  titleQuery?: string | null;
+  contentQuery?: string | null;
 }
 
 export interface CodexSessionTokenStats {

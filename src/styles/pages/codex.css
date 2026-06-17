@@ -1136,76 +1136,6 @@
   margin-top: 12px;
 }
 
-.codex-visibility-repair-mode-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.codex-visibility-repair-mode-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  min-height: 96px;
-  padding: 12px;
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    background 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.codex-visibility-repair-mode-card:hover:not(:disabled),
-.codex-visibility-repair-mode-card.is-selected {
-  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
-  background: color-mix(in srgb, var(--primary) 7%, var(--bg-surface));
-}
-
-.codex-visibility-repair-mode-card.is-selected {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 14%, transparent);
-}
-
-.codex-visibility-repair-mode-card:disabled {
-  cursor: not-allowed;
-  opacity: 0.72;
-}
-
-.codex-visibility-repair-mode-card__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--primary) 10%, var(--bg-secondary));
-  color: var(--primary);
-}
-
-.codex-visibility-repair-mode-card strong,
-.codex-visibility-repair-mode-card small {
-  display: block;
-}
-
-.codex-visibility-repair-mode-card strong {
-  font-size: 14px;
-  line-height: 1.35;
-}
-
-.codex-visibility-repair-mode-card small {
-  margin-top: 5px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
 .codex-visibility-repair-options {
   display: flex;
   flex-direction: column;
@@ -1335,7 +1265,6 @@
 }
 
 @media (max-width: 640px) {
-  .codex-visibility-repair-mode-grid,
   .codex-visibility-repair-scope__grid {
     grid-template-columns: 1fr;
   }
@@ -9459,9 +9388,80 @@
 
 .codex-session-manager__header {
   display: flex;
-  justify-content: flex-end;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: 16px;
+}
+
+.codex-session-manager__search {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 10px;
+}
+
+.codex-session-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 280px;
+  min-width: 0;
+}
+
+.codex-session-search-field > span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.codex-session-search-field__control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.codex-session-search-field__control:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 60%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+  background: var(--bg-secondary);
+}
+
+.codex-session-search-field__control input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.codex-session-search-field__control input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.codex-session-search-field__control input:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.codex-session-manager__search-button {
+  min-height: 36px;
+  padding: 0 12px;
+  gap: 6px;
+  font-size: 12px;
+  border-radius: 10px;
 }
 
 .codex-session-manager__actions {
@@ -9624,6 +9624,20 @@
   }
 
   .codex-session-manager__actions {
+    width: 100%;
+  }
+
+  .codex-session-manager__search {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .codex-session-search-field {
+    width: 100%;
+  }
+
+  .codex-session-manager__search-button {
     width: 100%;
   }
 }

@@ -7,7 +7,8 @@ use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::models::claude::{
-    ClaudeAccount, ClaudeAuthMode, ClaudeDesktopLoginStartResponse, ClaudeOAuthStartResponse,
+    ClaudeAccount, ClaudeAuthMode, ClaudeDesktopGatewayModelMapping,
+    ClaudeDesktopGatewayModelsResult, ClaudeDesktopLoginStartResponse, ClaudeOAuthStartResponse,
 };
 use crate::modules::{claude_account, logger};
 
@@ -333,7 +334,10 @@ fn prepare_claude_cli_launch(
 ) -> Result<(ClaudeAccount, String, String), String> {
     let account = claude_account::load_account(account_id)
         .ok_or_else(|| format!("Claude account not found: {}", account_id))?;
-    if account.auth_mode == ClaudeAuthMode::DesktopOAuth {
+    if matches!(
+        account.auth_mode,
+        ClaudeAuthMode::DesktopOAuth | ClaudeAuthMode::DesktopGateway
+    ) {
         return Err(
             "Claude Desktop 登录态不能启动 Claude Code CLI，请使用 OAuth / Setup Token 账号。"
                 .to_string(),
@@ -411,6 +415,104 @@ pub async fn import_claude_api_key(
 }
 
 #[tauri::command]
+pub async fn import_claude_desktop_gateway(
+    app: AppHandle,
+    api_key: String,
+    account_name: Option<String>,
+    api_base_url: Option<String>,
+    api_provider_id: Option<String>,
+    api_provider_name: Option<String>,
+    api_provider_source_tag: Option<String>,
+    api_provider_website: Option<String>,
+    api_provider_api_key_url: Option<String>,
+    api_model_catalog: Option<Vec<String>>,
+    api_extra_env: Option<BTreeMap<String, String>>,
+    auth_scheme: Option<String>,
+    desktop_gateway_models: Option<Vec<String>>,
+    desktop_gateway_connection_mode: Option<String>,
+    desktop_gateway_upstream_models: Option<Vec<String>>,
+    desktop_gateway_model_mappings: Option<Vec<ClaudeDesktopGatewayModelMapping>>,
+) -> Result<ClaudeAccount, String> {
+    let account = claude_account::import_desktop_gateway(
+        &api_key,
+        account_name.as_deref(),
+        claude_account::ClaudeApiKeyProviderConfig {
+            api_base_url,
+            api_provider_id,
+            api_provider_name,
+            api_provider_source_tag,
+            api_provider_website,
+            api_provider_api_key_url,
+            api_key_field: None,
+            api_model_catalog,
+            api_extra_env,
+        },
+        auth_scheme.as_deref(),
+        desktop_gateway_models,
+        desktop_gateway_connection_mode.as_deref(),
+        desktop_gateway_upstream_models,
+        desktop_gateway_model_mappings,
+    )?;
+    let _ = crate::modules::tray::update_tray_menu(&app);
+    Ok(account)
+}
+
+#[tauri::command]
+pub async fn update_claude_desktop_gateway(
+    app: AppHandle,
+    account_id: String,
+    api_key: String,
+    account_name: Option<String>,
+    api_base_url: Option<String>,
+    api_provider_id: Option<String>,
+    api_provider_name: Option<String>,
+    api_provider_source_tag: Option<String>,
+    api_provider_website: Option<String>,
+    api_provider_api_key_url: Option<String>,
+    api_model_catalog: Option<Vec<String>>,
+    api_extra_env: Option<BTreeMap<String, String>>,
+    auth_scheme: Option<String>,
+    desktop_gateway_models: Option<Vec<String>>,
+    desktop_gateway_connection_mode: Option<String>,
+    desktop_gateway_upstream_models: Option<Vec<String>>,
+    desktop_gateway_model_mappings: Option<Vec<ClaudeDesktopGatewayModelMapping>>,
+) -> Result<ClaudeAccount, String> {
+    let account = claude_account::update_desktop_gateway(
+        &account_id,
+        &api_key,
+        account_name.as_deref(),
+        claude_account::ClaudeApiKeyProviderConfig {
+            api_base_url,
+            api_provider_id,
+            api_provider_name,
+            api_provider_source_tag,
+            api_provider_website,
+            api_provider_api_key_url,
+            api_key_field: None,
+            api_model_catalog,
+            api_extra_env,
+        },
+        auth_scheme.as_deref(),
+        desktop_gateway_models,
+        desktop_gateway_connection_mode.as_deref(),
+        desktop_gateway_upstream_models,
+        desktop_gateway_model_mappings,
+    )?;
+    let _ = crate::modules::tray::update_tray_menu(&app);
+    Ok(account)
+}
+
+#[tauri::command]
+pub async fn claude_desktop_gateway_list_models(
+    api_key: String,
+    api_base_url: String,
+    auth_scheme: Option<String>,
+) -> Result<ClaudeDesktopGatewayModelsResult, String> {
+    claude_account::list_desktop_gateway_models(&api_base_url, &api_key, auth_scheme.as_deref())
+        .await
+}
+
+#[tauri::command]
 pub fn claude_oauth_login_prepare() -> Result<ClaudeOAuthStartResponse, String> {
     claude_account::start_oauth_login()
 }
@@ -468,7 +570,9 @@ pub async fn import_claude_cli_from_local(app: AppHandle) -> Result<ClaudeAccoun
 pub async fn claude_desktop_login_start(
     _app: AppHandle,
 ) -> Result<ClaudeDesktopLoginStartResponse, String> {
-    claude_account::start_desktop_login()
+    tauri::async_runtime::spawn_blocking(claude_account::start_desktop_login)
+        .await
+        .map_err(|error| format!("启动 Claude Desktop 登录任务失败: {}", error))?
 }
 
 #[tauri::command]
@@ -477,7 +581,11 @@ pub async fn claude_desktop_login_complete(
     login_id: String,
     account_name: Option<String>,
 ) -> Result<ClaudeAccount, String> {
-    let account = claude_account::complete_desktop_login(&login_id, account_name.as_deref())?;
+    let account = tauri::async_runtime::spawn_blocking(move || {
+        claude_account::complete_desktop_login(&login_id, account_name.as_deref())
+    })
+    .await
+    .map_err(|error| format!("完成 Claude Desktop 登录任务失败: {}", error))??;
     let _ = crate::modules::tray::update_tray_menu(&app);
     Ok(account)
 }
@@ -656,7 +764,10 @@ pub fn switch_claude_account(app: AppHandle, account_id: String) -> Result<Strin
     let account = claude_account::load_account(&account_id)
         .ok_or_else(|| format!("Claude account not found: {}", account_id))?;
     claude_account::inject_to_claude(&account_id)?;
-    let current_platform = if account.auth_mode == ClaudeAuthMode::DesktopOAuth {
+    let current_platform = if matches!(
+        account.auth_mode,
+        ClaudeAuthMode::DesktopOAuth | ClaudeAuthMode::DesktopGateway
+    ) {
         "claude"
     } else {
         "claude_cli"

@@ -2305,7 +2305,17 @@
       },
       "empty": {
         "title": "Chưa có phiên nào để quản lý",
-        "desc": "Không tìm thấy bản ghi phiên nào trong tập hợp phiên bản hiện tại."
+        "desc": "Không tìm thấy bản ghi phiên nào trong tập hợp phiên bản hiện tại.",
+        "searchTitle": "Không tìm thấy phiên phù hợp",
+        "searchDesc": "Hãy điều chỉnh từ khóa tiêu đề."
+      },
+      "search": {
+        "titleLabel": "Tiêu đề",
+        "contentLabel": "Nội dung hội thoại",
+        "titlePlaceholder": "Tìm theo tiêu đề",
+        "contentPlaceholder": "Tìm trong nội dung hội thoại",
+        "apply": "Tìm",
+        "clear": "Xóa"
       },
       "messages": {
         "pickOne": "Vui lòng chọn ít nhất một phiên",
@@ -2339,15 +2349,7 @@
         "confirm": "Sao chép phiên"
       },
       "repairModal": {
-        "quickTitle": "Sửa hiển thị",
-        "quickDesc": "Cập nhật các bản ghi state DB chính thức của Codex cho thanh bên.",
-        "deepTitle": "Sửa hiển thị",
-        "deepDesc": "Cập nhật các bản ghi state DB chính thức của Codex cho thanh bên.",
-        "quickProgressTitle": "Tiến trình sửa",
-        "deepProgressTitle": "Tiến trình sửa",
         "running": "Đang sửa...",
-        "startQuick": "Sửa",
-        "startDeep": "Sửa",
         "progress": {
           "queued": "Đang khởi động tác vụ sửa...",
           "collectInstances": "Đang thu thập phiên bản Codex...",
@@ -2359,9 +2361,9 @@
           "pruneBackups": "Đang dọn bản sao lưu cũ...",
           "done": "Đã sửa xong",
           "writeSqliteProvider": "Đang ghi hiển thị SQLite cho {{instance}}...",
-          "writeRolloutFiles": "Đang bỏ qua ghi tệp phiên cũ...",
+          "writeRolloutFiles": "Đang ghi tệp phiên cũ...",
           "writeSqliteTimestamps": "Đang sửa thời gian SQLite cho {{instance}}...",
-          "writeSessionIndex": "Đang bỏ qua ghi chỉ mục cũ..."
+          "writeSessionIndex": "Đang ghi session_index..."
         },
         "targetProvider": "Provider đích",
         "defaultProvider": "Mặc định",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "Đã thêm Claude",
       "addToCodex": "Thêm vào Codex",
       "addToClaude": "Thêm vào Claude CLI",
+      "addToClaudeDesktop": "Thêm vào Claude Desktop",
+      "addToClaudeCli": "Thêm vào Claude CLI",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "Đã điền cấu hình APIKEY.FUN. Hãy xác nhận để thêm vào Claude Desktop."
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
@@ -4688,7 +4695,8 @@
       "desktop": "Màn hình",
       "oauth": "OAuth",
       "apiKey": "Khóa API",
-      "import": "Cục bộ/JSON"
+      "import": "Cục bộ/JSON",
+      "desktopGateway": "Cổng"
     },
     "authMode": {
       "oauth": "Chế độ OAuth",
@@ -4707,6 +4715,7 @@
       "hint": "Tài khoản API Key chỉ dùng cho Claude CLI. Chúng được ghi dạng env văn bản rõ vào Claude Code settings.json, không ảnh hưởng Claude Desktop và không hỗ trợ làm mới hạn mức gói.",
       "importAction": "Nhập API Key",
       "required": "Nhập API Key",
+      "templateRequired": "Nhập {{label}}",
       "importSuccess": "Đã nhập tài khoản Claude API Key: {{name}}",
       "quotaUnsupported": "Tài khoản API Key không hỗ trợ làm mới",
       "switchDisabled": "Tài khoản API Key không chuyển sang Claude Desktop",
@@ -4724,7 +4733,9 @@
       "title": "Đăng nhập Claude Desktop",
       "desc": "Đăng nhập Claude trong công cụ này; hỗ trợ Google, Apple, email và free.",
       "start": "Mở đăng nhập",
+      "preparingRuntime": "Đang chuẩn bị...",
       "hint": "Lưu cục bộ trước; ghi vào Claude Desktop khi chuyển tài khoản.",
+      "runtimeHint": "Ở lần dùng đầu tiên, thành phần đăng nhập Electron có thể được tải xuống và xác minh trong thư mục dữ liệu ứng dụng cục bộ; nó không đi kèm bộ cài và sẽ được dùng lại sau đó.",
       "nameLabel": "Tên tài khoản",
       "namePlaceholder": "Tùy chọn, ví dụ Claude Free",
       "waiting": "Đăng nhập trong cửa sổ Claude rồi hoàn tất nhập tại đây.",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "Tìm tài khoản Claude Desktop...",
     "searchCli": "Tìm tài khoản Claude CLI...",
     "noDesktopAccounts": "Chưa có tài khoản Claude Desktop",
-    "noCliAccounts": "Chưa có tài khoản Claude CLI"
+    "noCliAccounts": "Chưa có tài khoản Claude CLI",
+    "desktopGateway": {
+      "label": "Cổng",
+      "authScheme": "Kiểu auth",
+      "importAction": "Nhập Gateway",
+      "importSuccess": "Đã nhập tài khoản Claude Desktop Gateway: {{name}}",
+      "baseUrlRequired": "Nhập Gateway Base URL",
+      "noQuota": "Tài khoản Gateway không hiển thị hạn mức thuê bao Claude",
+      "desc": "Lưu Gateway API Key làm cấu hình Claude Desktop 3P. Khi chuyển đổi, cấu hình được ghi vào profile được quản lý và mở Claude Desktop chính thức.",
+      "hint": "Tài khoản Gateway không đọc thông tin thuê bao Claude. API Key được ghi vào profile được quản lý theo cấu hình 3P chính thức.",
+      "modelsLabel": "Danh mục model",
+      "modelsEmpty": "Gateway này không trả về model.",
+      "modelsLoaded": "Đã lấy {{count}} model. Bạn có thể sửa trước khi lưu.",
+      "modelsLoadFailed": "Không lấy được model: {{error}}.",
+      "manualModels": "Model thủ công",
+      "modelsPlaceholder": "Mỗi dòng một ID model",
+      "modelsLoading": "Đang tải danh mục model...",
+      "modelsRequired": "Nhập danh mục model",
+      "editTitle": "Sửa Claude Desktop Gateway",
+      "updateAction": "Lưu Gateway",
+      "updateSuccess": "Đã cập nhật tài khoản Claude Desktop Gateway: {{name}}",
+      "connectionMode": "Kết nối",
+      "modeDirect": "Trực tiếp",
+      "modeLocalMapping": "Ánh xạ cục bộ",
+      "mappingsRequired": "Hãy cấu hình ánh xạ model",
+      "mappingDesktopModelInvalid": "Bên trái phải là tên model Claude mà Claude Desktop nhận biết",
+      "directModelsInvalid": "Chế độ trực tiếp chỉ hỗ trợ tên model Claude mà Claude Desktop nhận biết",
+      "desktopModelPlaceholder": "Model Claude Desktop",
+      "upstreamModelPlaceholder": "Model nguồn thực tế",
+      "addMapping": "Thêm ánh xạ"
+    }
   }
 }

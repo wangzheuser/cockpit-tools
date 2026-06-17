@@ -2462,7 +2462,17 @@
       },
       "empty": {
         "title": "Tidak ada sesi untuk dikelola",
-        "desc": "Tidak ada catatan sesi yang ditemukan dalam set instansi saat ini."
+        "desc": "Tidak ada catatan sesi yang ditemukan dalam set instansi saat ini.",
+        "searchTitle": "Tidak ada sesi yang cocok",
+        "searchDesc": "Ubah kata kunci judul."
+      },
+      "search": {
+        "titleLabel": "Judul",
+        "contentLabel": "Isi percakapan",
+        "titlePlaceholder": "Cari judul",
+        "contentPlaceholder": "Cari isi percakapan",
+        "apply": "Cari",
+        "clear": "Bersihkan"
       },
       "messages": {
         "pickOne": "Silakan pilih setidaknya satu sesi",
@@ -2496,15 +2506,7 @@
         "confirm": "Salin sesi"
       },
       "repairModal": {
-        "quickTitle": "Perbaiki visibilitas",
-        "quickDesc": "Memperbarui catatan state DB resmi Codex untuk bilah samping.",
-        "deepTitle": "Perbaiki visibilitas",
-        "deepDesc": "Memperbarui catatan state DB resmi Codex untuk bilah samping.",
-        "quickProgressTitle": "Progres perbaikan",
-        "deepProgressTitle": "Progres perbaikan",
         "running": "Memperbaiki...",
-        "startQuick": "Perbaiki",
-        "startDeep": "Perbaiki",
         "progress": {
           "queued": "Memulai tugas perbaikan...",
           "collectInstances": "Mengumpulkan instance Codex...",
@@ -2516,9 +2518,9 @@
           "pruneBackups": "Membersihkan cadangan lama...",
           "done": "Perbaikan selesai",
           "writeSqliteProvider": "Menulis visibilitas SQLite untuk {{instance}}...",
-          "writeRolloutFiles": "Melewati penulisan file sesi lama...",
+          "writeRolloutFiles": "Menulis file sesi lama...",
           "writeSqliteTimestamps": "Memperbaiki waktu SQLite untuk {{instance}}...",
-          "writeSessionIndex": "Melewati penulisan indeks lama..."
+          "writeSessionIndex": "Menulis session_index..."
         },
         "targetProvider": "Provider tujuan",
         "defaultProvider": "Default",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "Claude ditambahkan",
       "addToCodex": "Tambah ke Codex",
       "addToClaude": "Tambah ke Claude CLI",
+      "addToClaudeDesktop": "Tambah ke Claude Desktop",
+      "addToClaudeCli": "Tambah ke Claude CLI",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "Konfigurasi APIKEY.FUN sudah terisi. Konfirmasi untuk menambahkannya ke Claude Desktop."
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
@@ -4688,7 +4695,8 @@
       "desktop": "Desktop lokal",
       "oauth": "OAuth",
       "apiKey": "Kunci API",
-      "import": "Lokal/JSON"
+      "import": "Lokal/JSON",
+      "desktopGateway": "Gerbang"
     },
     "authMode": {
       "oauth": "Mode OAuth",
@@ -4707,6 +4715,7 @@
       "hint": "Akun API Key hanya untuk Claude CLI. Nilainya ditulis sebagai env teks biasa di Claude Code settings.json, tidak memengaruhi Claude Desktop, dan tidak mendukung penyegaran kuota langganan.",
       "importAction": "Impor API Key",
       "required": "Masukkan API Key",
+      "templateRequired": "Masukkan {{label}}",
       "importSuccess": "Akun Claude API Key diimpor: {{name}}",
       "quotaUnsupported": "Akun API Key tidak mendukung refresh",
       "switchDisabled": "Akun API Key tidak bisa beralih ke Claude Desktop",
@@ -4724,7 +4733,9 @@
       "title": "Login Claude Desktop",
       "desc": "Login Claude di alat ini; mendukung Google, Apple, email, dan free.",
       "start": "Buka login",
+      "preparingRuntime": "Menyiapkan login...",
       "hint": "Simpan lokal dulu; tulis ke Claude Desktop saat ganti akun.",
+      "runtimeHint": "Pada penggunaan pertama, komponen login Electron dapat diunduh dan diverifikasi ke folder data aplikasi lokal; komponen ini tidak disertakan dalam installer dan akan dipakai ulang setelahnya.",
       "nameLabel": "Nama akun",
       "namePlaceholder": "Opsional, misalnya Claude Free",
       "waiting": "Login di jendela Claude lalu selesaikan impor di sini.",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "Cari akun Claude Desktop...",
     "searchCli": "Cari akun Claude CLI...",
     "noDesktopAccounts": "Belum ada akun Claude Desktop",
-    "noCliAccounts": "Belum ada akun Claude CLI"
+    "noCliAccounts": "Belum ada akun Claude CLI",
+    "desktopGateway": {
+      "label": "Gerbang",
+      "authScheme": "Skema auth",
+      "importAction": "Impor Gateway",
+      "importSuccess": "Akun Claude Desktop Gateway diimpor: {{name}}",
+      "baseUrlRequired": "Masukkan Gateway Base URL",
+      "noQuota": "Akun Gateway tidak menampilkan kuota langganan Claude",
+      "desc": "Simpan API Key Gateway sebagai konfigurasi 3P Claude Desktop. Saat beralih, konfigurasi ditulis ke profil terkelola dan Claude Desktop resmi dijalankan.",
+      "hint": "Akun Gateway tidak membaca detail langganan Claude. API Key ditulis ke profil terkelola memakai konfigurasi 3P resmi.",
+      "modelsLabel": "Katalog model",
+      "modelsEmpty": "Gateway ini tidak mengembalikan model.",
+      "modelsLoaded": "{{count}} model dimuat. Anda dapat mengubahnya sebelum menyimpan.",
+      "modelsLoadFailed": "Gagal mengambil model: {{error}}.",
+      "manualModels": "Model manual",
+      "modelsPlaceholder": "Satu ID model per baris",
+      "modelsLoading": "Memuat katalog model...",
+      "modelsRequired": "Isi katalog model",
+      "editTitle": "Edit Claude Desktop Gateway",
+      "updateAction": "Simpan Gateway",
+      "updateSuccess": "Akun Claude Desktop Gateway diperbarui: {{name}}",
+      "connectionMode": "Koneksi",
+      "modeDirect": "Langsung",
+      "modeLocalMapping": "Pemetaan lokal",
+      "mappingsRequired": "Konfigurasikan pemetaan model",
+      "mappingDesktopModelInvalid": "Sisi kiri harus berisi nama model Claude yang dikenali Claude Desktop",
+      "directModelsInvalid": "Mode langsung hanya mendukung nama model Claude yang dikenali Claude Desktop",
+      "desktopModelPlaceholder": "Model Claude Desktop",
+      "upstreamModelPlaceholder": "Model upstream asli",
+      "addMapping": "Tambah pemetaan"
+    }
   }
 }

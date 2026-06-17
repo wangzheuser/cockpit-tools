@@ -2,13 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { createPlatformInstanceService } from "./platform/createPlatformInstanceService";
 import type {
   CodexSessionVisibilityRepairInstanceList,
-  CodexSessionVisibilityRepairMode,
   CodexSessionVisibilityRepairProviderList,
   CodexSessionVisibilityRepairRequestOptions,
   CodexSessionVisibilityRepairSummary,
   CodexInstanceThreadSyncSummary,
   CodexInstanceTargetThreadSyncSummary,
   CodexSessionRecord,
+  CodexSessionSearchOptions,
   CodexSessionTokenStats,
   CodexSessionTrashSummary,
   CodexTrashedSessionRecord,
@@ -171,12 +171,11 @@ export async function syncSessionsToInstance(
 }
 
 export async function repairSessionVisibilityAcrossInstances(
-  mode: CodexSessionVisibilityRepairMode = "quick",
   runId?: string,
   options?: CodexSessionVisibilityRepairRequestOptions,
 ): Promise<CodexSessionVisibilityRepairSummary> {
   return await invoke("codex_repair_session_visibility_across_instances", {
-    mode,
+    mode: "quick",
     runId: runId ?? null,
     targetProvider: options?.targetProvider ?? null,
     targetInstanceId: options?.targetInstanceId ?? null,
@@ -197,10 +196,15 @@ export async function listSessionVisibilityRepairProviders(): Promise<
   return await invoke("codex_list_session_visibility_repair_providers");
 }
 
-export async function listSessionsAcrossInstances(): Promise<
+export async function listSessionsAcrossInstances(
+  options: CodexSessionSearchOptions = {},
+): Promise<
   CodexSessionRecord[]
 > {
-  return await invoke("codex_list_sessions_across_instances");
+  return await invoke("codex_list_sessions_across_instances", {
+    titleQuery: options.titleQuery?.trim() || null,
+    contentQuery: options.contentQuery?.trim() || null,
+  });
 }
 
 export async function getSessionTokenStatsAcrossInstances(

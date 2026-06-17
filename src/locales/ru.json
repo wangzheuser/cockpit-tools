@@ -2305,7 +2305,17 @@
       },
       "empty": {
         "title": "Нет сессий для управления",
-        "desc": "В текущем наборе экземпляров записи сессий не найдены."
+        "desc": "В текущем наборе экземпляров записи сессий не найдены.",
+        "searchTitle": "Подходящие сеансы не найдены",
+        "searchDesc": "Измените ключевые слова заголовка."
+      },
+      "search": {
+        "titleLabel": "Заголовок",
+        "contentLabel": "Содержимое диалога",
+        "titlePlaceholder": "Искать по заголовку",
+        "contentPlaceholder": "Искать в содержимом диалога",
+        "apply": "Поиск",
+        "clear": "Очистить"
       },
       "messages": {
         "pickOne": "Выберите хотя бы одну сессию",
@@ -2339,15 +2349,7 @@
         "confirm": "Копировать сеансы"
       },
       "repairModal": {
-        "quickTitle": "Восстановить видимость",
-        "quickDesc": "Обновляет записи официальной state DB Codex для боковой панели.",
-        "deepTitle": "Восстановить видимость",
-        "deepDesc": "Обновляет записи официальной state DB Codex для боковой панели.",
-        "quickProgressTitle": "Ход восстановления",
-        "deepProgressTitle": "Ход восстановления",
         "running": "Исправление...",
-        "startQuick": "Восстановить",
-        "startDeep": "Восстановить",
         "progress": {
           "queued": "Запуск исправления...",
           "collectInstances": "Сбор экземпляров Codex...",
@@ -2359,9 +2361,9 @@
           "pruneBackups": "Очистка старых копий...",
           "done": "Исправление завершено",
           "writeSqliteProvider": "Запись видимости SQLite для {{instance}}...",
-          "writeRolloutFiles": "Запись старых файлов сессий пропускается...",
+          "writeRolloutFiles": "Запись старых файлов сессий...",
           "writeSqliteTimestamps": "Исправление времени SQLite для {{instance}}...",
-          "writeSessionIndex": "Запись старого индекса пропускается..."
+          "writeSessionIndex": "Запись session_index..."
         },
         "targetProvider": "Целевой provider",
         "defaultProvider": "По умолчанию",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "Claude добавлен",
       "addToCodex": "В Codex",
       "addToClaude": "В Claude CLI",
+      "addToClaudeDesktop": "В Claude Desktop",
+      "addToClaudeCli": "В Claude CLI",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "Настройки APIKEY.FUN заполнены. Подтвердите добавление в Claude Desktop."
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
@@ -4688,7 +4695,8 @@
       "desktop": "Рабочий",
       "oauth": "OAuth",
       "apiKey": "API-ключ",
-      "import": "Локально/JSON"
+      "import": "Локально/JSON",
+      "desktopGateway": "Шлюз"
     },
     "authMode": {
       "oauth": "Режим OAuth",
@@ -4707,6 +4715,7 @@
       "hint": "Аккаунты API Key предназначены только для Claude CLI. Они записываются открытым текстом в env файла Claude Code settings.json, не влияют на Claude Desktop и не поддерживают обновление квоты подписки.",
       "importAction": "Импорт API Key",
       "required": "Введите API Key",
+      "templateRequired": "Введите {{label}}",
       "importSuccess": "Аккаунт Claude API Key импортирован: {{name}}",
       "quotaUnsupported": "Аккаунты API Key не обновляются",
       "switchDisabled": "Аккаунт API Key нельзя переключить в Claude Desktop",
@@ -4724,7 +4733,9 @@
       "title": "Вход Claude Desktop",
       "desc": "Вход Claude внутри инструмента; Google, Apple, почта и free поддерживаются.",
       "start": "Открыть вход",
+      "preparingRuntime": "Подготовка...",
       "hint": "Сначала локально; запись в Claude Desktop только при переключении.",
+      "runtimeHint": "При первом использовании компонент входа Electron может быть загружен и проверен в локальной папке данных приложения; он не входит в установщик и затем используется из кэша.",
       "nameLabel": "Имя аккаунта",
       "namePlaceholder": "Необязательно, например Claude Free",
       "waiting": "Войдите в окне Claude, затем завершите импорт здесь.",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "Поиск аккаунтов Claude Desktop...",
     "searchCli": "Поиск аккаунтов Claude CLI...",
     "noDesktopAccounts": "Аккаунтов Claude Desktop пока нет",
-    "noCliAccounts": "Аккаунтов Claude CLI пока нет"
+    "noCliAccounts": "Аккаунтов Claude CLI пока нет",
+    "desktopGateway": {
+      "label": "Шлюз",
+      "authScheme": "Схема auth",
+      "importAction": "Импорт Gateway",
+      "importSuccess": "Аккаунт Claude Desktop Gateway импортирован: {{name}}",
+      "baseUrlRequired": "Введите Gateway Base URL",
+      "noQuota": "Аккаунты Gateway не показывают квоту подписки Claude",
+      "desc": "Сохраняет Gateway API Key как конфигурацию Claude Desktop 3P. При переключении пишет ее в управляемый profile и запускает официальный Claude Desktop.",
+      "hint": "Аккаунты Gateway не читают данные подписки Claude. API Key записывается в управляемый profile по официальной 3P-конфигурации.",
+      "modelsLabel": "Каталог моделей",
+      "modelsEmpty": "Этот Gateway не вернул модели.",
+      "modelsLoaded": "Загружено моделей: {{count}}. Их можно изменить перед сохранением.",
+      "modelsLoadFailed": "Не удалось получить модели: {{error}}.",
+      "manualModels": "Ручные модели",
+      "modelsPlaceholder": "Один ID модели в строке",
+      "modelsLoading": "Загрузка каталога моделей...",
+      "modelsRequired": "Укажите каталог моделей",
+      "editTitle": "Изменить Claude Desktop Gateway",
+      "updateAction": "Сохранить Gateway",
+      "updateSuccess": "Аккаунт Claude Desktop Gateway обновлён: {{name}}",
+      "connectionMode": "Подключение",
+      "modeDirect": "Напрямую",
+      "modeLocalMapping": "Локальная схема",
+      "mappingsRequired": "Настройте сопоставление моделей",
+      "mappingDesktopModelInvalid": "Слева должны быть имена Claude, распознаваемые Claude Desktop",
+      "directModelsInvalid": "Прямой режим поддерживает только имена Claude, распознаваемые Claude Desktop",
+      "desktopModelPlaceholder": "Модель Claude Desktop",
+      "upstreamModelPlaceholder": "Реальная модель провайдера",
+      "addMapping": "Добавить связь"
+    }
   }
 }

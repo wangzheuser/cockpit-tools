@@ -2416,7 +2416,17 @@
       },
       "empty": {
         "title": "還沒有可管理的會話",
-        "desc": "目前的實例集合中尚未發現會話記錄。"
+        "desc": "目前的實例集合中尚未發現會話記錄。",
+        "searchTitle": "找不到符合的會話",
+        "searchDesc": "請調整標題關鍵字後再試。"
+      },
+      "search": {
+        "titleLabel": "標題",
+        "contentLabel": "對話內容",
+        "titlePlaceholder": "依標題搜尋",
+        "contentPlaceholder": "搜尋對話內容",
+        "apply": "搜尋",
+        "clear": "清空"
       },
       "messages": {
         "pickOne": "請至少選擇一條會話",
@@ -2450,15 +2460,7 @@
         "confirm": "複製工作階段"
       },
       "repairModal": {
-        "quickTitle": "修復可見性",
-        "quickDesc": "校正官方 Codex state DB 中影響側邊欄顯示的工作階段記錄。",
-        "deepTitle": "修復可見性",
-        "deepDesc": "校正官方 Codex state DB 中影響側邊欄顯示的工作階段記錄。",
-        "quickProgressTitle": "修復進度",
-        "deepProgressTitle": "修復進度",
         "running": "正在修復...",
-        "startQuick": "開始修復",
-        "startDeep": "開始修復",
         "progress": {
           "queued": "正在啟動修復任務...",
           "collectInstances": "正在收集 Codex 實例...",
@@ -2470,9 +2472,9 @@
           "pruneBackups": "正在清理舊備份...",
           "done": "修復已完成",
           "writeSqliteProvider": "正在寫入 {{instance}} 的 SQLite 可見性...",
-          "writeRolloutFiles": "正在略過舊工作階段檔案寫入...",
+          "writeRolloutFiles": "正在寫入舊會話檔案...",
           "writeSqliteTimestamps": "正在校正 {{instance}} 的 SQLite 時間...",
-          "writeSessionIndex": "正在略過舊索引寫入..."
+          "writeSessionIndex": "正在寫入 session_index..."
         },
         "targetProvider": "目標 provider",
         "defaultProvider": "預設",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "Claude 已加入",
       "addToCodex": "加入 Codex",
       "addToClaude": "加入 Claude CLI",
+      "addToClaudeDesktop": "加入 Claude Desktop",
+      "addToClaudeCli": "加入 Claude CLI",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "已帶入 APIKEY.FUN 設定，請確認後加入 Claude Desktop。"
     },
     "copyKey": "複製金鑰",
     "clearKey": "清除輸入"
@@ -4688,7 +4695,8 @@
       "desktop": "桌面",
       "oauth": "OAuth",
       "apiKey": "API 金鑰",
-      "import": "本機/JSON"
+      "import": "本機/JSON",
+      "desktopGateway": "閘道"
     },
     "authMode": {
       "oauth": "OAuth 模式",
@@ -4707,6 +4715,7 @@
       "hint": "API Key 帳號僅用於 Claude CLI；會以明文 env 寫入 Claude Code settings.json，不會寫入 Claude Desktop 登入狀態，也不支援訂閱額度刷新。",
       "importAction": "匯入 API Key",
       "required": "請輸入 API Key",
+      "templateRequired": "請填寫 {{label}}",
       "importSuccess": "Claude API Key 帳號已匯入：{{name}}",
       "quotaUnsupported": "API Key 帳號不支援刷新",
       "switchDisabled": "API Key 帳號不能切換到 Claude Desktop",
@@ -4724,7 +4733,9 @@
       "title": "Claude Desktop 登入",
       "desc": "在本工具開啟 Claude 登入視窗，支援 Google、Apple、電子郵件與 free 帳號。",
       "start": "開啟登入",
+      "preparingRuntime": "準備登入元件...",
       "hint": "登入狀態會先儲存在本工具本機帳號庫，不會立刻寫入官方 Claude Desktop；切號時才寫回 Claude。",
+      "runtimeHint": "首次使用時會下載並校驗 Electron 登入元件到本地應用資料目錄；安裝包不內建，之後會重用本地快取。",
       "nameLabel": "帳號名稱",
       "namePlaceholder": "可選，例如 Claude Free",
       "waiting": "請在已開啟的 Claude 授權視窗完成登入。看到聊天頁後回到這裡點擊完成匯入。",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "搜尋 Claude Desktop 帳號...",
     "searchCli": "搜尋 Claude CLI 帳號...",
     "noDesktopAccounts": "暫無 Claude Desktop 帳號",
-    "noCliAccounts": "暫無 Claude CLI 帳號"
+    "noCliAccounts": "暫無 Claude CLI 帳號",
+    "desktopGateway": {
+      "label": "閘道",
+      "authScheme": "認證方式",
+      "importAction": "匯入 Gateway",
+      "importSuccess": "Claude Desktop Gateway 帳號已匯入：{{name}}",
+      "baseUrlRequired": "請輸入 Gateway Base URL",
+      "noQuota": "Gateway 帳號不顯示 Claude 訂閱額度",
+      "desc": "將 Gateway API Key 儲存為 Claude Desktop 3P 設定；切換時寫入受管 profile，並以官方 Claude Desktop 啟動。",
+      "hint": "Gateway 帳號不會讀取 Claude 訂閱資訊；API Key 會依官方 3P 設定寫入受管 profile，用於啟動 Claude Desktop。",
+      "modelsLabel": "模型目錄",
+      "modelsEmpty": "目前 Gateway 未回傳模型清單。",
+      "modelsLoaded": "已取得 {{count}} 個模型，可視需要修改。",
+      "modelsLoadFailed": "模型清單取得失敗：{{error}}。",
+      "manualModels": "手動模型",
+      "modelsPlaceholder": "每行一個模型 ID",
+      "modelsLoading": "正在取得模型目錄...",
+      "modelsRequired": "請填寫模型目錄",
+      "editTitle": "編輯 Claude Desktop Gateway",
+      "updateAction": "儲存 Gateway",
+      "updateSuccess": "Claude Desktop Gateway 帳號已更新：{{name}}",
+      "connectionMode": "連線方式",
+      "modeDirect": "直連",
+      "modeLocalMapping": "本機閘道映射",
+      "mappingsRequired": "請設定模型映射",
+      "mappingDesktopModelInvalid": "映射左側必須填寫 Claude Desktop 可識別的 Claude 模型名稱",
+      "directModelsInvalid": "直連模式只支援 Claude Desktop 可識別的 Claude 模型名稱",
+      "desktopModelPlaceholder": "Claude Desktop 模型名稱",
+      "upstreamModelPlaceholder": "上游實際模型名稱",
+      "addMapping": "新增映射"
+    }
   }
 }

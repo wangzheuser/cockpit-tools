@@ -2305,7 +2305,17 @@
       },
       "empty": {
         "title": "Žádné relace ke správě",
-        "desc": "V aktuální sadě instancí nebyly nalezeny žádné záznamy relací."
+        "desc": "V aktuální sadě instancí nebyly nalezeny žádné záznamy relací.",
+        "searchTitle": "Nenalezeny žádné odpovídající relace",
+        "searchDesc": "Upravte klíčová slova názvu."
+      },
+      "search": {
+        "titleLabel": "Název",
+        "contentLabel": "Obsah konverzace",
+        "titlePlaceholder": "Hledat podle názvu",
+        "contentPlaceholder": "Hledat v obsahu konverzace",
+        "apply": "Hledat",
+        "clear": "Vymazat"
       },
       "messages": {
         "pickOne": "Vyberte prosím alespoň jednu relaci",
@@ -2339,15 +2349,7 @@
         "confirm": "Kopírovat relace"
       },
       "repairModal": {
-        "quickTitle": "Opravit viditelnost",
-        "quickDesc": "Aktualizuje záznamy oficiální state DB Codexu pro postranní panel.",
-        "deepTitle": "Opravit viditelnost",
-        "deepDesc": "Aktualizuje záznamy oficiální state DB Codexu pro postranní panel.",
-        "quickProgressTitle": "Průběh opravy",
-        "deepProgressTitle": "Průběh opravy",
         "running": "Opravuji...",
-        "startQuick": "Opravit",
-        "startDeep": "Opravit",
         "progress": {
           "queued": "Spouští se oprava...",
           "collectInstances": "Shromažďují se instance Codex...",
@@ -2359,9 +2361,9 @@
           "pruneBackups": "Čistí se staré zálohy...",
           "done": "Oprava dokončena",
           "writeSqliteProvider": "Zápis viditelnosti SQLite pro {{instance}}...",
-          "writeRolloutFiles": "Přeskakuje se zápis starých souborů relací...",
+          "writeRolloutFiles": "Zapisuji staré soubory relací...",
           "writeSqliteTimestamps": "Oprava časů SQLite pro {{instance}}...",
-          "writeSessionIndex": "Přeskakuje se zápis starého indexu..."
+          "writeSessionIndex": "Zapisuji session_index..."
         },
         "targetProvider": "Cílový provider",
         "defaultProvider": "Výchozí",
@@ -4619,8 +4621,13 @@
       "claudeAdded": "Claude přidán",
       "addToCodex": "Přidat do Codex",
       "addToClaude": "Přidat do Claude CLI",
+      "addToClaudeDesktop": "Přidat do Claude Desktop",
+      "addToClaudeCli": "Přidat do Claude CLI",
       "codexShort": "Codex",
       "claudeShort": "Claude CLI"
+    },
+    "prefill": {
+      "claudeDesktopReady": "Nastavení APIKEY.FUN je vyplněno. Potvrďte přidání do Claude Desktop."
     },
     "copyKey": "Copy Key​",
     "clearKey": "Clear input​"
@@ -4688,7 +4695,8 @@
       "desktop": "Plocha",
       "oauth": "OAuth",
       "apiKey": "API klíč",
-      "import": "Místní/JSON"
+      "import": "Místní/JSON",
+      "desktopGateway": "Brána"
     },
     "authMode": {
       "oauth": "Režim OAuth",
@@ -4707,6 +4715,7 @@
       "hint": "Účty API Key jsou pouze pro Claude CLI. Zapisují se jako prostý env text do Claude Code settings.json, neovlivňují Claude Desktop a nepodporují obnovu předplatitelského limitu.",
       "importAction": "Importovat API Key",
       "required": "Zadejte API Key",
+      "templateRequired": "Zadejte {{label}}",
       "importSuccess": "Účet Claude API Key importován: {{name}}",
       "quotaUnsupported": "Účty API Key nepodporují obnovení",
       "switchDisabled": "Účet API Key nelze přepnout do Claude Desktop",
@@ -4724,7 +4733,9 @@
       "title": "Přihlášení Claude Desktop",
       "desc": "Přihlášení Claude v tomto nástroji; Google, Apple, e-mail a free.",
       "start": "Otevřít",
+      "preparingRuntime": "Připravuji...",
       "hint": "Nejdřív lokálně; zápis do Claude Desktop až při přepnutí.",
+      "runtimeHint": "Při prvním použití se může stáhnout a ověřit přihlašovací komponenta Electron do místní složky dat aplikace; není součástí instalátoru a později se používá z mezipaměti.",
       "nameLabel": "Název účtu",
       "namePlaceholder": "Volitelné, např. Claude Free",
       "waiting": "Přihlaste se v okně Claude a dokončete import zde.",
@@ -4804,6 +4815,36 @@
     "searchDesktop": "Hledat účty Claude Desktop...",
     "searchCli": "Hledat účty Claude CLI...",
     "noDesktopAccounts": "Zatím žádné účty Claude Desktop",
-    "noCliAccounts": "Zatím žádné účty Claude CLI"
+    "noCliAccounts": "Zatím žádné účty Claude CLI",
+    "desktopGateway": {
+      "label": "Brána",
+      "authScheme": "Schéma auth",
+      "importAction": "Import Gateway",
+      "importSuccess": "Účet Claude Desktop Gateway byl importován: {{name}}",
+      "baseUrlRequired": "Zadejte Gateway Base URL",
+      "noQuota": "Účty Gateway nezobrazují kvótu předplatného Claude",
+      "desc": "Uloží Gateway API key jako konfiguraci Claude Desktop 3P. Při přepnutí se zapíše do spravovaného profilu a spustí oficiální Claude Desktop.",
+      "hint": "Účty Gateway nečtou údaje o předplatném Claude. API key se zapíše do spravovaného profilu podle oficiální konfigurace 3P pro spuštění Claude Desktop.",
+      "modelsLabel": "Katalog modelů",
+      "modelsEmpty": "Tento Gateway nevrátil žádné modely.",
+      "modelsLoaded": "Načteno {{count}} modelů. Před uložením je můžete upravit.",
+      "modelsLoadFailed": "Načtení modelů selhalo: {{error}}.",
+      "manualModels": "Ruční modely",
+      "modelsPlaceholder": "Jedno ID modelu na řádek",
+      "modelsLoading": "Načítá se katalog modelů...",
+      "modelsRequired": "Zadejte katalog modelů",
+      "editTitle": "Upravit Claude Desktop Gateway",
+      "updateAction": "Uložit Gateway",
+      "updateSuccess": "Účet Claude Desktop Gateway byl aktualizován: {{name}}",
+      "connectionMode": "Připojení",
+      "modeDirect": "Přímo",
+      "modeLocalMapping": "Místní mapování",
+      "mappingsRequired": "Nastavte mapování modelů",
+      "mappingDesktopModelInvalid": "Vlevo musí být názvy Claude rozpoznané Claude Desktop",
+      "directModelsInvalid": "Přímý režim podporuje jen názvy Claude rozpoznané Claude Desktop",
+      "desktopModelPlaceholder": "Model Claude Desktop",
+      "upstreamModelPlaceholder": "Skutečný upstream model",
+      "addMapping": "Přidat mapování"
+    }
   }
 }

@@ -15,7 +15,7 @@
 
 ### 变更
 - **Gemini 额度展示改用 quota summary 分桶**：Gemini 额度刷新会读取 `retrieveUserQuotaSummary`，账号页、首页卡片、托盘和原生菜单可更稳定展示 Gemini 与第三方模型的 5 小时、周额度窗口。感谢 @xdd666t。
-- **Codex 会话可见性修复收敛为单一官方 state DB 路径**：自动和手动修复都只校正官方侧边栏依赖的 `state_5.sqlite` 会话记录，不再扫描或改写 rollout、`session_index.jsonl`，也不触发官方 app-server 重建。
+- **Codex 会话可见性修复区分轻量与深度路径**：切号后的自动修复只校正官方侧边栏依赖的 `state_5.sqlite` 会话记录；手动“修复可见性”可选择深度修复，用于扫描 rollout、`session_index.jsonl` 与 SQLite 索引并重建官方侧边栏状态。
 - **Codex fast service tier 更可靠地映射到 `priority`**：快速档位请求在本地访问、实例启动、Responses payload 转换和 sidecar manifest 链路中会保留预期的 priority 行为。感谢 @lcpdeb。
 - **模型供应商用量查询改为 Codex 与 APIKEY.FUN 共用能力**：供应商余额和用量检测现在走统一服务路径，刷新时保留缓存用量，并一致识别不支持的 usage 接口。
 

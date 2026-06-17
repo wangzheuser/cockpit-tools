@@ -4,9 +4,10 @@ export type ClaudeAuthMode =
   | 'setup_token'
   | 'api_key'
   | 'desktop_oauth'
-  | 'desktop_o_auth';
+  | 'desktop_o_auth'
+  | 'desktop_gateway';
 
-export type NormalizedClaudeAuthMode = 'oauth' | 'setup_token' | 'api_key' | 'desktop_oauth';
+export type NormalizedClaudeAuthMode = 'oauth' | 'setup_token' | 'api_key' | 'desktop_oauth' | 'desktop_gateway';
 
 export interface ClaudeQuotaErrorInfo {
   code?: string | null;
@@ -53,6 +54,14 @@ export interface ClaudeAccount {
   api_key_field?: string | null;
   api_model_catalog?: string[] | null;
   api_extra_env?: Record<string, string> | null;
+  desktop_gateway_auth_scheme?: string | null;
+  desktop_gateway_credential_kind?: string | null;
+  desktop_gateway_config_id?: string | null;
+  desktop_gateway_profile_dir?: string | null;
+  desktop_gateway_models?: string[] | null;
+  desktop_gateway_connection_mode?: ClaudeDesktopGatewayConnectionMode | string | null;
+  desktop_gateway_upstream_models?: string[] | null;
+  desktop_gateway_model_mappings?: ClaudeDesktopGatewayModelMapping[] | null;
   desktop_profile_dir?: string | null;
   desktop_profile_imported_at?: number | null;
   claude_credentials_raw?: unknown;
@@ -76,6 +85,25 @@ export interface ClaudeOAuthStartResponse {
   verificationUri: string;
   expiresIn: number;
   intervalSeconds: number;
+}
+
+export interface ClaudeDesktopGatewayModel {
+  id: string;
+  displayName?: string | null;
+}
+
+export type ClaudeDesktopGatewayConnectionMode = 'direct' | 'local_mapping';
+
+export interface ClaudeDesktopGatewayModelMapping {
+  desktopModel: string;
+  upstreamModel: string;
+}
+
+export interface ClaudeDesktopGatewayModelsResult {
+  models: ClaudeDesktopGatewayModel[];
+  latencyMs: number;
+  recommendedMode?: ClaudeDesktopGatewayConnectionMode | string | null;
+  hasClaudeModels?: boolean;
 }
 
 function asPlainRecord(value: unknown): Record<string, unknown> | null {
@@ -172,16 +200,26 @@ function deriveClaudePlanBadge(account: ClaudeAccount): string {
 
 export function normalizeClaudeAuthMode(mode?: ClaudeAuthMode | string | null): NormalizedClaudeAuthMode {
   if (mode === 'desktop_oauth' || mode === 'desktop_o_auth') return 'desktop_oauth';
+  if (mode === 'desktop_gateway') return 'desktop_gateway';
   if (mode === 'api_key') return 'api_key';
   if (mode === 'setup_token') return 'setup_token';
   return 'oauth';
 }
 
 export function isClaudeDesktopOAuthAccount(account: ClaudeAccount): boolean {
+  if (normalizeClaudeAuthMode(account.auth_mode) === 'desktop_gateway') return false;
   if (normalizeClaudeAuthMode(account.auth_mode) === 'desktop_oauth') return true;
   if (account.desktop_profile_dir || account.desktop_profile_imported_at) return true;
   const configRaw = asPlainRecord(account.claude_config_raw);
   return Boolean(asPlainRecord(configRaw?.desktopProfile));
+}
+
+export function isClaudeDesktopGatewayAccount(account: ClaudeAccount): boolean {
+  return normalizeClaudeAuthMode(account.auth_mode) === 'desktop_gateway';
+}
+
+export function isClaudeDesktopRuntimeAccount(account: ClaudeAccount): boolean {
+  return isClaudeDesktopGatewayAccount(account) || isClaudeDesktopOAuthAccount(account);
 }
 
 export function getClaudeAccountDisplayEmail(account: ClaudeAccount): string {
@@ -210,7 +248,14 @@ export function getClaudePlanBadge(account: ClaudeAccount): string {
 }
 
 export function getClaudeAuthModeLabel(account: ClaudeAccount): string {
-  switch (isClaudeDesktopOAuthAccount(account) ? 'desktop_oauth' : normalizeClaudeAuthMode(account.auth_mode)) {
+  const normalizedMode = isClaudeDesktopGatewayAccount(account)
+    ? 'desktop_gateway'
+    : isClaudeDesktopOAuthAccount(account)
+      ? 'desktop_oauth'
+      : normalizeClaudeAuthMode(account.auth_mode);
+  switch (normalizedMode) {
+    case 'desktop_gateway':
+      return 'Claude Desktop Gateway';
     case 'desktop_oauth':
       return 'Claude Desktop';
     case 'api_key':

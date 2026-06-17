@@ -278,6 +278,24 @@
   background: var(--primary-light);
 }
 
+.claude-accounts-page .codex-account-card.sponsor-api-account,
+.claude-accounts-page .ghcp-account-card.sponsor-api-account {
+  border-color: rgba(217, 119, 6, 0.38);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 247, 237, 0.96) 0%,
+      rgba(254, 240, 138, 0.3) 44%,
+      rgba(255, 255, 255, 0.96) 100%
+    ),
+    var(--bg-card);
+  box-shadow: 0 14px 34px rgba(180, 83, 9, 0.12);
+}
+
+.claude-accounts-page .account-table tr.sponsor-api-account td:first-child {
+  border-left: 3px solid rgba(217, 119, 6, 0.52);
+}
+
 .ghcp-account-card .card-top {
   display: flex;
   align-items: center;
@@ -2317,6 +2335,118 @@
   width: 100%;
 }
 
+.claude-add-modal {
+  width: min(760px, calc(100vw - 32px));
+  max-width: 760px;
+}
+
+.claude-add-modal .claude-gateway-models-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.claude-add-modal .claude-gateway-models-input {
+  min-height: 96px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.claude-add-modal .claude-gateway-mapping-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.claude-add-modal .claude-gateway-mapping-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.claude-add-modal .claude-gateway-mapping-row .btn {
+  white-space: nowrap;
+}
+
+.claude-add-modal .claude-gateway-mapped-model-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.claude-add-modal .claude-gateway-mapped-model-field .single-select-dropdown {
+  width: 100%;
+}
+
+.claude-add-modal .claude-gateway-segmented {
+  display: grid;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+}
+
+.claude-add-modal .claude-gateway-auth-segmented {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.claude-add-modal .claude-gateway-mode-segmented {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.claude-add-modal .claude-gateway-segmented .claude-provider-endpoint-chip {
+  justify-content: center;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: none;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.claude-add-modal .claude-gateway-segmented .claude-provider-endpoint-chip:hover {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--primary) 7%, var(--bg-card));
+  color: var(--primary);
+  box-shadow: none;
+}
+
+.claude-add-modal .claude-gateway-segmented .claude-provider-endpoint-chip.active {
+  border-color: color-mix(in srgb, var(--primary) 34%, transparent);
+  background: var(--bg-card);
+  color: var(--primary);
+  box-shadow: 0 6px 14px -8px rgba(14, 165, 233, 0.45);
+}
+
+.claude-add-modal .claude-gateway-model-status-group {
+  margin-top: -4px;
+}
+
+@media (max-width: 720px) {
+  .claude-add-modal .claude-gateway-mapping-row {
+    grid-template-columns: 1fr;
+  }
+
+  .claude-add-modal .claude-gateway-auth-segmented,
+  .claude-add-modal .claude-gateway-mode-segmented {
+    grid-template-columns: 1fr;
+  }
+}
+
 .windsurf-add-modal {
   max-width: 620px;
 }
@@ -2740,6 +2870,25 @@
     rgba(15, 23, 42, 0.95),
     rgba(15, 23, 42, 0.8)
   );
+}
+
+[data-theme="dark"] .claude-accounts-page .codex-account-card.sponsor-api-account,
+[data-theme="dark"] .claude-accounts-page .ghcp-account-card.sponsor-api-account {
+  background:
+    linear-gradient(
+      180deg,
+      rgba(217, 119, 6, 0.24) 0%,
+      rgba(15, 23, 42, 0.94) 52%,
+      rgba(15, 23, 42, 0.96) 100%
+    ),
+    rgba(15, 23, 42, 0.94);
+  border-color: rgba(251, 191, 36, 0.36);
+  box-shadow: 0 16px 36px rgba(180, 116, 11, 0.18);
+}
+
+[data-theme="dark"] .claude-accounts-page .codex-account-card.sponsor-api-account .codex-api-key-usage-panel {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(251, 191, 36, 0.22);
 }
 
 [data-theme="dark"] .ghcp-accounts-page .message-bar.success {

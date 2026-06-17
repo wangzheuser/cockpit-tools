@@ -52,6 +52,7 @@ import { useWindsurfAccountStore } from '../stores/useWindsurfAccountStore';
 import { useWorkbuddyAccountStore } from '../stores/useWorkbuddyAccountStore';
 import { useZedAccountStore } from '../stores/useZedAccountStore';
 import { useCodebuddyCnInstanceStore } from '../stores/useCodebuddyCnInstanceStore';
+import { useAntigravityLegacyInstanceStore } from '../stores/useAntigravityLegacyInstanceStore';
 import { useClaudeInstanceStore } from '../stores/useClaudeInstanceStore';
 import { useCodebuddyInstanceStore } from '../stores/useCodebuddyInstanceStore';
 import { useCodexInstanceStore } from '../stores/useCodexInstanceStore';
@@ -66,7 +67,7 @@ import { useTraeInstanceStore } from '../stores/useTraeInstanceStore';
 import { useWindsurfInstanceStore } from '../stores/useWindsurfInstanceStore';
 import { useWorkbuddyInstanceStore } from '../stores/useWorkbuddyInstanceStore';
 import { ALL_PLATFORM_IDS, PLATFORM_PAGE_MAP, PlatformId } from '../types/platform';
-import { isClaudeDesktopOAuthAccount } from '../types/claude';
+import { isClaudeDesktopRuntimeAccount } from '../types/claude';
 import type { InstanceProfile } from '../types/instance';
 import { isPrivacyModeEnabledByDefault, maskSensitiveValue } from '../utils/privacy';
 import { getPlatformLabel, renderPlatformIcon } from '../utils/platformMeta';
@@ -165,6 +166,7 @@ function resolveAppliedTheme(theme: string): 'light' | 'dark' {
 function resolveInstanceStoreApi(platformId: PlatformId): FloatingCardInstanceStoreApi | null {
   switch (platformId) {
     case 'antigravity':
+      return useAntigravityLegacyInstanceStore.getState();
     case 'antigravity_ide':
       return useInstanceStore.getState();
     case 'codex':
@@ -674,11 +676,11 @@ export function FloatingCardWindow() {
   }, [instanceContext, selectedPlatform]);
 
   const claudeDesktopAccounts = useMemo(
-    () => claudeAccounts.filter(isClaudeDesktopOAuthAccount),
+    () => claudeAccounts.filter(isClaudeDesktopRuntimeAccount),
     [claudeAccounts],
   );
   const claudeCliAccounts = useMemo(
-    () => claudeAccounts.filter((account) => !isClaudeDesktopOAuthAccount(account)),
+    () => claudeAccounts.filter((account) => !isClaudeDesktopRuntimeAccount(account)),
     [claudeAccounts],
   );
   const claudeDesktopCurrent = useMemo(
