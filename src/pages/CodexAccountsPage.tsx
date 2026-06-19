@@ -231,6 +231,10 @@ import {
 import { formatCodexSessionVisibilityRepairMessage } from "../utils/codexSessionVisibility";
 import md5 from "blueimp-md5";
 
+// Temporarily hide the experimental API Key + OAuth local gateway entry.
+// Flip this back to true after the compatibility path is debugged.
+const ENABLE_OAUTH_BINDING_LOCAL_GATEWAY_TOGGLE = false;
+
 const CODEX_TOKEN_SINGLE_EXAMPLE = `{
   "tokens": {
     "id_token": "eyJ...",
@@ -3750,7 +3754,8 @@ export function CodexAccountsPage() {
       );
       setOauthBindingAutoSwitch(options?.autoSwitch ?? false);
       setOauthBindingUseLocalGateway(
-        Boolean(account.bound_oauth_use_local_gateway),
+        ENABLE_OAUTH_BINDING_LOCAL_GATEWAY_TOGGLE &&
+          Boolean(account.bound_oauth_use_local_gateway),
       );
       setOauthBindingSearchQuery("");
       setOauthBindingFilterTypes([]);
@@ -3955,7 +3960,8 @@ export function CodexAccountsPage() {
         await updateApiKeyBoundOAuthAccount(
           oauthBindingAccount.id,
           selectedOAuthBindingAccount.id,
-          oauthBindingUseLocalGateway,
+          ENABLE_OAUTH_BINDING_LOCAL_GATEWAY_TOGGLE &&
+            oauthBindingUseLocalGateway,
         );
       }
       setMessage({
@@ -12441,7 +12447,8 @@ export function CodexAccountsPage() {
                             "选择 OAuth 账号",
                           )}
                         </label>
-                        {oauthBindingTargetKind === "api_key_account" && (
+                        {ENABLE_OAUTH_BINDING_LOCAL_GATEWAY_TOGGLE &&
+                          oauthBindingTargetKind === "api_key_account" && (
                           <label
                             className="codex-oauth-binding-gateway-toggle"
                             title={t(
