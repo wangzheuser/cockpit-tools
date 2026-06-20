@@ -7,6 +7,25 @@ All notable changes to Cockpit Tools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
+## [0.26.5] - 2026-06-20
+
+### Added
+- **Codex model providers can now be tested in one batch**: the model provider page can select saved providers, run real conversation tests through the local gateway, show the tested protocol and model, and select failed or unused providers for deletion together with their linked Codex API Key accounts.
+- **Codex model providers now support custom ordering**: provider cards can be arranged manually with the same style of ordering controls used by account overviews.
+
+### Changed
+- **Codex model-provider tests now reuse the same local gateway paths as real use**: Responses-native providers test through the regular API Key account pool, Chat Completions providers test through provider gateway, and test requests carry provider, key, model, and run diagnostics to upstream-compatible services.
+- **Codex binding and test flows now handle `image_generation` compatibility consistently**: API Key, API Service, and model-provider OAuth binding can disable the `image_generation` tool for text conversations, while API Service and provider tests temporarily apply the same text-only filter without removing image models.
+- **Codex API Service now keeps session affinity enabled by default**: new and migrated local gateway configurations prefer stable routing for the same conversation, reducing account-switch churn and the chance of triggering provider risk controls, while still allowing users to turn it off later.
+
+### Fixed
+- **Codex sidecar streaming retries are less aggressive after retryable failures**: bootstrap retries now use throttled backoff delays and clearer unavailable-auth status handling, reducing dense retry bursts during transient failures. Thanks @lcpdeb for the contribution in #1268.
+- **Responses-native Codex API Key accounts bound to OAuth now use the profile local gateway when `image_generation` is disabled**: official Codex profiles route text conversations through localhost for filtering, while Chat Completions accounts continue to use the instance provider gateway branch.
+- **Codex local gateway filtering now wins after payload overrides**: when text conversations disable `image_generation`, payload rules can no longer re-add the hosted image tool before the upstream request.
+- **Codex instance binding changes no longer leave stale profile sidecars running**: switching a profile from a gateway-backed provider to a regular account, API Service, or another provider stops the old sidecar before applying the new binding.
+- **Codex API Key cards keep provider switching available in the card body**: the duplicate bottom action remains removed, but the inline provider switch entry is available again for saved provider changes.
+
+---
 ## [0.26.4] - 2026-06-19
 
 ### Added

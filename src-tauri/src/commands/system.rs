@@ -2922,9 +2922,7 @@ pub fn scan_claude_desktop_launch_targets(
         .as_deref()
         .map(str::trim)
         .filter(|value| !value.is_empty());
-    Ok(modules::claude_instance::scan_claude_desktop_launch_targets(
-        roots,
-    ))
+    Ok(modules::claude_instance::scan_claude_desktop_launch_targets(roots))
 }
 
 #[tauri::command]

@@ -7,6 +7,7 @@ import {
   CodexProviderWireApi,
   CodexQuickConfig,
   CodexQuota,
+  CodexResetCreditsSnapshot,
 } from '../types/codex';
 
 export interface CodexOAuthLoginStartResponse {
@@ -214,6 +215,13 @@ export async function confirmCodexBatchImport(
 /** 刷新单个账号配额 */
 export async function refreshCodexQuota(accountId: string): Promise<CodexQuota> {
   return await invoke('refresh_codex_quota', { accountId });
+}
+
+/** 获取 Codex 主动重置次数明细 */
+export async function getCodexResetCredits(
+  accountId: string,
+): Promise<CodexResetCreditsSnapshot> {
+  return await invoke('get_codex_reset_credits', { accountId });
 }
 
 /** 消耗一次 Codex 主动重置次数 */

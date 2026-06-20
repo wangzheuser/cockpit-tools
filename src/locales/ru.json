@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "Необязательно. Можно выбрать только OAuth-аккаунты с refresh_token. Без привязки API-сервис работает по прежней логике API Key; после привязки вход использует OAuth-аккаунт, а Provider — настройки API-сервиса.",
-        "currentService": "API-сервис: {{name}}"
+        "currentService": "API-сервис: {{name}}",
+        "imageGenerationTooltip": "Если включено, API-сервис удаляет объявление инструмента image_generation в локальном шлюзе перед пересылкой обычных текстовых диалогов; модели изображений не удаляются.",
+        "imageGenerationConfirm": {
+          "title": "Отключить image_generation",
+          "message": "Если включено, API-сервис будет удалять объявление инструмента image_generation в локальном шлюзе перед пересылкой обычных текстовых диалогов, чтобы избежать ошибок вроде «Image generation is not enabled». gpt-image и другие модели изображений не удаляются. Продолжить?"
+        }
       },
       "customRoutingEdit": "Изменить настраиваемую маршрутизацию",
       "customRoutingTitle": "Настраиваемая маршрутизация",
@@ -2064,6 +2069,8 @@
       "resetCreditStatusUnknown": "Неизвестно",
       "resetCreditNextExpiry": "Ближайшее истечение: {{time}}",
       "resetCreditDetailsTitle": "Детали сбросов",
+      "resetCreditNoRecords": "Нет записей сброса",
+      "resetCreditRecordsLoadFailed": "Не удалось загрузить записи сброса: {{error}}",
       "resetCreditGrantedAt": "Выдано",
       "resetCreditExpiresAt": "Истекает"
     },
@@ -2543,11 +2550,11 @@
         "clearAction": "Отвязать",
         "clearSuccess": "Привязка OAuth удалена.",
         "clearFailed": "Не удалось удалить привязку OAuth: {{error}}",
-        "useLocalGateway": "Ispolzovat lokalnyy rezhim sovmestimosti shlyuza",
-        "localGatewayTooltip": "Napravlyaet obychnye tekstovye zaprosy cherez lokalnyy shlyuz i ubiraet image_generation dlya provayderov bez generatsii izobrazheniy.",
+        "useLocalGateway": "Отключить image_generation",
+        "localGatewayTooltip": "Если включено, текстовые диалоги API Key с привязкой OAuth идут через локальный шлюз, который удаляет image_generation перед пересылкой; модели изображений не удаляются.",
         "localGatewayConfirm": {
-          "title": "Vklyuchit lokalnyy rezhim sovmestimosti shlyuza",
-          "message": "Posle vklyucheniya etot API Key akkaunt pri svyazi OAuth budet ispolzovat lokalnyy rezhim: tekstovye zaprosy ubirayut image_generation, a OAuth lichnost sokhranyaetsya. Prodolzhit?"
+          "title": "Отключить возможность image_generation",
+          "message": "Если включено, обычные текстовые диалоги этого аккаунта API Key с привязкой OAuth будут идти через локальный шлюз, где объявление инструмента image_generation удаляется перед пересылкой, чтобы избежать ошибок вроде «Image generation is not enabled». gpt-image и другие модели изображений не удаляются. Продолжить?"
         }
       }
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "Проверьте состояние сервиса провайдера, прокси или совместимость API.",
         "checkModelsApi": "Убедитесь, что провайдер возвращает список моделей в формате OpenAI."
       },
+      "batchTest": {
+        "entry": "Проверить все",
+        "entryHint": "Пакетно проверить реальную возможность чата у провайдеров",
+        "selectedCount": "Выбрано {{count}}",
+        "title": "Пакетная проверка провайдеров моделей",
+        "selectTitle": "Выберите провайдеров для проверки",
+        "selectDesc": "Выбранные провайдеры временно подключаются к локальному шлюзу для теста чата и отправляются upstream по протоколу провайдера.",
+        "selectionSummary": "Выбрано {{selected}} / доступно {{total}}",
+        "emptySelection": "Выберите хотя бы одного провайдера с API Key.",
+        "noApiKey": "Нет API Key",
+        "gatewayProtocol": "Chat Completions · шлюз",
+        "directProtocol": "Responses · шлюз",
+        "start": "Начать проверку",
+        "kicker": "Проверка провайдера",
+        "resultsTitle": "Результаты проверки чата провайдеров",
+        "totalCount": "{{count}} провайдеров",
+        "progress": "Ход проверки",
+        "selectVisible": "Выбрать видимые",
+        "resultSelectedCount": "Выбрано {{count}}",
+        "selectFailed": "Выбрать ошибки",
+        "deleteConfirm": "Удалить выбранных провайдеров: {{providerCount}}? Также будут удалены точно связанные аккаунты Codex API Key: {{accountCount}}.",
+        "deleteSuccess": "Удалено провайдеров: {{providerCount}}, связанных аккаунтов: {{accountCount}}.",
+        "deleteFailed": "Не удалось удалить выбранные элементы: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Модель ожидает",
+        "promptLabel": "Промпт",
+        "pendingDesc": "Ожидает запуска.",
+        "runningDesc": "Отправляется запрос чата.",
+        "noReply": "Upstream не вернул читаемый ответ.",
+        "unknownError": "Неизвестная ошибка",
+        "status": {
+          "all": "Все",
+          "success": "Успех",
+          "error": "Ошибка",
+          "running": "Выполняется",
+          "pending": "Ожидает",
+          "completed": "Завершено"
+        },
+        "officialClientOnlyError": "Этот поставщик принимает запросы только от официального клиента Codex. Тест в один клик теперь использует локальный шлюз, но upstream всё равно отклонил этот тестовый запрос. Ориентируйтесь на поведение после запуска в официальном Codex."
+      },
       "enableAndStart": "Запуск",
       "instance": {
         "label": "Экземпляр",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "Необязательно. Можно привязать любой OAuth-аккаунт с refresh_token. Без привязки провайдер продолжит использовать исходный поток API Key.",
         "currentProvider": "Провайдер: {{name}}"
+      },
+      "sort": {
+        "custom": "Свой порядок",
+        "customModalTitle": "Свой порядок поставщиков",
+        "customModalDesc": "Перетащите поставщиков или используйте кнопки вверх/вниз, чтобы изменить порядок.",
+        "customDragHandle": "Перетащить для сортировки",
+        "customMoveUp": "Вверх",
+        "customMoveDown": "Вниз",
+        "customReset": "Сбросить порядок"
       }
     },
     "quickSwitch": {

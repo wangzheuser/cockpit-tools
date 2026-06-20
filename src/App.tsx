@@ -549,6 +549,7 @@ function MainApp() {
     release_notes: string;
     release_notes_zh: string;
   } | null>(null);
+  const [showVersionJumpNotification, setShowVersionJumpNotification] = useState(false);
   const [updateRuntimeInfo, setUpdateRuntimeInfo] = useState<UpdateRuntimeInfo | null>(null);
   const [updateRuntimeInfoLoaded, setUpdateRuntimeInfoLoaded] = useState(false);
   const [updateNotificationInfo, setUpdateNotificationInfo] = useState<UpdateInfo | null>(null);
@@ -865,14 +866,18 @@ function MainApp() {
     markSideNavClassicFirstSyncDone,
   ]);
 
-  const openUpdateNotification = useCallback((source: UpdateCheckSource) => {
-    if (source === 'manual') {
-      window.dispatchEvent(new CustomEvent('update-check-started', { detail: { source } }));
-    }
+  const openUpdateNotificationDetails = useCallback(() => {
     setUpdateSkipError('');
     setUpdateNotificationKey(Date.now());
     setShowUpdateNotification(true);
   }, []);
+
+  const openUpdateNotification = useCallback((source: UpdateCheckSource) => {
+    if (source === 'manual') {
+      window.dispatchEvent(new CustomEvent('update-check-started', { detail: { source } }));
+    }
+    openUpdateNotificationDetails();
+  }, [openUpdateNotificationDetails]);
 
   const closeUpdateNotification = useCallback(() => {
     setShowUpdateNotification(false);
@@ -1535,9 +1540,9 @@ function MainApp() {
     writeUpdateLog('info', `用户取消统一更新下载: version=${version || 'unknown'}`);
   }, [closeUpdaterHandle, updateAction.state, updateAction.version, writeUpdateLog]);
 
-  const handleQuickUpdateActionClick = useCallback(async () => {
+  const handleUpdatePrimaryAction = useCallback(async () => {
     if (updateAction.state === 'downloading') {
-      setShowUpdateNotification(true);
+      openUpdateNotificationDetails();
       return;
     }
     if (updateAction.state === 'installing') {
@@ -1548,9 +1553,9 @@ function MainApp() {
       try {
         await handleApplyPendingUpdate();
       } catch (error) {
-        console.error('[App] Quick update restart failed:', error);
-        writeUpdateLog('error', `侧边栏重启更新失败: error=${sanitizeUpdaterErrorMessage(error)}`);
-        openUpdateNotification('manual');
+        console.error('[App] Update restart failed:', error);
+        writeUpdateLog('error', `更新重启失败: error=${sanitizeUpdaterErrorMessage(error)}`);
+        openUpdateNotificationDetails();
       }
       return;
     }
@@ -1567,19 +1572,47 @@ function MainApp() {
         await runSharedUpdateDownload(expectedVersion);
       }
     } catch (error) {
-      console.error('[App] Quick update download failed:', error);
-      writeUpdateLog('error', `侧边栏更新失败: error=${sanitizeUpdaterErrorMessage(error)}`);
-      openUpdateNotification('manual');
+      console.error('[App] Update download failed:', error);
+      writeUpdateLog('error', `更新下载失败: error=${sanitizeUpdaterErrorMessage(error)}`);
+      openUpdateNotificationDetails();
     }
   }, [
     handleApplyPendingUpdate,
     isLinuxManagedUpdate,
-    openUpdateNotification,
+    openUpdateNotificationDetails,
     runLinuxManagedUpdate,
     runSharedUpdateDownload,
     updateAction,
     writeUpdateLog,
   ]);
+
+  const handleQuickUpdateActionClick = useCallback(() => {
+    const shouldOpenUpdateDetails = updateAction.state !== 'hidden'
+      && (
+        updateRemindersEnabled
+        || updateAction.state === 'downloading'
+        || updateAction.state === 'installing'
+        || updateAction.state === 'ready'
+      );
+
+    if (!shouldOpenUpdateDetails) {
+      if (versionJumpInfo) {
+        (
+          window as Window & {
+            __agtoolsVersionJumpModalRequestedAt?: number;
+          }
+        ).__agtoolsVersionJumpModalRequestedAt = performance.now();
+        setShowVersionJumpNotification(true);
+      }
+      return;
+    }
+
+    if (updateAction.state === 'installing') {
+      return;
+    }
+
+    openUpdateNotificationDetails();
+  }, [openUpdateNotificationDetails, updateAction.state, updateRemindersEnabled, versionJumpInfo]);
 
   const handleSkipUpdateVersion = useCallback(async () => {
     const targetVersion = updateNotificationInfo?.latest_version;
@@ -2037,7 +2070,7 @@ function MainApp() {
                   requiresInstall: true,
                 });
                 if (remindOnUpdate) {
-                  openUpdateNotification('auto');
+                  writeUpdateLog('info', `静默更新已在左上角显示待重启入口: version=${downloadedUpdate.version}`);
                 }
               }
             } else {
@@ -2064,7 +2097,7 @@ function MainApp() {
             updateDownloadOwnerRef.current = 'none';
             writeUpdateLog(
               'error',
-              `静默更新失败，展示更新弹窗: error=${sanitizeUpdaterErrorMessage(err)}`,
+              `静默更新失败，保留左上角更新入口: error=${sanitizeUpdaterErrorMessage(err)}`,
             );
             if (!remindOnUpdate) {
               setUpdateRetryStatus('');
@@ -2090,7 +2123,7 @@ function MainApp() {
                 progress: 0,
                 requiresInstall: true,
               });
-              openUpdateNotification('auto');
+              writeUpdateLog('info', `静默更新失败后已在左上角显示更新入口: version=${preparedUpdateInfo.latest_version}`);
             }
           }
         } else {
@@ -2098,10 +2131,10 @@ function MainApp() {
           if (autoInstall && isLinuxManagedUpdate) {
             writeUpdateLog(
               'info',
-              `Linux 包管理安装(${updateRuntimeInfo?.linux_install_kind || 'unknown'})跳过静默下载，改为一键安装弹窗`,
+              `Linux 包管理安装(${updateRuntimeInfo?.linux_install_kind || 'unknown'})跳过静默下载，改为左上角一键安装入口`,
             );
           }
-          writeUpdateLog('info', '后台自动更新关闭，先执行无弹窗检查，仅在发现新版本时展示弹窗');
+          writeUpdateLog('info', '后台自动更新关闭，先执行无弹窗检查，仅在发现新版本时显示左上角入口');
           try {
             const manualCheckStartedAt = performance.now();
             const update = await retryWithBackoff(
@@ -2153,11 +2186,8 @@ function MainApp() {
                   currentVersion: info.current_version,
                   latestVersion: info.latest_version,
                 });
-                writeUpdateLog('info', `检测到新版本，展示手动更新弹窗: version=${update.version}`);
+                writeUpdateLog('info', `检测到新版本，已在左上角显示更新入口: version=${update.version}`);
                 await closeUpdaterHandle(update);
-                if (remindOnUpdate) {
-                  openUpdateNotification('auto');
-                }
               }
             } else {
               writeUpdateLog('info', '更新检查完成：当前已是最新版本');
@@ -2220,7 +2250,6 @@ function MainApp() {
     closeUpdaterHandle,
     handleUpdateCheckResult,
     isLinuxManagedUpdate,
-    openUpdateNotification,
     prepareUpdateNotificationInfo,
     runUpdaterCheck,
     updateRuntimeInfo?.linux_install_kind,
@@ -2246,15 +2275,11 @@ function MainApp() {
         );
         if (jumpInfo) {
           console.log('[App] Version jump detected:', jumpInfo.previous_version, '->', jumpInfo.current_version);
-          (
-            window as Window & {
-              __agtoolsVersionJumpModalRequestedAt?: number;
-            }
-          ).__agtoolsVersionJumpModalRequestedAt = performance.now();
           setVersionJumpInfo(jumpInfo);
+          setShowVersionJumpNotification(false);
           requestAnimationFrame(() => {
             console.log(
-              `[StartupPerf][VersionJump] first frame after setVersionJumpInfo in ${(performance.now() - versionJumpStartedAt).toFixed(2)}ms`,
+              `[StartupPerf][VersionJump] first frame after collapsed version jump entry in ${(performance.now() - versionJumpStartedAt).toFixed(2)}ms`,
             );
           });
         }
@@ -3219,7 +3244,7 @@ function MainApp() {
             actionError={updateDownloadError}
             actionErrorDetails={updateErrorDetails}
             skipError={updateSkipError}
-            onPrimaryAction={handleQuickUpdateActionClick}
+            onPrimaryAction={handleUpdatePrimaryAction}
             onCancelUpdate={cancelUpdateDownload}
             onSkipUpdate={handleSkipUpdateVersion}
             onClose={closeUpdateNotification}
@@ -3230,10 +3255,15 @@ function MainApp() {
       {/* 版本跳跃通知（更新后首次启动） */}
       {versionJumpInfo && (
         <Suspense fallback={null}>
-          <VersionJumpNotification
-            info={versionJumpInfo}
-            onClose={() => setVersionJumpInfo(null)}
-          />
+          {showVersionJumpNotification && (
+            <VersionJumpNotification
+              info={versionJumpInfo}
+              onClose={() => {
+                setShowVersionJumpNotification(false);
+                setVersionJumpInfo(null);
+              }}
+            />
+          )}
         </Suspense>
       )}
       <GlobalModal />
@@ -3499,6 +3529,7 @@ function MainApp() {
         updateActionState={updateAction.state}
         updateProgress={updateAction.progress}
         onUpdateActionClick={handleQuickUpdateActionClick}
+        versionJumpAvailable={Boolean(versionJumpInfo)}
         updateRemindersEnabled={updateRemindersEnabled}
         sponsorEntryVisible={sponsorEntryVisible}
         onOpenLogViewer={() => setShowLogViewer(true)}

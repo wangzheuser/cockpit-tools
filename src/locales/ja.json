@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "任意です。refresh_token があり自動更新できる OAuth アカウントのみ選択できます。未連携の場合、API サービスは従来の API Key ロジックで動作します。連携後はログイン状態に OAuth アカウントを使い、Provider は現在の API サービス設定を使います。",
-        "currentService": "API サービス：{{name}}"
+        "currentService": "API サービス：{{name}}",
+        "imageGenerationTooltip": "有効にすると、API サービスは通常のテキスト対話を転送する前にローカルゲートウェイで image_generation ツール宣言を除外します。画像モデルは削除しません。",
+        "imageGenerationConfirm": {
+          "title": "image_generation を無効化",
+          "message": "有効にすると、API サービスは通常のテキスト対話を転送する前にローカルゲートウェイで image_generation ツール宣言を除外し、「Image generation is not enabled」などのエラーを避けます。gpt-image などの画像モデルは削除しません。続行しますか？"
+        }
       },
       "customRoutingEdit": "カスタムルーティングを編集",
       "customRoutingTitle": "カスタムルーティング",
@@ -2064,6 +2069,8 @@
       "resetCreditStatusUnknown": "不明",
       "resetCreditNextExpiry": "次の有効期限: {{time}}",
       "resetCreditDetailsTitle": "リセット明細",
+      "resetCreditNoRecords": "リセット記録はありません",
+      "resetCreditRecordsLoadFailed": "リセット記録の読み込みに失敗しました: {{error}}",
       "resetCreditGrantedAt": "付与",
       "resetCreditExpiresAt": "期限"
     },
@@ -2543,11 +2550,11 @@
         "clearAction": "連携解除",
         "clearSuccess": "OAuth 連携を解除しました",
         "clearFailed": "OAuth 連携の解除に失敗しました：{{error}}",
-        "useLocalGateway": "Rokaru getowei gokansei modo wo tsukau",
-        "localGatewayTooltip": "Tsujo no tekisuto rikuesuto wo rokaru getowei ni nagashi, gazo seisei ga nai purobaida de image_generation wo hazushimasu.",
+        "useLocalGateway": "image_generation を無効化",
+        "localGatewayTooltip": "有効にすると、OAuth 連携済み API Key のテキスト対話はローカルゲートウェイ経由になり、転送前に image_generation ツール宣言を除外します。画像モデルは削除しません。",
         "localGatewayConfirm": {
-          "title": "Rokaru getowei gokansei modo wo yuko ni suru",
-          "message": "Yuko ni?????? API Key akaunto ? OAuth rento ji ni rokaru getowei gokansei modo wo tsukai, tekisuto rikuesuto kara image_generation wo hazushi, OAuth no doitsusei wa hoji shimasu. Tsuzukemasu ka?"
+          "title": "image_generation 機能を無効化",
+          "message": "有効にすると、この OAuth 連携済み API Key アカウントの通常のテキスト対話はローカルゲートウェイ経由になり、転送前に image_generation ツール宣言を除外して「Image generation is not enabled」などのエラーを避けます。gpt-image などの画像モデルは削除しません。続行しますか？"
         }
       }
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "プロバイダーのサービス状態、プロキシ、API 互換性を確認してください。",
         "checkModelsApi": "このプロバイダーが OpenAI 互換のモデル一覧レスポンスを返すか確認してください。"
       },
+      "batchTest": {
+        "entry": "一括テスト",
+        "entryHint": "プロバイダーの実チャット能力をまとめてテスト",
+        "selectedCount": "{{count}} 件選択済み",
+        "title": "モデルプロバイダー一括テスト",
+        "selectTitle": "テストするプロバイダーを選択",
+        "selectDesc": "選択したプロバイダーを一時的にローカルゲートウェイへ接続して会話テストし、各プロトコルに合わせて上流へ転送します。",
+        "selectionSummary": "選択 {{selected}} / テスト可能 {{total}}",
+        "emptySelection": "API Key があるプロバイダーを少なくとも 1 件選択してください。",
+        "noApiKey": "API Key なし",
+        "gatewayProtocol": "Chat Completions · ゲートウェイ",
+        "directProtocol": "Responses · ゲートウェイ",
+        "start": "テスト開始",
+        "kicker": "プロバイダーテスト",
+        "resultsTitle": "プロバイダーチャットテスト結果",
+        "totalCount": "プロバイダー {{count}} 件",
+        "progress": "テスト進行",
+        "selectVisible": "表示中を選択",
+        "resultSelectedCount": "{{count}} 件選択済み",
+        "selectFailed": "失敗を選択",
+        "deleteConfirm": "選択した {{providerCount}} 件のプロバイダーを削除しますか？正確に関連付けられた Codex API Key アカウント {{accountCount}} 件も削除されます。",
+        "deleteSuccess": "{{providerCount}} 件のプロバイダーと {{accountCount}} 件の関連アカウントを削除しました。",
+        "deleteFailed": "選択項目の削除に失敗しました：{{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "モデル未確定",
+        "promptLabel": "プロンプト",
+        "pendingDesc": "開始待ちです。",
+        "runningDesc": "チャットリクエストを送信中です。",
+        "noReply": "上流から読み取り可能な返信が返りませんでした。",
+        "unknownError": "不明なエラー",
+        "status": {
+          "all": "すべて",
+          "success": "成功",
+          "error": "失敗",
+          "running": "実行中",
+          "pending": "待機中",
+          "completed": "完了"
+        },
+        "officialClientOnlyError": "このプロバイダーは Codex 公式クライアントからのリクエストのみ許可します。ワンクリックテストはローカルゲートウェイ経由になりましたが、上流はこのテストリクエストを拒否しました。公式 Codex 起動後の動作を基準にしてください。"
+      },
       "enableAndStart": "起動",
       "instance": {
         "label": "起動インスタンス",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "任意です。refresh_token を持つ OAuth アカウントを連携できます。未連携の場合、プロバイダーは元の API Key フローで動作します。",
         "currentProvider": "プロバイダー: {{name}}"
+      },
+      "sort": {
+        "custom": "カスタム順",
+        "customModalTitle": "プロバイダーのカスタム並び替え",
+        "customModalDesc": "プロバイダーをドラッグするか上下ボタンで表示順を調整します。",
+        "customDragHandle": "ドラッグして並び替え",
+        "customMoveUp": "上へ",
+        "customMoveDown": "下へ",
+        "customReset": "順序をリセット"
       }
     },
     "quickSwitch": {

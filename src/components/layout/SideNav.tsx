@@ -35,6 +35,7 @@ interface SideNavProps {
   updateActionState: 'hidden' | 'available' | 'downloading' | 'installing' | 'ready';
   updateProgress: number;
   onUpdateActionClick: () => void;
+  versionJumpAvailable: boolean;
   updateRemindersEnabled: boolean;
   sponsorEntryVisible: boolean;
   onOpenLogViewer: () => void;
@@ -131,6 +132,7 @@ export function SideNav({
   updateActionState,
   updateProgress,
   onUpdateActionClick,
+  versionJumpAvailable,
   updateRemindersEnabled,
   sponsorEntryVisible,
   onOpenLogViewer,
@@ -374,13 +376,15 @@ export function SideNav({
   const isMoreActive = !!currentEntryId && !sidebarMenuEntryIdSet.has(currentEntryId);
   const shouldLockActiveOnMore = showMore;
 
-  const shouldShowUpdateEntry = updateActionState !== 'hidden'
+  const shouldShowUpdateActionEntry = updateActionState !== 'hidden'
     && (
       updateRemindersEnabled
       || updateActionState === 'downloading'
       || updateActionState === 'installing'
       || updateActionState === 'ready'
     );
+  const isVersionJumpEntry = !shouldShowUpdateActionEntry && versionJumpAvailable;
+  const shouldShowUpdateEntry = shouldShowUpdateActionEntry || isVersionJumpEntry;
 
   const recalculateClassicAdaptiveScale = useCallback(() => {
     if (!isClassicLayout || typeof window === 'undefined') {
@@ -729,11 +733,27 @@ export function SideNav({
   }, [showMore, isClassicLayout]);
 
   const clampedUpdateProgress = Math.max(0, Math.min(100, Math.round(updateProgress)));
-  const updateVisualState = updateActionState === 'ready'
-    ? 'restart'
-    : updateActionState === 'downloading' || updateActionState === 'installing'
-      ? 'progress'
-      : 'update';
+  const updateVisualState = isVersionJumpEntry
+    ? 'updated'
+    : updateActionState === 'ready'
+      ? 'restart'
+      : updateActionState === 'downloading' || updateActionState === 'installing'
+        ? 'progress'
+        : 'update';
+  const updateEntryTitle = updateActionState === 'downloading'
+    ? t('update_notification.downloading', '下载中...')
+    : updateActionState === 'installing'
+      ? t('nav.quickUpdate.installing', '安装中')
+      : updateActionState === 'ready'
+        ? t('nav.quickUpdate.restart', '重启')
+        : isVersionJumpEntry
+          ? t('update_notification.versionJumpTitle', '更新成功！')
+          : t('nav.quickUpdate.update', '更新');
+  const updateEntryText = isVersionJumpEntry
+    ? t('nav.quickUpdate.update', '更新')
+    : updateActionState === 'ready'
+      ? t('nav.quickUpdate.restart', '重启')
+      : t('nav.quickUpdate.update', '更新');
 
   const morePopoverContent = showMore ? (
     <div
@@ -850,15 +870,7 @@ export function SideNav({
             type="button"
             className={`side-nav-update-btn is-${updateVisualState}`}
             onClick={onUpdateActionClick}
-            title={
-              updateActionState === 'downloading'
-                ? t('update_notification.downloading', '下载中...')
-                : updateActionState === 'installing'
-                  ? t('nav.quickUpdate.installing', '安装中')
-                  : updateActionState === 'ready'
-                    ? t('nav.quickUpdate.restart', '重启')
-                    : t('nav.quickUpdate.update', '更新')
-            }
+            title={updateEntryTitle}
             disabled={updateActionState === 'installing'}
           >
             {updateActionState === 'downloading' ? (
@@ -876,9 +888,7 @@ export function SideNav({
               <span className="side-nav-update-text">{t('nav.quickUpdate.installing', '安装中')}</span>
             ) : (
               <span className="side-nav-update-text">
-                {updateActionState === 'ready'
-                  ? t('nav.quickUpdate.restart', '重启')
-                  : t('nav.quickUpdate.update', '更新')}
+                {updateEntryText}
               </span>
             )}
           </button>

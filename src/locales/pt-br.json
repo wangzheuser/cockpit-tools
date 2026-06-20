@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "Opcional. Só é possível selecionar contas OAuth com refresh_token. Sem vínculo, o serviço API mantém o fluxo de API Key original; ao vincular, o login usa a conta OAuth e o Provider usa a configuração do serviço API.",
-        "currentService": "Serviço de API: {{name}}"
+        "currentService": "Serviço de API: {{name}}",
+        "imageGenerationTooltip": "Ao ativar, o serviço API remove a declaração da ferramenta image_generation no gateway local antes de encaminhar conversas de texto; modelos de imagem não são removidos.",
+        "imageGenerationConfirm": {
+          "title": "Desativar image_generation",
+          "message": "Ao ativar, o serviço API removerá a declaração da ferramenta image_generation no gateway local antes de encaminhar conversas de texto, evitando erros como \"Image generation is not enabled\". gpt-image e outros modelos de imagem não são removidos. Continuar?"
+        }
       },
       "customRoutingEdit": "Editar roteamento personalizado",
       "customRoutingTitle": "Roteamento personalizado",
@@ -2064,6 +2069,8 @@
       "resetCreditStatusUnknown": "Desconhecida",
       "resetCreditNextExpiry": "Próximo vencimento: {{time}}",
       "resetCreditDetailsTitle": "Detalhes das redefinições",
+      "resetCreditNoRecords": "Sem registros de redefinição",
+      "resetCreditRecordsLoadFailed": "Falha ao carregar registros de redefinição: {{error}}",
       "resetCreditGrantedAt": "Concedida",
       "resetCreditExpiresAt": "Expira"
     },
@@ -2543,11 +2550,11 @@
         "clearAction": "Desvincular",
         "clearSuccess": "Vínculo OAuth removido.",
         "clearFailed": "Falha ao remover vínculo OAuth: {{error}}",
-        "useLocalGateway": "Usar modo de compatibilidade do gateway local",
-        "localGatewayTooltip": "Roteia pedidos de texto comuns pelo gateway local e remove image_generation para provedores sem geracao de imagem.",
+        "useLocalGateway": "Desativar image_generation",
+        "localGatewayTooltip": "Ao ativar, conversas de texto da API Key vinculada ao OAuth passam pelo gateway local, que remove image_generation antes de encaminhar; modelos de imagem não são removidos.",
         "localGatewayConfirm": {
-          "title": "Ativar modo de compatibilidade do gateway local",
-          "message": "Ao ativar, esta conta API Key usara o gateway local ao vincular OAuth: pedidos de texto removem image_generation e a identidade OAuth sera mantida. Continuar?"
+          "title": "Desativar capacidade image_generation",
+          "message": "Ao ativar, conversas de texto desta conta API Key vinculada ao OAuth passarão pelo gateway local, onde a declaração da ferramenta image_generation é removida antes do encaminhamento para evitar erros como \"Image generation is not enabled\". gpt-image e outros modelos de imagem não são removidos. Continuar?"
         }
       }
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "Verifique o status do provedor, proxy ou compatibilidade da API.",
         "checkModelsApi": "Confirme que o provedor retorna uma lista de modelos compatível com OpenAI."
       },
+      "batchTest": {
+        "entry": "Testar todos",
+        "entryHint": "Testar em lote a capacidade real de chat dos provedores",
+        "selectedCount": "{{count}} selecionados",
+        "title": "Teste em lote de provedores de modelo",
+        "selectTitle": "Escolha provedores para testar",
+        "selectDesc": "Os provedores selecionados são conectados temporariamente ao gateway local para testar chat e encaminhados ao upstream conforme o protocolo.",
+        "selectionSummary": "{{selected}} selecionados / {{total}} testáveis",
+        "emptySelection": "Selecione pelo menos um provedor com API Key.",
+        "noApiKey": "Sem API Key",
+        "gatewayProtocol": "Chat Completions · gateway",
+        "directProtocol": "Responses · gateway",
+        "start": "Iniciar teste",
+        "kicker": "Teste de provedor",
+        "resultsTitle": "Resultados do teste de chat dos provedores",
+        "totalCount": "{{count}} provedores",
+        "progress": "Progresso do teste",
+        "selectVisible": "Selecionar visíveis",
+        "resultSelectedCount": "{{count}} selecionados",
+        "selectFailed": "Selecionar falhos",
+        "deleteConfirm": "Excluir {{providerCount}} provedores selecionados? Isso também excluirá {{accountCount}} contas Codex API Key vinculadas exatamente.",
+        "deleteSuccess": "{{providerCount}} provedores e {{accountCount}} contas vinculadas foram excluídos.",
+        "deleteFailed": "Falha ao excluir os itens selecionados: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Modelo pendente",
+        "promptLabel": "Comando",
+        "pendingDesc": "Aguardando início.",
+        "runningDesc": "Enviando solicitação de chat.",
+        "noReply": "O upstream não retornou uma resposta legível.",
+        "unknownError": "Erro desconhecido",
+        "status": {
+          "all": "Todos",
+          "success": "Sucesso",
+          "error": "Falhou",
+          "running": "Executando",
+          "pending": "Pendente",
+          "completed": "Concluído"
+        },
+        "officialClientOnlyError": "Este provedor só aceita solicitações do cliente oficial do Codex. O teste com um clique agora usa o gateway local, mas o upstream ainda recusou esta solicitação de teste. Use o comportamento após abrir o Codex oficial como referência."
+      },
       "enableAndStart": "Iniciar",
       "instance": {
         "label": "Instância",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "Opcional. Qualquer conta OAuth com refresh_token pode ser vinculada. Sem vínculo, o provedor continua usando o fluxo original de API Key.",
         "currentProvider": "Provedor: {{name}}"
+      },
+      "sort": {
+        "custom": "Ordem personalizada",
+        "customModalTitle": "Ordem personalizada dos provedores",
+        "customModalDesc": "Arraste provedores ou use os botões subir/descer para ajustar a ordem.",
+        "customDragHandle": "Arrastar para ordenar",
+        "customMoveUp": "Mover para cima",
+        "customMoveDown": "Mover para baixo",
+        "customReset": "Redefinir ordem"
       }
     },
     "quickSwitch": {

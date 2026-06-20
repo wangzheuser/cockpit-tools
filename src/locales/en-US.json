@@ -2198,7 +2198,12 @@
       },
       "oauthBinding": {
         "desc": "Optional. Only OAuth accounts with a refresh_token can be selected. Without a link, the API service keeps the original API-key flow; after linking, sign-in uses the OAuth account and Provider uses the API service config.",
-        "currentService": "API Service: {{name}}"
+        "currentService": "API Service: {{name}}",
+        "imageGenerationTooltip": "When enabled, the API service removes the image_generation tool declaration in the local gateway before forwarding normal text chats; image models are not removed.",
+        "imageGenerationConfirm": {
+          "title": "Disable image_generation",
+          "message": "When enabled, the API service removes the image_generation tool declaration in the local gateway before forwarding normal text chats, avoiding provider errors such as \"Image generation is not enabled\". gpt-image and other image models are not removed. Continue?"
+        }
       },
       "customRoutingEdit": "Edit Custom Routing",
       "customRoutingTitle": "Custom Routing",
@@ -2367,11 +2372,11 @@
         "clearAction": "Unlink",
         "clearSuccess": "OAuth link removed.",
         "clearFailed": "Failed to remove OAuth link: {{error}}",
-        "useLocalGateway": "Use local gateway compatibility mode",
-        "localGatewayTooltip": "Routes normal text requests through the local gateway and removes image_generation for providers without image generation enabled.",
+        "useLocalGateway": "Disable image_generation",
+        "localGatewayTooltip": "When enabled, OAuth-bound API key text chats go through the local gateway, which removes the image_generation tool declaration before forwarding; image models are not removed.",
         "localGatewayConfirm": {
-          "title": "Enable local gateway compatibility mode",
-          "message": "When enabled, this API-key account will use local gateway compatibility mode while linked to OAuth: normal text requests remove image_generation to avoid \"Image generation is not enabled\" errors, while OAuth account identity is kept. Continue?"
+          "title": "Disable image_generation",
+          "message": "When enabled, normal text chats for this OAuth-bound API key account will go through the local gateway, where the image_generation tool declaration is removed before forwarding to avoid provider errors such as \"Image generation is not enabled\". gpt-image and other image models are not removed. Continue?"
         }
       }
     },
@@ -2534,6 +2539,46 @@
         "checkProviderStatus": "Check the provider service status, proxy, or API compatibility.",
         "checkModelsApi": "Confirm this provider returns an OpenAI-compatible models response."
       },
+      "batchTest": {
+        "entry": "Test All",
+        "entryHint": "Batch test real provider chat capability",
+        "selectedCount": "{{count}} selected",
+        "title": "Batch Test Model Providers",
+        "selectTitle": "Choose providers to test",
+        "selectDesc": "Selected providers are temporarily attached to the local gateway for chat testing, then forwarded upstream according to each provider protocol.",
+        "selectionSummary": "{{selected}} selected / {{total}} testable",
+        "emptySelection": "Select at least one provider with an API Key.",
+        "noApiKey": "No API Key",
+        "gatewayProtocol": "Chat Completions · Gateway",
+        "directProtocol": "Responses · Gateway",
+        "start": "Start Test",
+        "kicker": "Provider Test",
+        "resultsTitle": "Provider Chat Test Results",
+        "totalCount": "{{count}} providers",
+        "progress": "Test Progress",
+        "selectVisible": "Select visible",
+        "resultSelectedCount": "{{count}} selected",
+        "selectFailed": "Select failed",
+        "deleteConfirm": "Delete {{providerCount}} selected provider(s)? This will also delete {{accountCount}} precisely linked Codex API Key account(s).",
+        "deleteSuccess": "Deleted {{providerCount}} provider(s) and {{accountCount}} linked account(s).",
+        "deleteFailed": "Failed to delete selected items: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Model pending",
+        "promptLabel": "Prompt",
+        "pendingDesc": "Waiting to start.",
+        "runningDesc": "Sending chat request.",
+        "noReply": "The upstream did not return a readable reply.",
+        "unknownError": "Unknown error",
+        "status": {
+          "all": "All",
+          "success": "Success",
+          "error": "Failed",
+          "running": "Running",
+          "pending": "Pending",
+          "completed": "Completed"
+        },
+        "officialClientOnlyError": "This provider only accepts requests from official Codex clients. One-click testing now uses the local gateway, but the upstream still rejected this test request. Trust the behavior after launching the official Codex client."
+      },
       "enableAndStart": "Start",
       "instance": {
         "label": "Launch Instance",
@@ -2605,6 +2650,15 @@
       "oauthBinding": {
         "desc": "Optional. Any OAuth account with a refresh_token can be linked. Without a link, the provider continues to run with its original API-key flow.",
         "currentProvider": "Provider: {{name}}"
+      },
+      "sort": {
+        "custom": "Custom order",
+        "customModalTitle": "Custom provider order",
+        "customModalDesc": "Drag providers or use the up and down buttons to adjust display order.",
+        "customDragHandle": "Drag to reorder",
+        "customMoveUp": "Move up",
+        "customMoveDown": "Move down",
+        "customReset": "Reset custom order"
       }
     },
     "quickSwitch": {
@@ -2656,6 +2710,8 @@
       "resetCreditStatusUnknown": "Unknown",
       "resetCreditNextExpiry": "Next expires: {{time}}",
       "resetCreditDetailsTitle": "Reset details",
+      "resetCreditNoRecords": "No reset records",
+      "resetCreditRecordsLoadFailed": "Failed to load reset records: {{error}}",
       "resetCreditGrantedAt": "Granted",
       "resetCreditExpiresAt": "Expires"
     },

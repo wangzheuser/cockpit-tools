@@ -160,23 +160,40 @@ async fn ensure_provider_gateway_for_bind_account(
     bind_account_id: Option<&str>,
 ) -> Result<(), String> {
     let Some(bind_account_id) = bind_account_id else {
+        modules::codex_local_access::stop_provider_gateways_for_profile(profile_dir).await;
         return Ok(());
     };
+    if modules::codex_instance::is_api_service_bind_account_id(bind_account_id) {
+        modules::codex_local_access::stop_provider_gateways_for_profile(profile_dir).await;
+        return Ok(());
+    }
     let Some(provider_gateway_account_id) =
         modules::codex_instance::parse_provider_gateway_bind_account_id(bind_account_id)
     else {
         let Some(account) = modules::codex_account::load_account(bind_account_id) else {
+            modules::codex_local_access::stop_provider_gateways_for_profile(profile_dir).await;
             return Ok(());
         };
-        if !modules::codex_local_access::account_requires_provider_gateway(&account) {
-            return Ok(());
+        if modules::codex_local_access::account_requires_provider_gateway(&account) {
+            modules::codex_local_access::stop_provider_gateways_for_profile(profile_dir).await;
+            return modules::codex_local_access::ensure_provider_gateway_for_dir(
+                profile_dir,
+                bind_account_id,
+            )
+            .await;
         }
-        return modules::codex_local_access::ensure_provider_gateway_for_dir(
-            profile_dir,
-            bind_account_id,
-        )
-        .await;
+        if modules::codex_local_access::account_requires_bound_oauth_local_gateway(&account) {
+            modules::codex_local_access::stop_provider_gateways_for_profile(profile_dir).await;
+            return modules::codex_local_access::ensure_bound_oauth_local_gateway_for_dir(
+                profile_dir,
+                bind_account_id,
+            )
+            .await;
+        }
+        modules::codex_local_access::stop_provider_gateways_for_profile(profile_dir).await;
+        return Ok(());
     };
+    modules::codex_local_access::stop_provider_gateways_for_profile(profile_dir).await;
     modules::codex_local_access::ensure_provider_gateway_for_dir(
         profile_dir,
         &provider_gateway_account_id,
@@ -318,8 +335,10 @@ async fn apply_bound_account_to_initialized_profile(
     let previous_kind = read_applied_launch_credential_kind_for_dir(profile_dir);
     if let Some(account_id) = bind_account_id {
         inject_bound_account_to_profile(profile_dir, account_id).await?;
+        ensure_provider_gateway_for_bind_account(profile_dir, bind_account_id).await?;
     } else {
         modules::codex_local_access::cleanup_provider_gateway_profile_model_overrides(profile_dir)?;
+        modules::codex_local_access::stop_provider_gateways_for_profile(profile_dir).await;
     }
     let launch_credential_change = build_launch_credential_change(
         previous_kind,

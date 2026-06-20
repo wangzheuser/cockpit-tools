@@ -1975,7 +1975,12 @@
       },
       "oauthBinding": {
         "desc": "Opsional. Hanya akun OAuth dengan refresh_token yang dapat dipilih. Tanpa tautan, layanan API tetap memakai alur API Key lama; setelah ditautkan, status masuk memakai akun OAuth dan Provider memakai konfigurasi layanan API.",
-        "currentService": "Layanan API: {{name}}"
+        "currentService": "Layanan API: {{name}}",
+        "imageGenerationTooltip": "Jika aktif, layanan API menghapus deklarasi alat image_generation di gateway lokal sebelum meneruskan percakapan teks; model gambar tidak dihapus.",
+        "imageGenerationConfirm": {
+          "title": "Nonaktifkan image_generation",
+          "message": "Jika aktif, layanan API akan menghapus deklarasi alat image_generation di gateway lokal sebelum meneruskan percakapan teks agar terhindar dari error seperti \"Image generation is not enabled\". gpt-image dan model gambar lain tidak dihapus. Lanjutkan?"
+        }
       },
       "customRoutingEdit": "Edit routing kustom",
       "customRoutingTitle": "Routing kustom",
@@ -2190,11 +2195,11 @@
         "clearAction": "Lepas tautan",
         "clearSuccess": "Tautan OAuth dihapus.",
         "clearFailed": "Gagal menghapus tautan OAuth: {{error}}",
-        "useLocalGateway": "Gunakan mode kompatibilitas gateway lokal",
-        "localGatewayTooltip": "Merutekan permintaan teks biasa lewat gateway lokal dan menghapus image_generation untuk penyedia tanpa generasi gambar.",
+        "useLocalGateway": "Nonaktifkan image_generation",
+        "localGatewayTooltip": "Jika aktif, percakapan teks API Key yang terikat OAuth berjalan lewat gateway lokal dan menghapus image_generation sebelum diteruskan; model gambar tidak dihapus.",
         "localGatewayConfirm": {
-          "title": "Aktifkan mode kompatibilitas gateway lokal",
-          "message": "Jika aktif, akun API Key ini memakai mode kompatibilitas gateway lokal saat ditautkan ke OAuth: permintaan teks menghapus image_generation, identitas OAuth tetap dipakai. Lanjutkan?"
+          "title": "Nonaktifkan kemampuan image_generation",
+          "message": "Jika aktif, percakapan teks biasa untuk akun API Key yang terikat OAuth ini akan berjalan lewat gateway lokal, tempat deklarasi alat image_generation dihapus sebelum diteruskan agar terhindar dari error seperti \"Image generation is not enabled\". gpt-image dan model gambar lain tidak dihapus. Lanjutkan?"
         }
       }
     },
@@ -2230,6 +2235,8 @@
       "resetCreditStatusUnknown": "Tidak diketahui",
       "resetCreditNextExpiry": "Kedaluwarsa terdekat: {{time}}",
       "resetCreditDetailsTitle": "Detail reset",
+      "resetCreditNoRecords": "Belum ada catatan reset",
+      "resetCreditRecordsLoadFailed": "Gagal memuat catatan reset: {{error}}",
       "resetCreditGrantedAt": "Diberikan",
       "resetCreditExpiresAt": "Kedaluwarsa"
     },
@@ -2738,6 +2745,46 @@
         "checkProviderStatus": "Periksa status layanan penyedia, proxy, atau kompatibilitas API.",
         "checkModelsApi": "Pastikan penyedia mengembalikan daftar model yang kompatibel dengan OpenAI."
       },
+      "batchTest": {
+        "entry": "Uji Semua",
+        "entryHint": "Uji massal kemampuan chat nyata penyedia",
+        "selectedCount": "{{count}} dipilih",
+        "title": "Uji Massal Penyedia Model",
+        "selectTitle": "Pilih penyedia untuk diuji",
+        "selectDesc": "Penyedia terpilih disambungkan sementara ke gateway lokal untuk uji chat, lalu diteruskan ke upstream sesuai protokol penyedia.",
+        "selectionSummary": "{{selected}} dipilih / {{total}} dapat diuji",
+        "emptySelection": "Pilih setidaknya satu penyedia dengan API Key.",
+        "noApiKey": "Tidak ada API Key",
+        "gatewayProtocol": "Chat Completions · gateway",
+        "directProtocol": "Responses · gateway",
+        "start": "Mulai Uji",
+        "kicker": "Uji Penyedia",
+        "resultsTitle": "Hasil Uji Chat Penyedia",
+        "totalCount": "{{count}} penyedia",
+        "progress": "Progres Uji",
+        "selectVisible": "Pilih yang terlihat",
+        "resultSelectedCount": "{{count}} dipilih",
+        "selectFailed": "Pilih gagal",
+        "deleteConfirm": "Hapus {{providerCount}} penyedia yang dipilih? Ini juga akan menghapus {{accountCount}} akun Codex API Key yang tertaut tepat.",
+        "deleteSuccess": "Menghapus {{providerCount}} penyedia dan {{accountCount}} akun tertaut.",
+        "deleteFailed": "Gagal menghapus item terpilih: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Model tertunda",
+        "promptLabel": "Perintah",
+        "pendingDesc": "Menunggu mulai.",
+        "runningDesc": "Mengirim permintaan chat.",
+        "noReply": "Upstream tidak mengembalikan balasan yang dapat dibaca.",
+        "unknownError": "Kesalahan tidak dikenal",
+        "status": {
+          "all": "Semua",
+          "success": "Berhasil",
+          "error": "Gagal",
+          "running": "Berjalan",
+          "pending": "Tertunda",
+          "completed": "Selesai"
+        },
+        "officialClientOnlyError": "Penyedia ini hanya menerima permintaan dari klien resmi Codex. Tes sekali klik kini memakai gateway lokal, tetapi upstream masih menolak permintaan uji ini. Gunakan perilaku saat dijalankan di Codex resmi sebagai acuan."
+      },
       "enableAndStart": "Mulai",
       "instance": {
         "label": "Instans",
@@ -2812,6 +2859,15 @@
       "oauthBinding": {
         "desc": "Opsional. Akun OAuth apa pun yang memiliki refresh_token dapat ditautkan. Tanpa tautan, penyedia tetap memakai alur API Key aslinya.",
         "currentProvider": "Penyedia: {{name}}"
+      },
+      "sort": {
+        "custom": "Urutan khusus",
+        "customModalTitle": "Urutan penyedia khusus",
+        "customModalDesc": "Seret penyedia atau gunakan tombol naik/turun untuk mengatur urutan tampilan.",
+        "customDragHandle": "Seret untuk mengurutkan",
+        "customMoveUp": "Naikkan",
+        "customMoveDown": "Turunkan",
+        "customReset": "Reset urutan"
       }
     },
     "quickSwitch": {

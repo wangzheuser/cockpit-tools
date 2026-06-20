@@ -7,6 +7,25 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
 ---
+## [0.26.5] - 2026-06-20
+
+### 新增
+- **Codex 模型供应商支持一键批量测试**：模型供应商页面可选择已保存供应商，通过本地网关发起真实对话测试，展示测试协议和模型，并可选择失败或无用供应商，连同关联的 Codex API Key 账号一起删除。
+- **Codex 模型供应商支持自定义排序**：供应商卡片现在可按账号总览同类交互手动调整展示顺序。
+
+### 变更
+- **Codex 模型供应商测试复用真实使用时的本地网关路径**：Responses 原生供应商通过普通 API Key 账号池测试，Chat Completions 供应商通过 provider gateway 测试，并会把供应商、Key、模型和运行批次等诊断标识传给兼容的上游服务。
+- **Codex 绑定与测试流程统一处理 `image_generation` 兼容**：API Key、API 服务和模型供应商的 OAuth 绑定都可对文本对话禁用 `image_generation` 工具；API 服务测试和供应商测试也会临时应用同样的文本过滤，但不会删除生图模型。
+- **Codex API 服务默认开启会话亲和**：新的和迁移后的本地网关配置会优先让同一会话稳定路由到同一账号，减少会话内频繁换号带来的风控触发概率，用户后续仍可手动关闭。
+
+### 修复
+- **Codex sidecar 流式重试在可重试失败后不再过密**：bootstrap retry 现在会按退避延迟节流，并更清晰地处理无可用认证状态，减少瞬时故障时的密集重试。感谢 @lcpdeb 在 #1268 中的贡献。
+- **绑定 OAuth 的 Responses 原生 Codex API Key 账号在禁用 `image_generation` 时会使用 profile 本地网关**：官方 Codex profile 的文本对话会先经过 localhost 完成过滤，Chat Completions 账号仍走实例 provider gateway 分支。
+- **Codex 本地网关过滤现在会覆盖 payload override**：文本对话禁用 `image_generation` 时，payload 规则不会再把 hosted image 工具重新加回上游请求。
+- **Codex 实例绑定变更不再残留旧 profile sidecar**：profile 从网关供应商切到普通账号、API 服务或另一个供应商时，会先停止旧 sidecar 再应用新绑定。
+- **Codex API Key 卡片内仍保留供应商切换入口**：底部重复操作继续移除，但卡片主体里的内联供应商切换入口已恢复，可继续切换已保存供应商。
+
+---
 ## [0.26.4] - 2026-06-19
 
 ### 新增

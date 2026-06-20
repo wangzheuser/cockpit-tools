@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "Optional. Es können nur OAuth-Konten mit refresh_token ausgewählt werden. Ohne Verknüpfung nutzt der API-Dienst weiter den bisherigen API-Key-Ablauf; nach der Verknüpfung verwendet die Anmeldung das OAuth-Konto und der Provider die API-Dienst-Konfiguration.",
-        "currentService": "API-Dienst: {{name}}"
+        "currentService": "API-Dienst: {{name}}",
+        "imageGenerationTooltip": "Bei Aktivierung entfernt der API-Dienst im lokalen Gateway vor dem Weiterleiten normaler Textchats die Tool-Deklaration image_generation; Bildmodelle werden nicht entfernt.",
+        "imageGenerationConfirm": {
+          "title": "image_generation deaktivieren",
+          "message": "Bei Aktivierung entfernt der API-Dienst im lokalen Gateway vor dem Weiterleiten normaler Textchats die Tool-Deklaration image_generation, um Fehler wie „Image generation is not enabled“ zu vermeiden. gpt-image und andere Bildmodelle werden nicht entfernt. Fortfahren?"
+        }
       },
       "customRoutingEdit": "Benutzerdefiniertes Routing bearbeiten",
       "customRoutingTitle": "Benutzerdefiniertes Routing",
@@ -2064,6 +2069,8 @@
       "resetCreditStatusUnknown": "Unbekannt",
       "resetCreditNextExpiry": "Nächster Ablauf: {{time}}",
       "resetCreditDetailsTitle": "Rücksetzdetails",
+      "resetCreditNoRecords": "Keine Reset-Einträge",
+      "resetCreditRecordsLoadFailed": "Reset-Einträge konnten nicht geladen werden: {{error}}",
       "resetCreditGrantedAt": "Gewährt",
       "resetCreditExpiresAt": "Läuft ab"
     },
@@ -2543,11 +2550,11 @@
         "clearAction": "Trennen",
         "clearSuccess": "OAuth-Verknüpfung entfernt.",
         "clearFailed": "OAuth-Verknüpfung konnte nicht entfernt werden: {{error}}",
-        "useLocalGateway": "Lokalen Gateway-Kompatibilitaetsmodus verwenden",
-        "localGatewayTooltip": "Leitet normale Textanfragen ueber den lokalen Gateway und entfernt image_generation fuer Anbieter ohne Bildgenerierung.",
+        "useLocalGateway": "image_generation deaktivieren",
+        "localGatewayTooltip": "Bei Aktivierung laufen Textchats dieses per OAuth gebundenen API-Key-Kontos über das lokale Gateway, das image_generation vor dem Weiterleiten entfernt; Bildmodelle werden nicht entfernt.",
         "localGatewayConfirm": {
-          "title": "Lokalen Gateway-Kompatibilitaetsmodus aktivieren",
-          "message": "Nach Aktivierung nutzt dieses API-Key-Konto beim OAuth-Link den lokalen Gateway-Kompatibilitaetsmodus: normale Textanfragen entfernen image_generation, die OAuth-Identitaet bleibt erhalten. Fortfahren?"
+          "title": "image_generation-Fähigkeit deaktivieren",
+          "message": "Bei Aktivierung laufen normale Textchats dieses per OAuth gebundenen API-Key-Kontos über das lokale Gateway. Dort wird die Tool-Deklaration image_generation vor dem Weiterleiten entfernt, um Fehler wie „Image generation is not enabled“ zu vermeiden. gpt-image und andere Bildmodelle werden nicht entfernt. Fortfahren?"
         }
       }
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "Prüfe Dienststatus, Proxy oder API-Kompatibilität des Anbieters.",
         "checkModelsApi": "Bestätige, dass der Anbieter eine OpenAI-kompatible Modellliste zurückgibt."
       },
+      "batchTest": {
+        "entry": "Alle testen",
+        "entryHint": "Echte Chat-Fähigkeit der Provider gesammelt testen",
+        "selectedCount": "{{count}} ausgewählt",
+        "title": "Modell-Provider gesammelt testen",
+        "selectTitle": "Provider zum Testen wählen",
+        "selectDesc": "Ausgewählte Provider werden für den Chat-Test temporär an das lokale Gateway gehängt und je nach Provider-Protokoll upstream weitergeleitet.",
+        "selectionSummary": "{{selected}} ausgewählt / {{total}} testbar",
+        "emptySelection": "Bitte mindestens einen Provider mit API Key auswählen.",
+        "noApiKey": "Kein API Key",
+        "gatewayProtocol": "Chat Completions · Gateway",
+        "directProtocol": "Responses · Gateway",
+        "start": "Test starten",
+        "kicker": "Provider-Test",
+        "resultsTitle": "Ergebnisse des Provider-Chat-Tests",
+        "totalCount": "{{count}} Provider",
+        "progress": "Testfortschritt",
+        "selectVisible": "Sichtbare wählen",
+        "resultSelectedCount": "{{count}} ausgewählt",
+        "selectFailed": "Fehler wählen",
+        "deleteConfirm": "{{providerCount}} ausgewählte Provider löschen? Dabei werden auch {{accountCount}} exakt verknüpfte Codex-API-Key-Konten gelöscht.",
+        "deleteSuccess": "{{providerCount}} Provider und {{accountCount}} verknüpfte Konten gelöscht.",
+        "deleteFailed": "Ausgewählte Elemente konnten nicht gelöscht werden: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Modell ausstehend",
+        "promptLabel": "Eingabe",
+        "pendingDesc": "Wartet auf Start.",
+        "runningDesc": "Chat-Anfrage wird gesendet.",
+        "noReply": "Der Upstream hat keine lesbare Antwort zurückgegeben.",
+        "unknownError": "Unbekannter Fehler",
+        "status": {
+          "all": "Alle",
+          "success": "Erfolg",
+          "error": "Fehlgeschlagen",
+          "running": "Läuft",
+          "pending": "Ausstehend",
+          "completed": "Abgeschlossen"
+        },
+        "officialClientOnlyError": "Dieser Anbieter erlaubt nur Anfragen vom offiziellen Codex-Client. Der Ein-Klick-Test nutzt jetzt das lokale Gateway, aber der Upstream hat diese Testanfrage weiterhin abgelehnt. Maßgeblich ist das Verhalten nach dem Start im offiziellen Codex."
+      },
       "enableAndStart": "Starten",
       "instance": {
         "label": "Instanz starten",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "Optional. Jedes OAuth-Konto mit refresh_token kann verknüpft werden. Ohne Verknüpfung nutzt der Anbieter weiter den ursprünglichen API-Key-Ablauf.",
         "currentProvider": "Anbieter: {{name}}"
+      },
+      "sort": {
+        "custom": "Eigene Reihenfolge",
+        "customModalTitle": "Eigene Anbieterreihenfolge",
+        "customModalDesc": "Ziehe Anbieter oder nutze die Auf/Ab-Schaltflächen, um die Anzeige zu sortieren.",
+        "customDragHandle": "Zum Sortieren ziehen",
+        "customMoveUp": "Nach oben",
+        "customMoveDown": "Nach unten",
+        "customReset": "Eigene Reihenfolge zurücksetzen"
       }
     },
     "quickSwitch": {

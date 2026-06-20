@@ -59,6 +59,8 @@ use toml_edit::{value, Document};
 
 const CODEX_LOCAL_ACCESS_FILE: &str = "codex_local_access.json";
 const CODEX_LOCAL_ACCESS_CHAT_TEST_STREAM_EVENT: &str = "codex-local-access-chat-test-stream";
+const CODEX_LOCAL_ACCESS_TEST_DISABLE_IMAGE_GENERATION_HEADER: &str =
+    "x-agtools-disable-image-generation";
 const CODEX_LOCAL_ACCESS_STATS_FILE: &str = "codex_local_access_stats.json";
 const CODEX_LOCAL_ACCESS_LOGS_DB_FILE: &str = "codex_local_access_logs.sqlite";
 const CODEX_LOCAL_ACCESS_TAKEOVER_BACKUPS_FILE: &str = "codex_local_access_takeover_backups.json";
@@ -2064,6 +2066,26 @@ fn image_generation_tools_allowed(
         CodexLocalAccessImageGenerationMode::Enabled => true,
         CodexLocalAccessImageGenerationMode::ImagesOnly => request_kind_is_image(request_kind),
         CodexLocalAccessImageGenerationMode::Disabled => false,
+    }
+}
+
+fn request_image_generation_mode(
+    collection_mode: CodexLocalAccessImageGenerationMode,
+    headers: &HashMap<String, String>,
+) -> CodexLocalAccessImageGenerationMode {
+    if collection_mode == CodexLocalAccessImageGenerationMode::Disabled {
+        return CodexLocalAccessImageGenerationMode::Disabled;
+    }
+    let value = headers
+        .get(CODEX_LOCAL_ACCESS_TEST_DISABLE_IMAGE_GENERATION_HEADER)
+        .map(String::as_str)
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    match value.as_str() {
+        "chat" | "images_only" | "images-only" => CodexLocalAccessImageGenerationMode::ImagesOnly,
+        "true" | "all" | "disabled" => CodexLocalAccessImageGenerationMode::Disabled,
+        _ => collection_mode,
     }
 }
 
@@ -6292,23 +6314,34 @@ fn sidecar_codex_api_key_auth_id(account: &CodexAccount) -> Option<String> {
     Some(sidecar_stable_id("codex:apikey", &[api_key, base_url]))
 }
 
+fn sidecar_auth_id_for_account(account: &CodexAccount) -> Option<String> {
+    if account.is_api_key_auth() {
+        return sidecar_codex_api_key_auth_id(account);
+    }
+    Some(sidecar_auth_file_name(&account.id))
+}
+
 fn sidecar_auth_id_for_account_id(account_id: &str) -> Option<String> {
     let account_id = account_id.trim();
     if account_id.is_empty() {
         return None;
     }
     let account = codex_account::load_account(account_id)?;
-    if account.is_api_key_auth() {
-        return sidecar_codex_api_key_auth_id(&account);
-    }
-    Some(sidecar_auth_file_name(&account.id))
+    sidecar_auth_id_for_account(&account)
 }
 
-fn sidecar_auth_ids_for_account_ids(account_ids: Vec<String>) -> Vec<String> {
+fn sidecar_auth_ids_for_account_ids_with_overrides(
+    account_ids: Vec<String>,
+    account_overrides: &HashMap<String, CodexAccount>,
+) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut values = Vec::new();
     for account_id in account_ids {
-        let Some(auth_id) = sidecar_auth_id_for_account_id(&account_id) else {
+        let auth_id = account_overrides
+            .get(account_id.trim())
+            .and_then(sidecar_auth_id_for_account)
+            .or_else(|| sidecar_auth_id_for_account_id(&account_id));
+        let Some(auth_id) = auth_id else {
             continue;
         };
         if seen.insert(auth_id.clone()) {
@@ -6316,6 +6349,10 @@ fn sidecar_auth_ids_for_account_ids(account_ids: Vec<String>) -> Vec<String> {
         }
     }
     values
+}
+
+fn sidecar_auth_ids_for_account_ids(account_ids: Vec<String>) -> Vec<String> {
+    sidecar_auth_ids_for_account_ids_with_overrides(account_ids, &HashMap::new())
 }
 
 fn sidecar_duration_ms(value_ms: i64) -> String {
@@ -6509,10 +6546,16 @@ fn sidecar_client_api_keys(collection: &CodexLocalAccessCollection) -> Vec<Strin
     keys
 }
 
-fn sidecar_api_key_account_scope_values(collection: &CodexLocalAccessCollection) -> Value {
+fn sidecar_api_key_account_scope_values(
+    collection: &CodexLocalAccessCollection,
+    account_overrides: &HashMap<String, CodexAccount>,
+) -> Value {
     let mut values = Map::new();
     if !collection.api_key.trim().is_empty() && !collection.account_ids.is_empty() {
-        let auth_ids = sidecar_auth_ids_for_account_ids(collection.account_ids.clone());
+        let auth_ids = sidecar_auth_ids_for_account_ids_with_overrides(
+            collection.account_ids.clone(),
+            account_overrides,
+        );
         if !auth_ids.is_empty() {
             values.insert(collection.api_key.trim().to_string(), json!(auth_ids));
         }
@@ -6525,8 +6568,10 @@ fn sidecar_api_key_account_scope_values(collection: &CodexLocalAccessCollection)
         if item.provider_gateway.is_some() {
             continue;
         }
-        let auth_ids =
-            sidecar_auth_ids_for_account_ids(effective_api_key_account_ids(collection, item));
+        let auth_ids = sidecar_auth_ids_for_account_ids_with_overrides(
+            effective_api_key_account_ids(collection, item),
+            account_overrides,
+        );
         if auth_ids.is_empty() {
             continue;
         }
@@ -6914,6 +6959,7 @@ async fn prepare_sidecar_launch_config(
         local_access_sidecar_dir()?,
         health_snapshot,
         default_service_tier,
+        HashMap::new(),
     )
     .await
 }
@@ -6923,6 +6969,7 @@ async fn prepare_sidecar_launch_config_in_dir(
     base_dir: PathBuf,
     health_snapshot: HashMap<String, RuntimeAccountHealth>,
     default_service_tier: Option<&str>,
+    account_overrides: HashMap<String, CodexAccount>,
 ) -> Result<SidecarLaunchConfig, String> {
     let auths_dir = sidecar_auths_dir(&base_dir);
     if auths_dir.exists() {
@@ -6937,6 +6984,7 @@ async fn prepare_sidecar_launch_config_in_dir(
 
     let mut manifest_accounts = Vec::new();
     let mut codex_keys = Vec::new();
+    let mut effective_image_generation_mode = collection.image_generation_mode;
     for account_id in effective_sidecar_account_ids(collection) {
         if account_health_blocks_routing(health_snapshot.get(&account_id)) {
             logger::log_codex_api_warn(&format!(
@@ -6945,20 +6993,31 @@ async fn prepare_sidecar_launch_config_in_dir(
             ));
             continue;
         }
-        let Some(account) = load_sidecar_account(&account_id).await else {
-            logger::log_codex_api_warn(&format!(
-                "[CodexLocalAccess] sidecar 跳过不存在账号: account_id={}",
-                account_id
-            ));
-            continue;
-        };
+        let (account, is_override_account) =
+            if let Some(account) = account_overrides.get(&account_id).cloned() {
+                (account, true)
+            } else {
+                let Some(account) = load_sidecar_account(&account_id).await else {
+                    logger::log_codex_api_warn(&format!(
+                        "[CodexLocalAccess] sidecar 跳过不存在账号: account_id={}",
+                        account_id
+                    ));
+                    continue;
+                };
+                (account, false)
+            };
         let eligible = if collection_uses_provider_gateway_account(collection, &account.id) {
-            is_provider_gateway_eligible_account(&account)
+            is_override_account || is_provider_gateway_eligible_account(&account)
         } else {
             is_local_access_eligible_account(&account, collection.restrict_free_accounts)
         };
         if !eligible {
             continue;
+        }
+
+        if account_uses_bound_oauth_image_generation_compat(&account) {
+            effective_image_generation_mode =
+                bound_oauth_image_generation_mode(effective_image_generation_mode);
         }
 
         if account.is_api_key_auth() {
@@ -7027,7 +7086,7 @@ async fn prepare_sidecar_launch_config_in_dir(
     );
     config.insert(
         "api-key-account-ids".to_string(),
-        sidecar_api_key_account_scope_values(collection),
+        sidecar_api_key_account_scope_values(collection, &account_overrides),
     );
     config.insert("request-log".to_string(), json!(false));
     config.insert("logging-to-file".to_string(), json!(false));
@@ -7035,7 +7094,7 @@ async fn prepare_sidecar_launch_config_in_dir(
     config.insert("ws-auth".to_string(), json!(true));
     config.insert(
         "disable-image-generation".to_string(),
-        sidecar_disable_image_generation_value(collection.image_generation_mode),
+        sidecar_disable_image_generation_value(effective_image_generation_mode),
     );
     config.insert(
         "request-retry".to_string(),
@@ -9162,6 +9221,16 @@ fn normalize_active_timeout_preset_id(collection: &mut CodexLocalAccessCollectio
     collection.active_timeout_preset_id != original
 }
 
+fn migrate_session_affinity_default_enabled(collection: &mut CodexLocalAccessCollection) -> bool {
+    if collection.session_affinity_default_enabled_migrated {
+        return false;
+    }
+
+    collection.session_affinity = true;
+    collection.session_affinity_default_enabled_migrated = true;
+    true
+}
+
 fn sanitize_collection(
     collection: &mut CodexLocalAccessCollection,
 ) -> Result<(bool, HashSet<String>), String> {
@@ -9183,6 +9252,7 @@ fn sanitize_collection_with_accounts(
         collection.api_key = generate_local_api_key();
         changed = true;
     }
+    changed |= migrate_session_affinity_default_enabled(collection);
     changed |= normalize_collection_api_keys(collection);
     if collection.created_at <= 0 {
         collection.created_at = now_ms();
@@ -9364,8 +9434,9 @@ async fn ensure_runtime_loaded_without_start() -> Result<(), String> {
             model_aliases: Vec::new(),
             model_pricings: Vec::new(),
             excluded_models: Vec::new(),
-            session_affinity: false,
+            session_affinity: true,
             session_affinity_ttl_ms: DEFAULT_SESSION_AFFINITY_TTL_MS,
+            session_affinity_default_enabled_migrated: true,
             max_retry_credentials: 0,
             max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
             timeouts: CodexLocalAccessTimeouts::default(),
@@ -10431,8 +10502,9 @@ fn new_empty_local_access_collection() -> Result<CodexLocalAccessCollection, Str
         model_aliases: Vec::new(),
         model_pricings: Vec::new(),
         excluded_models: Vec::new(),
-        session_affinity: false,
+        session_affinity: true,
         session_affinity_ttl_ms: DEFAULT_SESSION_AFFINITY_TTL_MS,
+        session_affinity_default_enabled_migrated: true,
         max_retry_credentials: 0,
         max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
         timeouts: CodexLocalAccessTimeouts::default(),
@@ -10652,24 +10724,36 @@ fn provider_gateway_wire_api_for_account(account: &CodexAccount) -> String {
 
 pub fn account_requires_provider_gateway(account: &CodexAccount) -> bool {
     account.is_api_key_auth()
-        && (provider_gateway_wire_api_for_account(account) == "chat_completions"
-            || (account.bound_oauth_use_local_gateway
-                && normalize_optional_account_ref(account.bound_oauth_account_id.as_deref())
-                    .is_some()))
+        && provider_gateway_wire_api_for_account(account) == "chat_completions"
 }
 
-fn account_uses_oauth_provider_gateway_compat(account: &CodexAccount) -> bool {
+pub fn account_requires_bound_oauth_local_gateway(account: &CodexAccount) -> bool {
+    account_uses_bound_oauth_image_generation_compat(account)
+        && !account_requires_provider_gateway(account)
+}
+
+fn account_uses_bound_oauth_image_generation_compat(account: &CodexAccount) -> bool {
     account.is_api_key_auth()
         && account.bound_oauth_use_local_gateway
         && normalize_optional_account_ref(account.bound_oauth_account_id.as_deref()).is_some()
+}
+
+fn bound_oauth_image_generation_mode(
+    inherited_mode: CodexLocalAccessImageGenerationMode,
+) -> CodexLocalAccessImageGenerationMode {
+    if inherited_mode == CodexLocalAccessImageGenerationMode::Disabled {
+        CodexLocalAccessImageGenerationMode::Disabled
+    } else {
+        CodexLocalAccessImageGenerationMode::ImagesOnly
+    }
 }
 
 fn provider_gateway_image_generation_mode_for_account(
     account: &CodexAccount,
     inherited_mode: CodexLocalAccessImageGenerationMode,
 ) -> CodexLocalAccessImageGenerationMode {
-    if account_uses_oauth_provider_gateway_compat(account) {
-        CodexLocalAccessImageGenerationMode::ImagesOnly
+    if account_uses_bound_oauth_image_generation_compat(account) {
+        bound_oauth_image_generation_mode(inherited_mode)
     } else {
         inherited_mode
     }
@@ -10757,6 +10841,8 @@ fn apply_provider_gateway_template_settings(
     collection.excluded_models = template.excluded_models.clone();
     collection.session_affinity = template.session_affinity;
     collection.session_affinity_ttl_ms = template.session_affinity_ttl_ms;
+    collection.session_affinity_default_enabled_migrated =
+        template.session_affinity_default_enabled_migrated;
     collection.max_retry_credentials = template.max_retry_credentials;
     collection.max_retry_interval_ms = template.max_retry_interval_ms;
     collection.timeouts = template.timeouts.clone();
@@ -10834,6 +10920,571 @@ fn build_provider_gateway_collection_for_profile(
         collection.updated_at = now_ms();
     }
     Ok((collection, key, provider_gateway))
+}
+
+fn build_bound_oauth_local_gateway_collection_for_profile(
+    profile_dir: &Path,
+    account: &CodexAccount,
+) -> Result<(CodexLocalAccessCollection, String), String> {
+    let mut collection = new_empty_local_access_collection()?;
+    if let Some(template) = load_collection_from_disk()? {
+        apply_provider_gateway_template_settings(&mut collection, &template);
+    }
+
+    collection.enabled = true;
+    collection.port = allocate_random_local_port(CODEX_LOCAL_ACCESS_LOCALHOST_BIND_HOST)?;
+    collection.access_scope = CodexLocalAccessScope::Localhost;
+    collection.client_base_url_host = CodexLocalAccessClientBaseUrlHost::default();
+    collection.gateway_mode = CodexLocalAccessGatewayMode::Sidecar;
+    collection.image_generation_mode = provider_gateway_image_generation_mode_for_account(
+        account,
+        collection.image_generation_mode,
+    );
+    collection.account_ids.clear();
+    collection.custom_routing_rules.clear();
+    collection.account_model_rules.clear();
+    collection.api_keys.clear();
+    collection.bound_oauth_account_id =
+        provider_gateway_bound_oauth_account_id_for_account(account);
+
+    if !account_requires_bound_oauth_local_gateway(account) {
+        return Err("该 API Key 账号不需要绑定 OAuth 本地网关".to_string());
+    }
+
+    let key = provider_gateway_profile_api_key(profile_dir, &account.id)?;
+    let now = now_ms();
+    collection.api_key = key.clone();
+    collection.api_keys.push(CodexLocalAccessApiKey {
+        id: provider_gateway_api_key_id(&account.id),
+        label: format!("Bound OAuth Local Gateway: {}", account.email),
+        key: key.clone(),
+        provider_gateway: None,
+        account_ids: vec![account.id.clone()],
+        model_prefix: None,
+        allowed_models: Vec::new(),
+        excluded_models: Vec::new(),
+        enabled: true,
+        created_at: now,
+        updated_at: now,
+        last_used_at: None,
+    });
+    collection.updated_at = now;
+    let (changed, _) = sanitize_collection(&mut collection)?;
+    if changed {
+        collection.updated_at = now_ms();
+    }
+    Ok((collection, key))
+}
+
+#[derive(Debug, Clone)]
+pub struct CodexModelProviderGatewayChatTestRequest {
+    pub run_id: String,
+    pub provider_id: String,
+    pub provider_name: String,
+    pub base_url: String,
+    pub api_key_id: Option<String>,
+    pub api_key_name: Option<String>,
+    pub api_key: String,
+    pub wire_api: String,
+    pub model_catalog: Vec<String>,
+    pub model_id: String,
+    pub prompt: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CodexModelProviderGatewayChatTestResult {
+    pub duration_ms: u64,
+    pub reply: String,
+}
+
+fn push_unique_model_id(values: &mut Vec<String>, seen: &mut HashSet<String>, model: &str) {
+    let model = model.trim();
+    if model.is_empty() {
+        return;
+    }
+    if seen.insert(model.to_ascii_lowercase()) {
+        values.push(model.to_string());
+    }
+}
+
+fn model_provider_gateway_test_models(model_id: &str, model_catalog: &[String]) -> Vec<String> {
+    let mut values = Vec::new();
+    let mut seen = HashSet::new();
+    push_unique_model_id(&mut values, &mut seen, model_id);
+    for model in model_catalog {
+        push_unique_model_id(&mut values, &mut seen, model);
+    }
+    values
+}
+
+fn model_provider_gateway_test_account_id(
+    request: &CodexModelProviderGatewayChatTestRequest,
+) -> String {
+    format!(
+        "model_provider_test_{}",
+        stable_uuid_from_text(&format!(
+            "{}\n{}\n{}",
+            request.run_id.trim(),
+            request.provider_id.trim(),
+            request.api_key_id.as_deref().unwrap_or_default().trim()
+        ))
+    )
+}
+
+fn build_model_provider_gateway_test_account(
+    request: &CodexModelProviderGatewayChatTestRequest,
+    account_id: String,
+    models: Vec<String>,
+) -> CodexAccount {
+    let provider_name = request.provider_name.trim();
+    let mut account = CodexAccount::new_api_key(
+        account_id,
+        format!("{}@model-provider-test.local", request.provider_id.trim()),
+        request.api_key.trim().to_string(),
+        CodexApiProviderMode::Custom,
+        Some(request.base_url.trim().to_string()),
+        Some(request.provider_id.trim().to_string()),
+        Some(provider_name.to_string()),
+        models,
+    );
+    account.api_wire_api = Some(request.wire_api.trim().to_string());
+    account.account_name = Some(format!(
+        "Model Provider Test: {}",
+        if provider_name.is_empty() {
+            request.provider_id.trim()
+        } else {
+            provider_name
+        }
+    ));
+    account
+}
+
+fn provider_gateway_test_api_key_id(request: &CodexModelProviderGatewayChatTestRequest) -> String {
+    let source = format!(
+        "{}\n{}\n{}",
+        request.run_id.trim(),
+        request.provider_id.trim(),
+        request.model_id.trim()
+    );
+    format!("model_provider_test_{}", stable_uuid_from_text(&source))
+}
+
+fn provider_gateway_test_api_key_label(
+    request: &CodexModelProviderGatewayChatTestRequest,
+) -> String {
+    let provider = request.provider_name.trim();
+    let key_label = request
+        .api_key_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .or_else(|| request.api_key_id.as_deref().map(str::trim))
+        .filter(|value| !value.is_empty());
+    match (provider.is_empty(), key_label) {
+        (false, Some(key_label)) => format!("Model Provider Test: {} / {}", provider, key_label),
+        (false, None) => format!("Model Provider Test: {}", provider),
+        (true, Some(key_label)) => format!("Model Provider Test: {}", key_label),
+        (true, None) => "Model Provider Test".to_string(),
+    }
+}
+
+fn model_provider_test_uses_provider_gateway(
+    request: &CodexModelProviderGatewayChatTestRequest,
+) -> bool {
+    request.wire_api.trim() == "chat_completions"
+}
+
+fn model_provider_direct_test_client_model() -> String {
+    supported_codex_model_ids()
+        .into_iter()
+        .find(|model| model.eq_ignore_ascii_case("gpt-5.4"))
+        .unwrap_or_else(|| "gpt-5.4".to_string())
+}
+
+fn build_model_provider_gateway_test_collection(
+    request: &CodexModelProviderGatewayChatTestRequest,
+    account: &CodexAccount,
+    provider_gateway: Option<CodexLocalAccessProviderGateway>,
+    client_model_id: &str,
+) -> Result<CodexLocalAccessCollection, String> {
+    let mut collection = new_empty_local_access_collection()?;
+    if let Some(template) = load_collection_from_disk()? {
+        apply_provider_gateway_template_settings(&mut collection, &template);
+    }
+
+    let now = now_ms();
+    collection.enabled = true;
+    collection.port = allocate_random_local_port(CODEX_LOCAL_ACCESS_LOCALHOST_BIND_HOST)?;
+    collection.access_scope = CodexLocalAccessScope::Localhost;
+    collection.client_base_url_host = CodexLocalAccessClientBaseUrlHost::default();
+    collection.gateway_mode = CodexLocalAccessGatewayMode::Sidecar;
+    collection.image_generation_mode = CodexLocalAccessImageGenerationMode::ImagesOnly;
+    collection.account_ids.clear();
+    collection.custom_routing_rules.clear();
+    collection.account_model_rules.clear();
+    collection.api_keys.clear();
+    collection.model_aliases.clear();
+    collection.excluded_models.clear();
+    collection.bound_oauth_account_id = None;
+    collection.api_key = generate_local_api_key();
+    if provider_gateway.is_none() {
+        collection.model_aliases.push(CodexLocalAccessModelAlias {
+            source_model: request.model_id.trim().to_string(),
+            alias: client_model_id.trim().to_string(),
+            fork: false,
+        });
+    }
+    collection.api_keys.push(CodexLocalAccessApiKey {
+        id: provider_gateway_test_api_key_id(request),
+        label: provider_gateway_test_api_key_label(request),
+        key: collection.api_key.clone(),
+        provider_gateway,
+        account_ids: vec![account.id.clone()],
+        model_prefix: None,
+        allowed_models: vec![client_model_id.trim().to_string()],
+        excluded_models: Vec::new(),
+        enabled: true,
+        created_at: now,
+        updated_at: now,
+        last_used_at: None,
+    });
+    collection.updated_at = now;
+    Ok(collection)
+}
+
+fn extract_provider_gateway_test_output_text(body: &Value) -> Option<String> {
+    if let Some(text) = body
+        .get("output_text")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+    {
+        return Some(text.to_string());
+    }
+    let mut parts = Vec::new();
+    if let Some(items) = body.get("output").and_then(Value::as_array) {
+        for item in items {
+            if let Some(content) = item.get("content").and_then(Value::as_array) {
+                for part in content {
+                    if let Some(text) = part
+                        .get("text")
+                        .or_else(|| part.get("content"))
+                        .and_then(Value::as_str)
+                        .map(str::trim)
+                        .filter(|text| !text.is_empty())
+                    {
+                        parts.push(text.to_string());
+                    }
+                }
+            }
+        }
+    }
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(""))
+    }
+}
+
+fn extract_provider_gateway_test_error_message(body: &str) -> String {
+    serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("error")
+                .and_then(|error| {
+                    error
+                        .get("message")
+                        .or_else(|| error.get("detail"))
+                        .or_else(|| error.get("code"))
+                })
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned)
+        })
+        .unwrap_or_else(|| body.chars().take(1000).collect::<String>())
+}
+
+fn add_model_provider_test_header(
+    builder: reqwest::RequestBuilder,
+    name: &'static str,
+    value: &str,
+) -> reqwest::RequestBuilder {
+    let value = value.trim();
+    if value.is_empty() {
+        return builder;
+    }
+    match HeaderValue::from_str(value) {
+        Ok(value) => builder.header(HeaderName::from_static(name), value),
+        Err(_) => builder,
+    }
+}
+
+fn add_model_provider_test_header_b64(
+    builder: reqwest::RequestBuilder,
+    name: &'static str,
+    value: &str,
+) -> reqwest::RequestBuilder {
+    let value = value.trim();
+    if value.is_empty() {
+        return builder;
+    }
+    let encoded = general_purpose::STANDARD.encode(value.as_bytes());
+    add_model_provider_test_header(builder, name, &encoded)
+}
+
+async fn stop_temporary_provider_gateway_sidecar(
+    mut child: Child,
+    mut task: tokio::task::JoinHandle<()>,
+    bind_host: String,
+    port: u16,
+    sidecar_dir: PathBuf,
+) {
+    match timeout(GATEWAY_SHUTDOWN_TIMEOUT, child.kill()).await {
+        Ok(Ok(())) => {
+            let _ = child.wait().await;
+        }
+        Ok(Err(error)) => {
+            logger::log_codex_api_warn(&format!(
+                "[CodexLocalAccess][provider-gateway-test] 停止临时 sidecar 失败: {}",
+                error
+            ));
+        }
+        Err(_) => {
+            logger::log_codex_api_warn(
+                "[CodexLocalAccess][provider-gateway-test] 停止临时 sidecar 超时",
+            );
+        }
+    }
+    tokio::select! {
+        result = &mut task => {
+            let _ = result;
+        }
+        _ = tokio::time::sleep(GATEWAY_SHUTDOWN_TIMEOUT) => {
+            logger::log_codex_api_warn("[CodexLocalAccess][provider-gateway-test] 停止临时 sidecar 监听任务超时，已中止");
+            task.abort();
+        }
+    }
+    if let Err(error) = wait_for_gateway_port_release(&bind_host, port).await {
+        logger::log_codex_api_warn(&format!(
+            "[CodexLocalAccess][provider-gateway-test] 等待临时端口释放失败: bind={}:{} error={}",
+            bind_host, port, error
+        ));
+    }
+    if sidecar_dir.exists() {
+        if let Err(error) = std::fs::remove_dir_all(&sidecar_dir) {
+            logger::log_codex_api_warn(&format!(
+                "[CodexLocalAccess][provider-gateway-test] 清理临时 sidecar 目录失败: dir={} error={}",
+                sidecar_dir.display(),
+                error
+            ));
+        }
+    }
+}
+
+pub async fn run_model_provider_gateway_chat_test(
+    request: CodexModelProviderGatewayChatTestRequest,
+) -> Result<CodexModelProviderGatewayChatTestResult, String> {
+    let model_id = request.model_id.trim();
+    if model_id.is_empty() {
+        return Err("测试模型不能为空".to_string());
+    }
+    if request.api_key.trim().is_empty() {
+        return Err("供应商缺少 API Key".to_string());
+    }
+
+    let models = model_provider_gateway_test_models(model_id, &request.model_catalog);
+    let account_id = model_provider_gateway_test_account_id(&request);
+    let account = build_model_provider_gateway_test_account(&request, account_id, models);
+    let uses_provider_gateway = model_provider_test_uses_provider_gateway(&request);
+    let client_model_id = if uses_provider_gateway {
+        model_id.to_string()
+    } else {
+        model_provider_direct_test_client_model()
+    };
+    let provider_gateway = if uses_provider_gateway {
+        Some(provider_gateway_for_account(&account)?)
+    } else {
+        None
+    };
+    let collection = build_model_provider_gateway_test_collection(
+        &request,
+        &account,
+        provider_gateway,
+        &client_model_id,
+    )?;
+    let sidecar_dir = provider_gateway_sidecars_dir()?
+        .join(format!("model-provider-test-{}", uuid::Uuid::new_v4()));
+    let mut account_overrides = HashMap::new();
+    account_overrides.insert(account.id.clone(), account);
+    let launch_config = match prepare_sidecar_launch_config_in_dir(
+        &collection,
+        sidecar_dir.clone(),
+        HashMap::new(),
+        None,
+        account_overrides,
+    )
+    .await
+    {
+        Ok(launch_config) => launch_config,
+        Err(error) => {
+            if sidecar_dir.exists() {
+                let _ = std::fs::remove_dir_all(&sidecar_dir);
+            }
+            return Err(error);
+        }
+    };
+
+    let (child, task, bind_host) =
+        match spawn_provider_gateway_sidecar(&collection, &launch_config).await {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                if sidecar_dir.exists() {
+                    let _ = std::fs::remove_dir_all(&sidecar_dir);
+                }
+                return Err(error);
+            }
+        };
+    let client_request_id = format!(
+        "{}:{}:{}:{}",
+        request.run_id.trim(),
+        request.provider_id.trim(),
+        request.api_key_id.as_deref().unwrap_or_default().trim(),
+        model_id
+    );
+    let (url, body) = if uses_provider_gateway {
+        (
+            format!("http://{}:{}/v1/responses", bind_host, collection.port),
+            json!({
+                "model": client_model_id.as_str(),
+                "input": [
+                    {
+                        "type": "message",
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": request.prompt.as_str()
+                            }
+                        ]
+                    }
+                ],
+                "instructions": "",
+                "store": false,
+                "stream": false,
+                "max_output_tokens": 256,
+                "metadata": {
+                    "agtools_source": "codex_model_provider_batch_test",
+                    "agtools_test_run_id": request.run_id.as_str(),
+                    "agtools_provider_id": request.provider_id.as_str(),
+                    "agtools_provider_name": request.provider_name.as_str(),
+                    "agtools_provider_api_key_id": request.api_key_id.as_deref(),
+                    "agtools_provider_api_key_name": request.api_key_name.as_deref(),
+                    "agtools_wire_api": request.wire_api.as_str(),
+                    "agtools_test_model": model_id,
+                    "agtools_client_model": client_model_id.as_str(),
+                    "agtools_client_request_id": client_request_id,
+                }
+            }),
+        )
+    } else {
+        (
+            format!(
+                "http://{}:{}/v1/chat/completions",
+                bind_host, collection.port
+            ),
+            json!({
+                "model": client_model_id.as_str(),
+                "stream": false,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": request.prompt.as_str()
+                    }
+                ],
+                "max_tokens": 256
+            }),
+        )
+    };
+
+    let result = async {
+        let client =
+            build_localhost_http_client(Duration::from_secs(90), "模型供应商临时网关测试")?;
+        let started = Instant::now();
+        let mut builder = client
+            .post(&url)
+            .bearer_auth(collection.api_key.trim())
+            .header(ACCEPT, "application/json")
+            .header(CONTENT_TYPE, "application/json");
+        builder =
+            add_model_provider_test_header(builder, "x-client-request-id", &client_request_id);
+        builder = add_model_provider_test_header(builder, "x-agtools-test-run-id", &request.run_id);
+        builder =
+            add_model_provider_test_header(builder, "x-agtools-provider-id", &request.provider_id);
+        builder = add_model_provider_test_header(builder, "x-agtools-wire-api", &request.wire_api);
+        builder = add_model_provider_test_header_b64(
+            builder,
+            "x-agtools-provider-name-b64",
+            &request.provider_name,
+        );
+        builder = add_model_provider_test_header_b64(
+            builder,
+            "x-agtools-provider-base-url-b64",
+            &request.base_url,
+        );
+        if let Some(api_key_id) = request.api_key_id.as_deref() {
+            builder = add_model_provider_test_header(
+                builder,
+                "x-agtools-provider-api-key-id",
+                api_key_id,
+            );
+        }
+        if let Some(api_key_name) = request.api_key_name.as_deref() {
+            builder = add_model_provider_test_header_b64(
+                builder,
+                "x-agtools-provider-api-key-name-b64",
+                api_key_name,
+            );
+        }
+        builder = add_model_provider_test_header(builder, "x-agtools-test-model", model_id);
+        builder =
+            add_model_provider_test_header(builder, "x-agtools-client-model", &client_model_id);
+        let response = builder
+            .json(&body)
+            .send()
+            .await
+            .map_err(|error| format!("本地网关对话请求失败: {}", error))?;
+        let duration_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
+        let status = response.status();
+        let text = response
+            .text()
+            .await
+            .map_err(|error| format!("读取本地网关对话响应失败: {}", error))?;
+        if !status.is_success() {
+            return Err(format!(
+                "本地网关对话失败({}): {}",
+                status.as_u16(),
+                extract_provider_gateway_test_error_message(&text)
+            ));
+        }
+        let reply = if uses_provider_gateway {
+            let parsed = serde_json::from_str::<Value>(&text)
+                .map_err(|error| format!("解析本地网关对话响应失败: {}", error))?;
+            extract_provider_gateway_test_output_text(&parsed)
+        } else {
+            extract_chat_completion_output(&text).or_else(|| {
+                serde_json::from_str::<Value>(&text)
+                    .ok()
+                    .and_then(|parsed| extract_provider_gateway_test_output_text(&parsed))
+            })
+        }
+        .ok_or_else(|| "本地网关对话未返回可读回复".to_string())?;
+        Ok(CodexModelProviderGatewayChatTestResult { duration_ms, reply })
+    }
+    .await;
+
+    stop_temporary_provider_gateway_sidecar(child, task, bind_host, collection.port, sidecar_dir)
+        .await;
+    result
 }
 
 fn write_local_access_profile_model_override(
@@ -11313,6 +11964,7 @@ pub async fn ensure_provider_gateway_for_dir(
         sidecar_dir,
         HashMap::new(),
         default_service_tier,
+        HashMap::new(),
     )
     .await?;
     if probe_sidecar_ready_once(&collection, Duration::from_millis(250))
@@ -11323,6 +11975,71 @@ pub async fn ensure_provider_gateway_for_dir(
         if killed > 0 {
             logger::log_codex_api_info(&format!(
                 "[CodexLocalAccess][provider-gateway] 已停止旧 sidecar: port={}, killed={}",
+                collection.port, killed
+            ));
+        }
+        wait_for_gateway_port_release(bind_host_for_collection(&collection), collection.port)
+            .await?;
+    }
+
+    let (child, task, bind_host) =
+        spawn_provider_gateway_sidecar(&collection, &launch_config).await?;
+    let mut runtimes = provider_gateway_runtime_store().lock().await;
+    runtimes.insert(
+        runtime_key,
+        ProviderGatewayRuntime {
+            actual_port: Some(collection.port),
+            actual_bind_host: Some(bind_host),
+            task: Some(task),
+            sidecar_child: Some(child),
+        },
+    );
+    Ok(())
+}
+
+pub async fn ensure_bound_oauth_local_gateway_for_dir(
+    profile_dir: &Path,
+    account_id: &str,
+) -> Result<(), String> {
+    let account_id = account_id.trim();
+    if account_id.is_empty() {
+        return Err("绑定 OAuth 本地网关账号不能为空".to_string());
+    }
+
+    let _guard = provider_gateway_lifecycle_lock().lock().await;
+    let account = codex_account::load_account(account_id)
+        .ok_or_else(|| format!("绑定 OAuth 本地网关账号不存在: {}", account_id))?;
+    let (collection, key) =
+        build_bound_oauth_local_gateway_collection_for_profile(profile_dir, &account)?;
+    save_profile_takeover_backup(profile_dir, &key)?;
+    write_local_access_profile_takeover(profile_dir, &collection, Some(&key)).await?;
+    cleanup_provider_gateway_profile_model_overrides(profile_dir)?;
+
+    let runtime_key = provider_gateway_runtime_key(profile_dir, account_id);
+    if let Some(endpoint) = stop_provider_gateway_runtime(&runtime_key).await {
+        wait_for_gateway_port_release(&endpoint.bind_host, endpoint.port).await?;
+    }
+
+    let sidecar_dir = provider_gateway_sidecar_dir(profile_dir, account_id)?;
+    let default_service_tier =
+        crate::modules::codex_speed::get_app_speed_config_for_dir(profile_dir)
+            .map(|config| codex_app_speed_service_tier(&config.speed))?;
+    let launch_config = prepare_sidecar_launch_config_in_dir(
+        &collection,
+        sidecar_dir,
+        HashMap::new(),
+        default_service_tier,
+        HashMap::from([(account.id.clone(), account)]),
+    )
+    .await?;
+    if probe_sidecar_ready_once(&collection, Duration::from_millis(250))
+        .await
+        .is_ok()
+    {
+        let killed = process::kill_port_processes(collection.port)?;
+        if killed > 0 {
+            logger::log_codex_api_info(&format!(
+                "[CodexLocalAccess][bound-oauth-local-gateway] 已停止旧 sidecar: port={}, killed={}",
                 collection.port, killed
             ));
         }
@@ -11363,7 +12080,17 @@ pub fn reload_provider_gateway_for_profile_in_background(
         if !is_running {
             return;
         }
-        match ensure_provider_gateway_for_dir(&profile_dir, &account_id).await {
+        let result = match codex_account::load_account(&account_id) {
+            Some(account) if account_requires_provider_gateway(&account) => {
+                ensure_provider_gateway_for_dir(&profile_dir, &account_id).await
+            }
+            Some(account) if account_requires_bound_oauth_local_gateway(&account) => {
+                ensure_bound_oauth_local_gateway_for_dir(&profile_dir, &account_id).await
+            }
+            Some(_) => Ok(()),
+            None => Err(format!("账号不存在: {}", account_id)),
+        };
+        match result {
             Ok(()) => logger::log_codex_api_info(&format!(
                 "[CodexLocalAccess][provider-gateway] sidecar 重载完成: reason={}, profile={}, account_id={}",
                 reason,
@@ -11535,6 +12262,10 @@ async fn run_local_access_chat_stream_dialog(
     let response = match client
         .post(&url)
         .header(AUTHORIZATION, format!("Bearer {}", api_key.trim()))
+        .header(
+            CODEX_LOCAL_ACCESS_TEST_DISABLE_IMAGE_GENERATION_HEADER,
+            "chat",
+        )
         .header(CONTENT_TYPE, "application/json")
         .header(ACCEPT, "text/event-stream")
         .json(&body)
@@ -11728,6 +12459,10 @@ async fn run_local_access_chat_dialog(
     let response = match client
         .post(&url)
         .header(AUTHORIZATION, format!("Bearer {}", api_key.trim()))
+        .header(
+            CODEX_LOCAL_ACCESS_TEST_DISABLE_IMAGE_GENERATION_HEADER,
+            "chat",
+        )
         .header(CONTENT_TYPE, "application/json")
         .header(ACCEPT, "application/json")
         .json(&body)
@@ -12295,8 +13030,9 @@ pub async fn save_local_access_accounts(
                 model_aliases: Vec::new(),
                 model_pricings: Vec::new(),
                 excluded_models: Vec::new(),
-                session_affinity: false,
+                session_affinity: true,
                 session_affinity_ttl_ms: DEFAULT_SESSION_AFFINITY_TTL_MS,
+                session_affinity_default_enabled_migrated: true,
                 max_retry_credentials: 0,
                 max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
                 timeouts: CodexLocalAccessTimeouts::default(),
@@ -12515,6 +13251,7 @@ pub async fn update_local_access_routing_options(
     };
 
     collection.session_affinity = session_affinity;
+    collection.session_affinity_default_enabled_migrated = true;
     collection.session_affinity_ttl_ms =
         session_affinity_ttl_ms.clamp(SESSION_AFFINITY_TTL_MIN_MS, SESSION_AFFINITY_TTL_MAX_MS);
     collection.max_retry_credentials =
@@ -13065,6 +13802,7 @@ pub async fn delete_local_access_api_key(
 
 pub async fn update_local_access_bound_oauth_account(
     bound_oauth_account_id: Option<String>,
+    bound_oauth_use_local_gateway: bool,
 ) -> Result<CodexLocalAccessState, String> {
     ensure_runtime_loaded().await?;
 
@@ -13078,15 +13816,23 @@ pub async fn update_local_access_bound_oauth_account(
     };
 
     let normalized_bound_id = normalize_optional_account_ref(bound_oauth_account_id.as_deref());
-    if collection.bound_oauth_account_id == normalized_bound_id {
-        return snapshot_state().await;
-    }
-
+    let has_bound_oauth = normalized_bound_id.is_some();
     if let Some(bound_id) = normalized_bound_id {
         let bound_account = validate_local_access_bound_oauth_account(&bound_id)?;
         collection.bound_oauth_account_id = Some(bound_account.id);
     } else {
         collection.bound_oauth_account_id = None;
+    }
+    if has_bound_oauth {
+        if bound_oauth_use_local_gateway {
+            if collection.image_generation_mode != CodexLocalAccessImageGenerationMode::Disabled {
+                collection.image_generation_mode = CodexLocalAccessImageGenerationMode::ImagesOnly;
+            }
+        } else if collection.image_generation_mode
+            == CodexLocalAccessImageGenerationMode::ImagesOnly
+        {
+            collection.image_generation_mode = CodexLocalAccessImageGenerationMode::Enabled;
+        }
     }
     collection.updated_at = now_ms();
     save_collection_to_disk(&collection)?;
@@ -15465,6 +16211,8 @@ async fn proxy_request_with_account_pool(
         timeouts.legacy_upstream_connect_timeout_ms,
         DEFAULT_UPSTREAM_CONNECT_TIMEOUT,
     );
+    let image_generation_mode =
+        request_image_generation_mode(collection.image_generation_mode, &request.headers);
     let routing_hint = build_request_routing_hint(request);
     let total = scoped_account_ids.len();
     let configured_max_credentials = collection.max_retry_credentials as usize;
@@ -15644,7 +16392,7 @@ async fn proxy_request_with_account_pool(
                     collection.upstream_proxy_url.as_deref(),
                     upstream_connect_timeout,
                     &timeouts,
-                    collection.image_generation_mode,
+                    image_generation_mode,
                     request_kind,
                 )
                 .await;
@@ -15779,7 +16527,7 @@ async fn proxy_request_with_account_pool(
                                 collection.upstream_proxy_url.as_deref(),
                                 upstream_connect_timeout,
                                 &timeouts,
-                                collection.image_generation_mode,
+                                image_generation_mode,
                                 request_kind,
                             )
                             .await
@@ -17799,13 +18547,15 @@ mod tests {
     use base64::{engine::general_purpose, Engine as _};
 
     use super::{
-        account_model_rule_blocks_model, account_requires_provider_gateway,
-        account_upstream_base_url, align_codex_prompt_cache, apply_codex_official_headers,
-        apply_routing_strategy, backup_current_profile_model_before_provider_gateway,
-        bridge_websocket_streams, build_account_scoped_upstream_body, build_base_url_with_host,
+        account_model_rule_blocks_model, account_requires_bound_oauth_local_gateway,
+        account_requires_provider_gateway, account_upstream_base_url, align_codex_prompt_cache,
+        apply_codex_official_headers, apply_routing_strategy,
+        backup_current_profile_model_before_provider_gateway, bridge_websocket_streams,
+        build_account_scoped_upstream_body, build_base_url_with_host,
         build_chat_completion_payload, build_chat_completion_stream_body,
         build_codex_client_models_response, build_collection_base_url, build_images_api_payload,
-        build_local_access_api_key, build_local_models_response, build_ordered_account_ids,
+        build_local_access_api_key, build_local_models_response,
+        build_model_provider_gateway_test_collection, build_ordered_account_ids,
         build_request_routing_hint, build_upstream_websocket_url, calculate_usage_cost_usd,
         canonical_model_for_client_model, classify_upstream_error_category,
         cleanup_profile_takeover_without_backup, cleanup_provider_gateway_profile_model_overrides,
@@ -17817,31 +18567,34 @@ mod tests {
         is_stream_incomplete_error_message, is_upstream_response_failed_error_message,
         legacy_stream_error_category, local_access_chat_completions_url,
         macos_proxy_url_from_scutil_map, merge_collection_and_account_excluded_models,
-        model_pricing, normalize_account_model_rules, normalize_custom_routing_rules,
-        normalized_sidecar_error_category, parse_codex_retry_after,
+        model_pricing, model_provider_direct_test_client_model,
+        model_provider_test_uses_provider_gateway, normalize_account_model_rules,
+        normalize_custom_routing_rules, normalized_sidecar_error_category, parse_codex_retry_after,
         parse_responses_payload_from_upstream, parse_websocket_upstream_error,
         prepare_gateway_request, prepare_gateway_request_with_default_service_tier,
-        prepare_websocket_initial_request, profile_base_url_matches,
-        provider_gateway_bound_oauth_account_id_for_account,
+        prepare_sidecar_launch_config_in_dir, prepare_websocket_initial_request,
+        profile_base_url_matches, provider_gateway_bound_oauth_account_id_for_account,
         provider_gateway_default_model_for_account,
         provider_gateway_image_generation_mode_for_account, provider_gateway_models_for_account,
         read_http_request, recover_invalid_stats_file, remove_account_refs_from_collection,
-        remove_codex_local_access_config, resolve_plan_rank, resolve_supported_model_alias,
-        resolve_upstream_target, restore_config_toml_from_takeover_backup,
-        sanitize_collection_with_accounts, scutil_proxy_map,
-        should_retry_single_account_upstream_status, should_treat_response_as_stream,
-        should_try_next_account, sidecar_auth_json_for_account,
+        remove_codex_local_access_config, request_image_generation_mode, resolve_plan_rank,
+        resolve_supported_model_alias, resolve_upstream_target,
+        restore_config_toml_from_takeover_backup, sanitize_collection_with_accounts,
+        scutil_proxy_map, should_retry_single_account_upstream_status,
+        should_treat_response_as_stream, should_try_next_account,
+        sidecar_api_key_account_scope_values, sidecar_auth_json_for_account,
         sidecar_cached_account_usable_after_prepare_error, sidecar_codex_api_key_auth_id,
         sidecar_config_fingerprint, sidecar_payload_default_service_tier, sidecar_stable_id,
-        system_proxy_target_scheme, system_proxy_value_url, validate_client_model_visible,
-        visible_codex_model_ids_for_api_key, websocket_accept_value,
+        supported_codex_model_ids, system_proxy_target_scheme, system_proxy_value_url,
+        validate_client_model_visible, visible_codex_model_ids_for_api_key, websocket_accept_value,
         websocket_connect_error_from_http_response, windows_proxy_url_from_server,
         windows_reg_dword_enabled, windows_reg_query_map,
         write_local_access_profile_model_override, write_provider_gateway_model_catalog,
         write_string_atomic, CodexLocalAccessCollection, CodexLocalAccessGatewayMode,
-        CodexLocalAccessScope, GatewayResponseAdapter, ParsedRequest, ResolvedLocalApiKey,
-        ResponseUsageCollector, RoutingCandidate, SidecarUsageDetails, SidecarUsageEvent,
-        UsageCapture, CODEX_AUTO_REVIEW_MODEL_ID, CODEX_PROFILE_AUTH_FILE,
+        CodexLocalAccessScope, CodexModelProviderGatewayChatTestRequest, GatewayResponseAdapter,
+        ParsedRequest, ResolvedLocalApiKey, ResponseUsageCollector, RoutingCandidate,
+        SidecarUsageDetails, SidecarUsageEvent, UsageCapture, CODEX_AUTO_REVIEW_MODEL_ID,
+        CODEX_LOCAL_ACCESS_TEST_DISABLE_IMAGE_GENERATION_HEADER, CODEX_PROFILE_AUTH_FILE,
         CODEX_PROFILE_CONFIG_FILE, CODEX_PROVIDER_MODEL_BACKUP_FILE,
         CODEX_PROVIDER_MODEL_CATALOG_FILE, DEFAULT_MAX_RETRY_INTERVAL_MS,
         DEFAULT_SESSION_AFFINITY_TTL_MS, MAX_HTTP_REQUEST_BYTES,
@@ -17909,8 +18662,9 @@ mod tests {
             model_aliases: Vec::new(),
             model_pricings: Vec::new(),
             excluded_models: Vec::new(),
-            session_affinity: false,
+            session_affinity: true,
             session_affinity_ttl_ms: DEFAULT_SESSION_AFFINITY_TTL_MS,
+            session_affinity_default_enabled_migrated: true,
             max_retry_credentials: 0,
             max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
             timeouts: CodexLocalAccessTimeouts::default(),
@@ -18111,7 +18865,7 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings
     }
 
     #[test]
-    fn bound_oauth_api_key_requires_provider_gateway_only_when_enabled() {
+    fn responses_bound_oauth_api_key_uses_local_access_pool() {
         let mut account = CodexAccount::new_api_key(
             "local-account-id".to_string(),
             "relay@example.com".to_string(),
@@ -18126,12 +18880,38 @@ HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings
         account.bound_oauth_account_id = Some("oauth-1".to_string());
 
         assert!(!account_requires_provider_gateway(&account));
+        assert!(!account_requires_bound_oauth_local_gateway(&account));
+        assert!(is_local_access_eligible_account(&account, false));
 
         account.bound_oauth_use_local_gateway = true;
-        assert!(account_requires_provider_gateway(&account));
+        assert!(!account_requires_provider_gateway(&account));
+        assert!(account_requires_bound_oauth_local_gateway(&account));
+        assert!(is_local_access_eligible_account(&account, false));
 
         account.bound_oauth_account_id = None;
         assert!(!account_requires_provider_gateway(&account));
+        assert!(!account_requires_bound_oauth_local_gateway(&account));
+        assert!(is_local_access_eligible_account(&account, false));
+    }
+
+    #[test]
+    fn chat_bound_oauth_api_key_keeps_provider_gateway_branch() {
+        let mut account = CodexAccount::new_api_key(
+            "local-account-id".to_string(),
+            "chat@example.com".to_string(),
+            "sk-test".to_string(),
+            CodexApiProviderMode::Custom,
+            Some("https://api.deepseek.com/v1".to_string()),
+            Some("deepseek".to_string()),
+            Some("DeepSeek".to_string()),
+            Vec::new(),
+        );
+        account.api_wire_api = Some("chat_completions".to_string());
+        account.bound_oauth_account_id = Some("oauth-1".to_string());
+        account.bound_oauth_use_local_gateway = true;
+
+        assert!(account_requires_provider_gateway(&account));
+        assert!(!account_requires_bound_oauth_local_gateway(&account));
     }
 
     #[test]
@@ -20448,6 +21228,38 @@ data: {"type":"response.completed","response":{"id":"resp_123","usage":{"input_t
     }
 
     #[test]
+    fn request_image_generation_header_uses_images_only_without_persisted_change() {
+        let mut headers = HashMap::new();
+
+        assert_eq!(
+            request_image_generation_mode(CodexLocalAccessImageGenerationMode::Enabled, &headers),
+            CodexLocalAccessImageGenerationMode::Enabled
+        );
+
+        headers.insert(
+            CODEX_LOCAL_ACCESS_TEST_DISABLE_IMAGE_GENERATION_HEADER.to_string(),
+            "chat".to_string(),
+        );
+        assert_eq!(
+            request_image_generation_mode(CodexLocalAccessImageGenerationMode::Enabled, &headers),
+            CodexLocalAccessImageGenerationMode::ImagesOnly
+        );
+        assert_eq!(
+            request_image_generation_mode(CodexLocalAccessImageGenerationMode::Disabled, &headers),
+            CodexLocalAccessImageGenerationMode::Disabled
+        );
+
+        headers.insert(
+            CODEX_LOCAL_ACCESS_TEST_DISABLE_IMAGE_GENERATION_HEADER.to_string(),
+            "true".to_string(),
+        );
+        assert_eq!(
+            request_image_generation_mode(CodexLocalAccessImageGenerationMode::Enabled, &headers),
+            CodexLocalAccessImageGenerationMode::Disabled
+        );
+    }
+
+    #[test]
     fn normalizes_direct_responses_system_role_for_codex() {
         let request = ParsedRequest {
             method: "POST".to_string(),
@@ -21289,6 +22101,256 @@ data: {"error":{"code":"server_error","type":"upstream","message":"stream aborte
         assert!(is_provider_gateway_eligible_account(&account));
     }
 
+    fn model_provider_chat_test_request(
+        wire_api: &str,
+    ) -> CodexModelProviderGatewayChatTestRequest {
+        CodexModelProviderGatewayChatTestRequest {
+            run_id: "run-1".to_string(),
+            provider_id: "provider-1".to_string(),
+            provider_name: "Provider".to_string(),
+            base_url: "https://relay.example/v1".to_string(),
+            api_key_id: Some("key-1".to_string()),
+            api_key_name: Some("Key".to_string()),
+            api_key: "sk-test".to_string(),
+            wire_api: wire_api.to_string(),
+            model_catalog: vec!["upstream-model".to_string()],
+            model_id: "upstream-model".to_string(),
+            prompt: "hello".to_string(),
+        }
+    }
+
+    #[test]
+    fn model_provider_chat_test_uses_provider_gateway_only_for_chat_protocol() {
+        assert!(model_provider_test_uses_provider_gateway(
+            &model_provider_chat_test_request("chat_completions")
+        ));
+        assert!(!model_provider_test_uses_provider_gateway(
+            &model_provider_chat_test_request("responses")
+        ));
+    }
+
+    #[test]
+    fn model_provider_direct_test_client_model_is_codex_visible() {
+        let client_model = model_provider_direct_test_client_model();
+
+        assert!(
+            supported_codex_model_ids()
+                .iter()
+                .any(|model| model.eq_ignore_ascii_case(&client_model)),
+            "direct test client model should pass sidecar Codex model visibility"
+        );
+    }
+
+    #[test]
+    fn model_provider_chat_test_collection_uses_images_only() {
+        let request = model_provider_chat_test_request("responses");
+        let account = CodexAccount::new_api_key(
+            "api-test-1".to_string(),
+            "api-key@example.com".to_string(),
+            "sk-test".to_string(),
+            CodexApiProviderMode::Custom,
+            Some("https://relay.example/v1".to_string()),
+            Some("relay".to_string()),
+            Some("Relay".to_string()),
+            vec!["upstream-model".to_string()],
+        );
+        let direct_collection = build_model_provider_gateway_test_collection(
+            &request,
+            &account,
+            None,
+            &model_provider_direct_test_client_model(),
+        )
+        .expect("direct collection should build");
+
+        assert_eq!(
+            direct_collection.image_generation_mode,
+            CodexLocalAccessImageGenerationMode::ImagesOnly
+        );
+
+        let provider_gateway = CodexLocalAccessProviderGateway {
+            base_url: "https://relay.example/v1".to_string(),
+            api_key: "sk-test".to_string(),
+            upstream_model: "upstream-model".to_string(),
+            upstream_models: vec!["upstream-model".to_string()],
+            wire_api: Some("chat_completions".to_string()),
+            supports_vision: false,
+            model_capabilities: HashMap::new(),
+            vision_routing_model: None,
+        };
+        let chat_request = model_provider_chat_test_request("chat_completions");
+        let chat_collection = build_model_provider_gateway_test_collection(
+            &chat_request,
+            &account,
+            Some(provider_gateway),
+            "upstream-model",
+        )
+        .expect("chat collection should build");
+
+        assert_eq!(
+            chat_collection.image_generation_mode,
+            CodexLocalAccessImageGenerationMode::ImagesOnly
+        );
+    }
+
+    #[tokio::test]
+    async fn sidecar_config_disables_chat_image_generation_for_bound_oauth_api_key_pool() {
+        let dir = make_temp_dir("codex-sidecar-bound-oauth-image-generation");
+        let mut account = CodexAccount::new_api_key(
+            "api-bound-oauth-1".to_string(),
+            "api-key@example.com".to_string(),
+            "sk-test".to_string(),
+            CodexApiProviderMode::Custom,
+            Some("https://relay.example/v1".to_string()),
+            Some("relay".to_string()),
+            Some("Relay".to_string()),
+            vec!["gpt-5.5".to_string()],
+        );
+        account.api_wire_api = Some("responses".to_string());
+        account.bound_oauth_account_id = Some("oauth-1".to_string());
+        account.bound_oauth_use_local_gateway = true;
+
+        let collection = test_local_access_collection(vec![account.id.clone()]);
+        let launch_config = prepare_sidecar_launch_config_in_dir(
+            &collection,
+            dir.clone(),
+            HashMap::new(),
+            None,
+            HashMap::from([(account.id.clone(), account)]),
+        )
+        .await
+        .expect("sidecar config should build");
+        let config: Value = serde_json::from_str(
+            &fs::read_to_string(&launch_config.config_path).expect("read sidecar config"),
+        )
+        .expect("parse sidecar config");
+
+        assert_eq!(config.get("disable-image-generation"), Some(&json!("chat")));
+
+        fs::remove_dir_all(&dir).expect("cleanup temp dir");
+    }
+
+    #[tokio::test]
+    async fn bound_oauth_local_gateway_config_uses_direct_codex_api_key_scope() {
+        let dir = make_temp_dir("codex-sidecar-bound-oauth-direct-scope");
+        let mut account = CodexAccount::new_api_key(
+            "api-bound-oauth-direct-1".to_string(),
+            "api-key@example.com".to_string(),
+            "sk-test".to_string(),
+            CodexApiProviderMode::Custom,
+            Some("https://relay.example/v1".to_string()),
+            Some("relay".to_string()),
+            Some("Relay".to_string()),
+            vec!["gpt-5.5".to_string()],
+        );
+        account.api_wire_api = Some("responses".to_string());
+        account.bound_oauth_account_id = Some("oauth-1".to_string());
+        account.bound_oauth_use_local_gateway = true;
+        let expected_auth_id = sidecar_codex_api_key_auth_id(&account).expect("auth id");
+
+        let mut collection = test_local_access_collection(Vec::new());
+        collection.api_key = "local-profile-key".to_string();
+        collection.image_generation_mode = provider_gateway_image_generation_mode_for_account(
+            &account,
+            collection.image_generation_mode,
+        );
+        collection.bound_oauth_account_id =
+            provider_gateway_bound_oauth_account_id_for_account(&account);
+        let mut api_key = build_local_access_api_key(Some("Bound OAuth Local Gateway"));
+        api_key.key = collection.api_key.clone();
+        api_key.account_ids = vec![account.id.clone()];
+        collection.api_keys = vec![api_key];
+
+        let launch_config = prepare_sidecar_launch_config_in_dir(
+            &collection,
+            dir.clone(),
+            HashMap::new(),
+            None,
+            HashMap::from([(account.id.clone(), account)]),
+        )
+        .await
+        .expect("sidecar config should build");
+        let config: Value = serde_json::from_str(
+            &fs::read_to_string(&launch_config.config_path).expect("read sidecar config"),
+        )
+        .expect("parse sidecar config");
+        let manifest: Value = serde_json::from_str(
+            &fs::read_to_string(&launch_config.manifest_path).expect("read sidecar manifest"),
+        )
+        .expect("parse sidecar manifest");
+
+        assert_eq!(config.get("disable-image-generation"), Some(&json!("chat")));
+        assert_eq!(
+            config
+                .get("api-key-account-ids")
+                .and_then(|value| value.get("local-profile-key"))
+                .and_then(Value::as_array)
+                .and_then(|items| items.first())
+                .and_then(Value::as_str),
+            Some(expected_auth_id.as_str())
+        );
+        assert_eq!(
+            config
+                .get("codex-api-key")
+                .and_then(Value::as_array)
+                .and_then(|items| items.first())
+                .and_then(|item| item.get("base-url"))
+                .and_then(Value::as_str),
+            Some("https://relay.example/v1")
+        );
+        assert!(
+            manifest
+                .get("apiKeys")
+                .and_then(Value::as_array)
+                .and_then(|items| items.first())
+                .and_then(|item| item.get("providerGateway"))
+                .map(Value::is_null)
+                .unwrap_or(true),
+            "Responses bound OAuth local gateway should not use providerGateway"
+        );
+
+        fs::remove_dir_all(&dir).expect("cleanup temp dir");
+    }
+
+    #[test]
+    fn sidecar_api_key_scope_uses_account_overrides_for_temporary_api_key() {
+        let account = CodexAccount::new_api_key(
+            "api-override-1".to_string(),
+            "api-key@example.com".to_string(),
+            "sk-test".to_string(),
+            CodexApiProviderMode::Custom,
+            Some("https://relay.example/v1".to_string()),
+            Some("relay".to_string()),
+            Some("Relay".to_string()),
+            vec!["upstream-model".to_string()],
+        );
+        let expected_auth_id = sidecar_codex_api_key_auth_id(&account).expect("auth id");
+        let mut collection = test_local_access_collection(Vec::new());
+        collection.account_ids.clear();
+        collection.api_keys.clear();
+        let mut api_key = build_local_access_api_key(Some("Temporary"));
+        api_key.key = "local-test-key".to_string();
+        api_key.account_ids = vec![account.id.clone()];
+        collection.api_keys.push(api_key);
+
+        let scopes = sidecar_api_key_account_scope_values(
+            &collection,
+            &HashMap::from([(account.id.clone(), account)]),
+        );
+        let actual = scopes
+            .get("local-test-key")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        assert_eq!(actual, vec![expected_auth_id]);
+    }
+
     #[test]
     fn provider_gateway_inherits_api_key_bound_oauth_account() {
         let mut account = CodexAccount::new_api_key(
@@ -21329,9 +22391,17 @@ data: {"error":{"code":"server_error","type":"upstream","message":"stream aborte
         assert_eq!(
             provider_gateway_image_generation_mode_for_account(
                 &account,
-                CodexLocalAccessImageGenerationMode::Disabled,
+                CodexLocalAccessImageGenerationMode::Enabled,
             ),
             CodexLocalAccessImageGenerationMode::ImagesOnly
+        );
+
+        assert_eq!(
+            provider_gateway_image_generation_mode_for_account(
+                &account,
+                CodexLocalAccessImageGenerationMode::Disabled,
+            ),
+            CodexLocalAccessImageGenerationMode::Disabled
         );
 
         account.bound_oauth_use_local_gateway = false;
@@ -21342,6 +22412,33 @@ data: {"error":{"code":"server_error","type":"upstream","message":"stream aborte
             ),
             CodexLocalAccessImageGenerationMode::Disabled
         );
+    }
+
+    #[test]
+    fn sanitize_collection_enables_session_affinity_once_for_existing_config() {
+        let mut collection = test_local_access_collection(Vec::new());
+        collection.session_affinity = false;
+        collection.session_affinity_default_enabled_migrated = false;
+
+        let (changed, _) = sanitize_collection_with_accounts(&mut collection, &[])
+            .expect("collection should sanitize");
+
+        assert!(changed);
+        assert!(collection.session_affinity);
+        assert!(collection.session_affinity_default_enabled_migrated);
+    }
+
+    #[test]
+    fn sanitize_collection_respects_session_affinity_disabled_after_migration() {
+        let mut collection = test_local_access_collection(Vec::new());
+        collection.session_affinity = false;
+        collection.session_affinity_default_enabled_migrated = true;
+
+        let (_changed, _) = sanitize_collection_with_accounts(&mut collection, &[])
+            .expect("collection should sanitize");
+
+        assert!(!collection.session_affinity);
+        assert!(collection.session_affinity_default_enabled_migrated);
     }
 
     #[test]

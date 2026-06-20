@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "Opcjonalne. Można wybrać tylko konta OAuth z refresh_token. Bez powiązania usługa API działa według dotychczasowej logiki API Key; po powiązaniu logowanie używa konta OAuth, a Provider konfiguracji usługi API.",
-        "currentService": "Usługa API: {{name}}"
+        "currentService": "Usługa API: {{name}}",
+        "imageGenerationTooltip": "Po włączeniu usługa API usuwa deklarację narzędzia image_generation w lokalnej bramie przed przekazaniem zwykłych czatów tekstowych; modele obrazów nie są usuwane.",
+        "imageGenerationConfirm": {
+          "title": "Wyłącz image_generation",
+          "message": "Po włączeniu usługa API usunie deklarację narzędzia image_generation w lokalnej bramie przed przekazaniem zwykłych czatów tekstowych, aby uniknąć błędów typu „Image generation is not enabled”. gpt-image i inne modele obrazów nie są usuwane. Kontynuować?"
+        }
       },
       "customRoutingEdit": "Edytuj niestandardowe routowanie",
       "customRoutingTitle": "Niestandardowe routowanie",
@@ -2064,6 +2069,8 @@
       "resetCreditStatusUnknown": "Nieznane",
       "resetCreditNextExpiry": "Najbliższe wygaśnięcie: {{time}}",
       "resetCreditDetailsTitle": "Szczegóły resetów",
+      "resetCreditNoRecords": "Brak zapisów resetu",
+      "resetCreditRecordsLoadFailed": "Nie udało się wczytać zapisów resetu: {{error}}",
       "resetCreditGrantedAt": "Przyznano",
       "resetCreditExpiresAt": "Wygasa"
     },
@@ -2543,11 +2550,11 @@
         "clearAction": "Odłącz",
         "clearSuccess": "Powiązanie OAuth usunięte.",
         "clearFailed": "Nie udało się usunąć powiązania OAuth: {{error}}",
-        "useLocalGateway": "Uzyj lokalnego trybu zgodnosci bramy",
-        "localGatewayTooltip": "Kieruje zwykle zadania tekstowe przez lokalna brame i usuwa image_generation dla dostawcow bez generowania obrazow.",
+        "useLocalGateway": "Wyłącz image_generation",
+        "localGatewayTooltip": "Po włączeniu czaty tekstowe API Key powiązanego z OAuth przechodzą przez lokalną bramę, która usuwa image_generation przed przekazaniem; modele obrazów nie są usuwane.",
         "localGatewayConfirm": {
-          "title": "Wlacz lokalny tryb zgodnosci bramy",
-          "message": "Po wlaczeniu to konto API Key przy polaczeniu OAuth uzyje lokalnego trybu zgodnosci: zadania tekstowe usuna image_generation, a tozsamosc OAuth zostanie zachowana. Kontynuowac?"
+          "title": "Wyłącz funkcję image_generation",
+          "message": "Po włączeniu zwykłe czaty tekstowe tego konta API Key powiązanego z OAuth przejdą przez lokalną bramę, gdzie deklaracja narzędzia image_generation zostanie usunięta przed przekazaniem, aby uniknąć błędów typu „Image generation is not enabled”. gpt-image i inne modele obrazów nie są usuwane. Kontynuować?"
         }
       }
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "Sprawdź stan usługi dostawcy, proxy lub zgodność API.",
         "checkModelsApi": "Upewnij się, że dostawca zwraca listę modeli zgodną z OpenAI."
       },
+      "batchTest": {
+        "entry": "Testuj wszystko",
+        "entryHint": "Zbiorczo testuj rzeczywistą obsługę czatu dostawców",
+        "selectedCount": "Wybrano {{count}}",
+        "title": "Zbiorczy test dostawców modeli",
+        "selectTitle": "Wybierz dostawców do testu",
+        "selectDesc": "Wybrani dostawcy są tymczasowo podłączani do lokalnej bramy na czas testu czatu, a potem przekazywani upstream zgodnie z protokołem.",
+        "selectionSummary": "Wybrano {{selected}} / testowalnych {{total}}",
+        "emptySelection": "Wybierz co najmniej jednego dostawcę z API Key.",
+        "noApiKey": "Brak API Key",
+        "gatewayProtocol": "Chat Completions · brama",
+        "directProtocol": "Responses · brama",
+        "start": "Rozpocznij test",
+        "kicker": "Test dostawcy",
+        "resultsTitle": "Wyniki testu czatu dostawców",
+        "totalCount": "{{count}} dostawców",
+        "progress": "Postęp testu",
+        "selectVisible": "Wybierz widoczne",
+        "resultSelectedCount": "Wybrano {{count}}",
+        "selectFailed": "Wybierz nieudane",
+        "deleteConfirm": "Usunąć {{providerCount}} wybranych dostawców? Zostanie też usuniętych {{accountCount}} dokładnie powiązanych kont Codex API Key.",
+        "deleteSuccess": "Usunięto {{providerCount}} dostawców i {{accountCount}} powiązanych kont.",
+        "deleteFailed": "Nie udało się usunąć wybranych elementów: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Model oczekuje",
+        "promptLabel": "Polecenie",
+        "pendingDesc": "Oczekuje na start.",
+        "runningDesc": "Wysyłanie żądania czatu.",
+        "noReply": "Upstream nie zwrócił czytelnej odpowiedzi.",
+        "unknownError": "Nieznany błąd",
+        "status": {
+          "all": "Wszystkie",
+          "success": "Sukces",
+          "error": "Błąd",
+          "running": "W toku",
+          "pending": "Oczekuje",
+          "completed": "Ukończono"
+        },
+        "officialClientOnlyError": "Ten dostawca akceptuje tylko żądania z oficjalnego klienta Codex. Test jednym kliknięciem używa teraz lokalnej bramy, ale upstream nadal odrzucił to żądanie testowe. Za miarodajne uznaj działanie po uruchomieniu w oficjalnym Codexie."
+      },
       "enableAndStart": "Start​",
       "instance": {
         "label": "Instancja",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "Opcjonalnie. Można połączyć dowolne konto OAuth z refresh_token. Bez połączenia dostawca nadal używa pierwotnego przepływu API Key.",
         "currentProvider": "Dostawca: {{name}}"
+      },
+      "sort": {
+        "custom": "Własna kolejność",
+        "customModalTitle": "Własna kolejność dostawców",
+        "customModalDesc": "Przeciągnij dostawców albo użyj przycisków góra/dół, aby zmienić kolejność.",
+        "customDragHandle": "Przeciągnij, aby sortować",
+        "customMoveUp": "W górę",
+        "customMoveDown": "W dół",
+        "customReset": "Resetuj kolejność"
       }
     },
     "quickSwitch": {

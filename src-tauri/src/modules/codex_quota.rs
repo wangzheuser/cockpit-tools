@@ -163,12 +163,11 @@ struct UsageResponse {
     rate_limit_reset_credits: Option<ResetCreditsInfo>,
 }
 
-#[derive(Debug, Clone)]
-struct ResetCreditsSnapshot {
+#[derive(Debug, Clone, Serialize)]
+pub struct CodexResetCreditsSnapshot {
     available_count: Option<i64>,
     credits: Vec<CodexResetCredit>,
     next_expires_at: Option<i64>,
-    raw_data: serde_json::Value,
 }
 
 fn normalize_remaining_percentage(window: &WindowInfo) -> i32 {
@@ -328,7 +327,7 @@ fn parse_reset_credit_record(value: &serde_json::Value) -> Option<CodexResetCred
     })
 }
 
-fn parse_reset_credits_snapshot(payload: serde_json::Value) -> ResetCreditsSnapshot {
+fn parse_reset_credits_snapshot(payload: serde_json::Value) -> CodexResetCreditsSnapshot {
     let credits = payload
         .get("credits")
         .or_else(|| payload.get("data").and_then(|data| data.get("credits")))
@@ -370,11 +369,10 @@ fn parse_reset_credits_snapshot(payload: serde_json::Value) -> ResetCreditsSnaps
         .filter_map(|credit| credit.expires_at)
         .min();
 
-    ResetCreditsSnapshot {
+    CodexResetCreditsSnapshot {
         available_count,
         credits,
         next_expires_at,
-        raw_data: payload,
     }
 }
 
@@ -947,28 +945,7 @@ pub async fn fetch_quota(account: &CodexAccount) -> Result<FetchQuotaResult, Str
     let usage: UsageResponse =
         serde_json::from_str(&body).map_err(|e| format!("解析 JSON 失败: {}", e))?;
 
-    let mut quota = parse_quota_from_usage(&usage, &body)?;
-    match fetch_reset_credits(account).await {
-        Ok(snapshot) => {
-            quota.reset_credits_available = snapshot.available_count;
-            quota.reset_credits = snapshot.credits;
-            quota.reset_credits_next_expires_at = snapshot.next_expires_at;
-            if let Some(raw_data) = quota.raw_data.as_mut() {
-                if let Some(object) = raw_data.as_object_mut() {
-                    object.insert(
-                        "rate_limit_reset_credits_detail".to_string(),
-                        snapshot.raw_data,
-                    );
-                }
-            }
-        }
-        Err(error) => {
-            logger::log_warn(&format!(
-                "Codex 主动重置次数明细刷新失败，保留 usage 中的 available_count: {}",
-                error
-            ));
-        }
-    }
+    let quota = parse_quota_from_usage(&usage, &body)?;
     let plan_type = usage.plan_type.clone();
 
     Ok(FetchQuotaResult { quota, plan_type })
@@ -1228,7 +1205,7 @@ fn build_codex_api_headers(
     Ok(headers)
 }
 
-async fn fetch_reset_credits(account: &CodexAccount) -> Result<ResetCreditsSnapshot, String> {
+async fn fetch_reset_credits(account: &CodexAccount) -> Result<CodexResetCreditsSnapshot, String> {
     if let Some(payload) = mock_reset_credits_payload() {
         logger::log_info("Codex reset credit 查询使用显式 mock JSON");
         return Ok(parse_reset_credits_snapshot(payload));
@@ -1275,6 +1252,34 @@ async fn fetch_reset_credits(account: &CodexAccount) -> Result<ResetCreditsSnaps
     let payload: serde_json::Value = serde_json::from_str(&body)
         .map_err(|e| format!("主动重置次数明细 JSON 解析失败: {}", e))?;
     Ok(parse_reset_credits_snapshot(payload))
+}
+
+pub async fn fetch_account_reset_credits(
+    account_id: &str,
+) -> Result<CodexResetCreditsSnapshot, String> {
+    let mut account = codex_account::prepare_account_for_injection(account_id).await?;
+    if account.is_api_key_auth() {
+        return Err("API Key 账号不支持主动重置额度".to_string());
+    }
+
+    if crate::modules::codex_oauth::is_token_expired(&account.tokens.access_token) {
+        refresh_account_tokens(&mut account, "查询主动重置记录前 Token 已过期").await?;
+        sync_subscription_expiry_from_current_id_token(&mut account);
+        normalize_subscription_retry_state(&mut account);
+        codex_account::save_account(&account)?;
+    }
+
+    match fetch_reset_credits(&account).await {
+        Ok(snapshot) => Ok(snapshot),
+        Err(error) if is_unauthorized_error(&error) => {
+            refresh_account_tokens(&mut account, "主动重置记录接口返回 401").await?;
+            sync_subscription_expiry_from_current_id_token(&mut account);
+            normalize_subscription_retry_state(&mut account);
+            codex_account::save_account(&account)?;
+            fetch_reset_credits(&account).await
+        }
+        Err(error) => Err(error),
+    }
 }
 
 async fn post_reset_credit_once(

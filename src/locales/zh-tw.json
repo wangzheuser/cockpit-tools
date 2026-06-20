@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "可選綁定。只能選擇帶 refresh_token、可自動續期的 OAuth 帳號；未綁定時 API 服務會沿用原 API Key 邏輯；綁定後登入狀態使用 OAuth 帳號，Provider 使用目前 API 服務設定。",
-        "currentService": "API 服務：{{name}}"
+        "currentService": "API 服務：{{name}}",
+        "imageGenerationTooltip": "開啟後，API 服務會在本機閘道轉發普通文字對話前移除 image_generation 工具宣告；不會刪除生圖模型。",
+        "imageGenerationConfirm": {
+          "title": "停用 image_generation 能力",
+          "message": "開啟後，API 服務會在本機閘道轉發普通文字對話前移除 image_generation 工具宣告，避免部分供應商回報「Image generation is not enabled」；不會刪除 gpt-image 等生圖模型。是否繼續？"
+        }
       },
       "customRoutingEdit": "編輯自訂調度",
       "customRoutingTitle": "自訂調度",
@@ -2141,11 +2146,11 @@
         "clearAction": "解除綁定",
         "clearSuccess": "OAuth 綁定已解除",
         "clearFailed": "解除 OAuth 綁定失敗：{{error}}",
-        "useLocalGateway": "使用本地網關相容模式",
-        "localGatewayTooltip": "開啟後普通文字請求會透過本地網關移除 image_generation，用於相容未開通圖片生成的供應商。",
+        "useLocalGateway": "停用 image_generation",
+        "localGatewayTooltip": "開啟後，綁定 OAuth 的 API Key 文字對話會走本機閘道，並在轉發前移除 image_generation 工具宣告；不會刪除生圖模型。",
         "localGatewayConfirm": {
-          "title": "啟用本地網關相容模式",
-          "message": "開啟後，該 API Key 帳號綁定 OAuth 時會透過本地網關相容模式啟動：普通文字請求會自動移除 image_generation，避免部分供應商報錯；OAuth 帳號資訊仍會保留。是否繼續？"
+          "title": "停用 image_generation 能力",
+          "message": "開啟後，這個 API Key 帳號綁定 OAuth 後的普通文字對話會走本機閘道，並在轉發前移除 image_generation 工具宣告，避免部分供應商回報「Image generation is not enabled」；不會刪除 gpt-image 等生圖模型。是否繼續？"
         }
       }
     },
@@ -2181,6 +2186,8 @@
       "resetCreditStatusUnknown": "未知",
       "resetCreditNextExpiry": "最近到期：{{time}}",
       "resetCreditDetailsTitle": "重置次數明細",
+      "resetCreditNoRecords": "暫無重置記錄",
+      "resetCreditRecordsLoadFailed": "載入重置記錄失敗：{{error}}",
       "resetCreditGrantedAt": "發放",
       "resetCreditExpiresAt": "到期"
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "請檢查供應商服務狀態、網路代理或介面相容性。",
         "checkModelsApi": "請確認該供應商提供 OpenAI 相容的模型列表回應。"
       },
+      "batchTest": {
+        "entry": "一鍵測試",
+        "entryHint": "批次測試供應商實際對話能力",
+        "selectedCount": "已選 {{count}} 個",
+        "title": "一鍵測試模型供應商",
+        "selectTitle": "選擇要測試的供應商",
+        "selectDesc": "會將選取的供應商臨時接入本地閘道發起對話測試，並依供應商協定能力轉發到上游。",
+        "selectionSummary": "已選 {{selected}} / 可測 {{total}}",
+        "emptySelection": "請選擇至少一個帶 API Key 的供應商。",
+        "noApiKey": "缺少 API Key",
+        "gatewayProtocol": "Chat Completions · 閘道",
+        "directProtocol": "Responses · 閘道",
+        "start": "開始測試",
+        "kicker": "供應商測試",
+        "resultsTitle": "供應商對話測試結果",
+        "totalCount": "供應商 {{count}} 個",
+        "progress": "測試進度",
+        "selectVisible": "選擇目前結果",
+        "resultSelectedCount": "已選 {{count}} 個",
+        "selectFailed": "選擇失敗",
+        "deleteConfirm": "確認刪除選中的 {{providerCount}} 個供應商嗎？會同時刪除 {{accountCount}} 個精確關聯的 Codex API Key 帳號。",
+        "deleteSuccess": "已刪除 {{providerCount}} 個供應商和 {{accountCount}} 個關聯帳號。",
+        "deleteFailed": "刪除所選項失敗：{{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "模型待定",
+        "promptLabel": "提示詞",
+        "pendingDesc": "等待開始測試。",
+        "runningDesc": "正在傳送對話請求。",
+        "noReply": "上游未返回可讀回覆。",
+        "unknownError": "未知錯誤",
+        "status": {
+          "all": "全部",
+          "success": "成功",
+          "error": "失敗",
+          "running": "測試中",
+          "pending": "等待中",
+          "completed": "已完成"
+        },
+        "officialClientOnlyError": "此供應商限制只允許 Codex 官方用戶端請求；目前一鍵測試已走本地閘道，但上游仍拒絕了這次測試請求。請以官方 Codex 實際啟動後的表現為準。"
+      },
       "enableAndStart": "啟動",
       "instance": {
         "label": "啟動實例",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "可選綁定。只要 OAuth 帳號帶有 refresh_token 即可選擇；未綁定時供應商仍按原 API Key 流程執行。",
         "currentProvider": "供應商：{{name}}"
+      },
+      "sort": {
+        "custom": "自訂順序",
+        "customModalTitle": "自訂供應商排序",
+        "customModalDesc": "拖曳供應商或使用上下按鈕調整顯示順序。",
+        "customDragHandle": "拖曳排序",
+        "customMoveUp": "上移",
+        "customMoveDown": "下移",
+        "customReset": "重設自訂順序"
       }
     },
     "quickSwitch": {

@@ -1972,7 +1972,12 @@
       },
       "oauthBinding": {
         "desc": "اختياري. يمكن اختيار حسابات OAuth التي تحتوي على refresh_token فقط. بدون ربط، تعمل خدمة API بالمسار السابق لمفتاح API؛ وبعد الربط تستخدم حالة تسجيل الدخول حساب OAuth ويستخدم Provider إعدادات خدمة API الحالية.",
-        "currentService": "خدمة API: {{name}}"
+        "currentService": "خدمة API: {{name}}",
+        "imageGenerationTooltip": "عند التفعيل، تزيل خدمة API تعريف أداة image_generation داخل البوابة المحلية قبل تمرير محادثات النص؛ لا تُزال نماذج الصور.",
+        "imageGenerationConfirm": {
+          "title": "تعطيل image_generation",
+          "message": "عند التفعيل، ستزيل خدمة API تعريف أداة image_generation داخل البوابة المحلية قبل تمرير محادثات النص، لتجنب أخطاء مثل \"Image generation is not enabled\". لا تُحذف نماذج الصور مثل gpt-image. هل تريد المتابعة؟"
+        }
       },
       "customRoutingEdit": "تعديل التوجيه المخصص",
       "customRoutingTitle": "التوجيه المخصص",
@@ -2110,6 +2115,8 @@
       "resetCreditStatusUnknown": "غير معروف",
       "resetCreditNextExpiry": "أقرب انتهاء: {{time}}",
       "resetCreditDetailsTitle": "تفاصيل إعادة التعيين",
+      "resetCreditNoRecords": "لا توجد سجلات إعادة ضبط",
+      "resetCreditRecordsLoadFailed": "فشل تحميل سجلات إعادة الضبط: {{error}}",
       "resetCreditGrantedAt": "مُنحت",
       "resetCreditExpiresAt": "تنتهي"
     },
@@ -2589,11 +2596,11 @@
         "clearAction": "إلغاء الربط",
         "clearSuccess": "تم إلغاء ربط OAuth.",
         "clearFailed": "فشل إلغاء ربط OAuth: {{error}}",
-        "useLocalGateway": "Istikhdam bawwabat mahalliya tawafuqiya",
-        "localGatewayTooltip": "Yumarrir talab al-nass al-adi abra bawwaba mahalliya wa yahdhif image_generation lil-muwarridin bila tawlid suwar.",
+        "useLocalGateway": "تعطيل image_generation",
+        "localGatewayTooltip": "عند التفعيل، تمر محادثات النص لحساب API Key المرتبط بـ OAuth عبر البوابة المحلية، وتزيل image_generation قبل التمرير؛ لا تُزال نماذج الصور.",
         "localGatewayConfirm": {
-          "title": "Tafiel bawwabat mahalliya tawafuqiya",
-          "message": "Inda tafielha, yastakhdim hadha hisab API Key bawwaba mahalliya athna rabt OAuth: talab al-nass al-adi yahdhif image_generation, ma baqa huwiyat OAuth. Hal tastamir?"
+          "title": "تعطيل قدرة image_generation",
+          "message": "عند التفعيل، ستمر محادثات النص العادية لحساب API Key المرتبط بـ OAuth عبر البوابة المحلية، حيث يُزال تعريف أداة image_generation قبل التمرير لتجنب أخطاء مثل \"Image generation is not enabled\". لا تُحذف نماذج الصور مثل gpt-image. هل تريد المتابعة؟"
         }
       }
     },
@@ -2738,6 +2745,46 @@
         "checkProviderStatus": "تحقق من حالة خدمة المزوّد أو الوكيل أو توافق API.",
         "checkModelsApi": "تأكد أن المزوّد يعيد قائمة نماذج متوافقة مع OpenAI."
       },
+      "batchTest": {
+        "entry": "اختبار شامل",
+        "entryHint": "اختبار قدرة المحادثة الفعلية للمزوّدين دفعة واحدة",
+        "selectedCount": "تم تحديد {{count}}",
+        "title": "اختبار مزوّدي النماذج دفعة واحدة",
+        "selectTitle": "اختر المزوّدين للاختبار",
+        "selectDesc": "يتم ربط المزوّدين المحددين مؤقتاً بالبوابة المحلية لاختبار المحادثة، ثم تُحوَّل الطلبات إلى المنبع حسب بروتوكول كل مزوّد.",
+        "selectionSummary": "محدد {{selected}} / قابل للاختبار {{total}}",
+        "emptySelection": "اختر مزوّداً واحداً على الأقل يحتوي على API Key.",
+        "noApiKey": "لا يوجد API Key",
+        "gatewayProtocol": "Chat Completions · بوابة",
+        "directProtocol": "Responses · بوابة",
+        "start": "بدء الاختبار",
+        "kicker": "اختبار المزوّد",
+        "resultsTitle": "نتائج اختبار محادثة المزوّدين",
+        "totalCount": "{{count}} مزوّد",
+        "progress": "تقدم الاختبار",
+        "selectVisible": "تحديد الظاهر",
+        "resultSelectedCount": "تم تحديد {{count}}",
+        "selectFailed": "تحديد الفاشلة",
+        "deleteConfirm": "حذف {{providerCount}} مزوّد محدد؟ سيتم أيضاً حذف {{accountCount}} حساب Codex API Key مرتبط بدقة.",
+        "deleteSuccess": "تم حذف {{providerCount}} مزوّد و{{accountCount}} حساب مرتبط.",
+        "deleteFailed": "فشل حذف العناصر المحددة: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "النموذج قيد التحديد",
+        "promptLabel": "المطالبة",
+        "pendingDesc": "بانتظار البدء.",
+        "runningDesc": "جار إرسال طلب المحادثة.",
+        "noReply": "لم يرجع المصدر رداً قابلاً للقراءة.",
+        "unknownError": "خطأ غير معروف",
+        "status": {
+          "all": "الكل",
+          "success": "نجح",
+          "error": "فشل",
+          "running": "جار الاختبار",
+          "pending": "قيد الانتظار",
+          "completed": "اكتمل"
+        },
+        "officialClientOnlyError": "يقبل هذا المزوّد طلبات عميل Codex الرسمي فقط؛ اختبار النقرة الواحدة يستخدم الآن البوابة المحلية، لكن المنبع ما زال يرفض طلب الاختبار هذا. اعتمد على نتيجة التشغيل الفعلي داخل Codex الرسمي."
+      },
       "enableAndStart": "تشغيل",
       "instance": {
         "label": "مثيل التشغيل",
@@ -2812,6 +2859,15 @@
       "oauthBinding": {
         "desc": "اختياري. يمكن ربط أي حساب OAuth يحتوي على refresh_token. بدون ربط، يستمر المزوّد في استخدام تدفق API Key الأصلي.",
         "currentProvider": "المزوّد: {{name}}"
+      },
+      "sort": {
+        "custom": "ترتيب مخصص",
+        "customModalTitle": "ترتيب المزوّدين المخصص",
+        "customModalDesc": "اسحب المزوّدين أو استخدم زري الأعلى/الأسفل لضبط ترتيب العرض.",
+        "customDragHandle": "اسحب للترتيب",
+        "customMoveUp": "نقل للأعلى",
+        "customMoveDown": "نقل للأسفل",
+        "customReset": "إعادة ضبط الترتيب"
       }
     },
     "quickSwitch": {

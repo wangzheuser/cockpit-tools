@@ -1006,8 +1006,8 @@ fn get_default_claude_desktop_threep_user_data_dir(normal_dir: &Path) -> Result<
     #[cfg(target_os = "windows")]
     {
         let _ = normal_dir;
-        let local_data_dir = dirs::data_local_dir()
-            .ok_or_else(|| "无法获取系统本地应用数据目录".to_string())?;
+        let local_data_dir =
+            dirs::data_local_dir().ok_or_else(|| "无法获取系统本地应用数据目录".to_string())?;
         return Ok(local_data_dir.join(CLAUDE_DESKTOP_THREEP_DIR_NAME));
     }
 
@@ -1071,10 +1071,7 @@ fn validate_desktop_deployment_mode(config_path: &Path, expected_mode: &str) -> 
 fn validate_desktop_gateway_meta(meta_path: &Path, expected_config_id: &str) -> Result<(), String> {
     let meta = read_config_file(meta_path)?
         .ok_or_else(|| format!("Claude Gateway _meta.json 未写入: {}", meta_path.display()))?;
-    let applied_id = meta
-        .get("appliedId")
-        .and_then(Value::as_str)
-        .unwrap_or("");
+    let applied_id = meta.get("appliedId").and_then(Value::as_str).unwrap_or("");
     if applied_id != expected_config_id {
         return Err(format!(
             "Claude Gateway appliedId 校验失败: path={}, expected={}, actual={}",
@@ -5264,7 +5261,10 @@ fn launch_default_claude_desktop() -> Result<(), String> {
         &[],
         false,
     )?;
-    logger::log_info(&format!("[Claude] launched configured Claude Desktop pid={}", pid));
+    logger::log_info(&format!(
+        "[Claude] launched configured Claude Desktop pid={}",
+        pid
+    ));
     Ok(())
 }
 

@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "Facultatif. Seuls les comptes OAuth avec refresh_token peuvent être sélectionnés. Sans liaison, le service API conserve le flux API Key existant ; une fois lié, la session utilise le compte OAuth et le Provider utilise la configuration du service API.",
-        "currentService": "Service API : {{name}}"
+        "currentService": "Service API : {{name}}",
+        "imageGenerationTooltip": "Une fois activé, le service API retire la déclaration d’outil image_generation dans la passerelle locale avant de transférer les conversations texte ; les modèles d’image ne sont pas supprimés.",
+        "imageGenerationConfirm": {
+          "title": "Désactiver image_generation",
+          "message": "Une fois activé, le service API retirera la déclaration d’outil image_generation dans la passerelle locale avant de transférer les conversations texte, afin d’éviter des erreurs comme « Image generation is not enabled ». gpt-image et les autres modèles d’image ne sont pas supprimés. Continuer ?"
+        }
       },
       "customRoutingEdit": "Modifier le routage personnalisé",
       "customRoutingTitle": "Routage personnalisé",
@@ -2064,6 +2069,8 @@
       "resetCreditStatusUnknown": "Inconnu",
       "resetCreditNextExpiry": "Prochaine expiration : {{time}}",
       "resetCreditDetailsTitle": "Détails des réinitialisations",
+      "resetCreditNoRecords": "Aucun historique de réinitialisation",
+      "resetCreditRecordsLoadFailed": "Impossible de charger l’historique de réinitialisation : {{error}}",
       "resetCreditGrantedAt": "Attribué",
       "resetCreditExpiresAt": "Expire"
     },
@@ -2543,11 +2550,11 @@
         "clearAction": "Dissocier",
         "clearSuccess": "Liaison OAuth supprimée.",
         "clearFailed": "Échec de la suppression de la liaison OAuth : {{error}}",
-        "useLocalGateway": "Utiliser le mode de compatibilite passerelle locale",
-        "localGatewayTooltip": "Achemine les requetes texte normales via la passerelle locale et retire image_generation pour les fournisseurs sans generation image.",
+        "useLocalGateway": "Désactiver image_generation",
+        "localGatewayTooltip": "Une fois activé, les conversations texte de la clé API liée à OAuth passent par la passerelle locale, qui retire image_generation avant le transfert ; les modèles d’image ne sont pas supprimés.",
         "localGatewayConfirm": {
-          "title": "Activer le mode de compatibilite passerelle locale",
-          "message": "Une fois active, ce compte API Key utilisera la passerelle locale avec OAuth: les requetes texte retirent image_generation et l identite OAuth reste conservee. Continuer?"
+          "title": "Désactiver la capacité image_generation",
+          "message": "Une fois activé, les conversations texte de ce compte API Key lié à OAuth passeront par la passerelle locale, où la déclaration d’outil image_generation est retirée avant le transfert afin d’éviter des erreurs comme « Image generation is not enabled ». gpt-image et les autres modèles d’image ne sont pas supprimés. Continuer ?"
         }
       }
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "Vérifiez l’état du service, le proxy ou la compatibilité API du fournisseur.",
         "checkModelsApi": "Confirmez que ce fournisseur renvoie une liste de modèles compatible OpenAI."
       },
+      "batchTest": {
+        "entry": "Tout tester",
+        "entryHint": "Tester en lot la capacité de chat réelle des fournisseurs",
+        "selectedCount": "{{count}} sélectionné(s)",
+        "title": "Test groupé des fournisseurs de modèles",
+        "selectTitle": "Choisir les fournisseurs à tester",
+        "selectDesc": "Les fournisseurs sélectionnés sont raccordés temporairement à la passerelle locale pour tester le chat, puis transmis en amont selon leur protocole.",
+        "selectionSummary": "{{selected}} sélectionné(s) / {{total}} testable(s)",
+        "emptySelection": "Sélectionnez au moins un fournisseur avec une API Key.",
+        "noApiKey": "Aucune API Key",
+        "gatewayProtocol": "Chat Completions · passerelle",
+        "directProtocol": "Responses · passerelle",
+        "start": "Lancer le test",
+        "kicker": "Test fournisseur",
+        "resultsTitle": "Résultats du test de chat fournisseur",
+        "totalCount": "{{count}} fournisseurs",
+        "progress": "Progression du test",
+        "selectVisible": "Sélectionner visibles",
+        "resultSelectedCount": "{{count}} sélectionné(s)",
+        "selectFailed": "Sélectionner échecs",
+        "deleteConfirm": "Supprimer {{providerCount}} fournisseur(s) sélectionné(s) ? Cela supprimera aussi {{accountCount}} compte(s) Codex API Key précisément liés.",
+        "deleteSuccess": "{{providerCount}} fournisseur(s) et {{accountCount}} compte(s) lié(s) supprimés.",
+        "deleteFailed": "Échec de la suppression des éléments sélectionnés : {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Modèle en attente",
+        "promptLabel": "Invite",
+        "pendingDesc": "En attente de démarrage.",
+        "runningDesc": "Envoi de la requête de chat.",
+        "noReply": "L'upstream n'a pas renvoyé de réponse lisible.",
+        "unknownError": "Erreur inconnue",
+        "status": {
+          "all": "Tous",
+          "success": "Succès",
+          "error": "Échec",
+          "running": "En cours",
+          "pending": "En attente",
+          "completed": "Terminé"
+        },
+        "officialClientOnlyError": "Ce fournisseur n’accepte que les requêtes du client Codex officiel. Le test en un clic utilise maintenant la passerelle locale, mais l’amont a encore refusé cette requête de test. Fiez-vous au comportement après lancement dans Codex officiel."
+      },
       "enableAndStart": "Lancer",
       "instance": {
         "label": "Instance à lancer",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "Facultatif. Tout compte OAuth avec refresh_token peut être lié. Sans lien, le fournisseur continue avec son flux API Key d’origine.",
         "currentProvider": "Fournisseur : {{name}}"
+      },
+      "sort": {
+        "custom": "Ordre personnalisé",
+        "customModalTitle": "Tri personnalisé des fournisseurs",
+        "customModalDesc": "Faites glisser les fournisseurs ou utilisez les boutons haut/bas pour ajuster l’ordre.",
+        "customDragHandle": "Glisser pour trier",
+        "customMoveUp": "Monter",
+        "customMoveDown": "Descendre",
+        "customReset": "Réinitialiser l’ordre"
       }
     },
     "quickSwitch": {

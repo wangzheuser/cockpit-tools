@@ -98,6 +98,7 @@ import {
   type CodexApiProviderMode,
   type CodexQuotaErrorInfo,
   type CodexResetCredit,
+  type CodexResetCreditsSnapshot,
 } from "../types/codex";
 import { filterCodexLocalAccessAccountIds } from "../utils/codexLocalAccessAccounts";
 import { isBlockingCodexQuotaError } from "../utils/codexQuotaError";
@@ -230,10 +231,6 @@ import {
 } from "../utils/codexLocalAccessRiskNotice";
 import { formatCodexSessionVisibilityRepairMessage } from "../utils/codexSessionVisibility";
 import md5 from "blueimp-md5";
-
-// Temporarily hide the experimental API Key + OAuth local gateway entry.
-// Flip this back to true after the compatibility path is debugged.
-const ENABLE_OAUTH_BINDING_LOCAL_GATEWAY_TOGGLE = false;
 
 const CODEX_TOKEN_SINGLE_EXAMPLE = `{
   "tokens": {
@@ -911,6 +908,11 @@ export function CodexAccountsPage() {
     useState<string | null>(null);
   const [resetCreditConfirmAccountId, setResetCreditConfirmAccountId] =
     useState<string | null>(null);
+  const [resetCreditConfirmSnapshot, setResetCreditConfirmSnapshot] =
+    useState<CodexResetCreditsSnapshot | null>(null);
+  const [resetCreditConfirmLoading, setResetCreditConfirmLoading] =
+    useState(false);
+  const resetCreditConfirmRequestSeqRef = useRef(0);
   const [resetCreditConfirmActionLocked, setResetCreditConfirmActionLocked] =
     useState(false);
   const {
@@ -2335,36 +2337,66 @@ export function CodexAccountsPage() {
     [accounts, resetCreditConfirmAccountId],
   );
 
-  const resetCreditConfirmAvailableCount = resetCreditConfirmAccount
-    ? getResetCreditsAvailable(resetCreditConfirmAccount)
-    : null;
-  const resetCreditConfirmCredits = resetCreditConfirmAccount
-    ? getResetCreditDetails(resetCreditConfirmAccount)
-    : [];
-  const resetCreditConfirmNextExpiresAt = resetCreditConfirmAccount
-    ? getResetCreditNextExpiresAt(resetCreditConfirmAccount)
-    : null;
+  const resetCreditConfirmAvailableCount =
+    resetCreditConfirmSnapshot?.available_count ??
+    (resetCreditConfirmAccount
+      ? getResetCreditsAvailable(resetCreditConfirmAccount)
+      : null);
+  const resetCreditConfirmCredits = resetCreditConfirmSnapshot?.credits ?? [];
+  const resetCreditConfirmNextExpiresAt =
+    resetCreditConfirmSnapshot?.next_expires_at ?? null;
   const isResetCreditConfirmSubmitting = resetCreditConfirmAccount
     ? resettingResetCreditAccountId === resetCreditConfirmAccount.id
     : false;
 
+  const loadResetCreditConfirmSnapshot = useCallback(
+    async (accountId: string) => {
+      const requestSeq = resetCreditConfirmRequestSeqRef.current + 1;
+      resetCreditConfirmRequestSeqRef.current = requestSeq;
+      setResetCreditConfirmLoading(true);
+      setResetCreditConfirmSnapshot(null);
+
+      try {
+        const snapshot = await codexService.getCodexResetCredits(accountId);
+        if (resetCreditConfirmRequestSeqRef.current !== requestSeq) return;
+        setResetCreditConfirmSnapshot({
+          available_count: snapshot.available_count,
+          credits: Array.isArray(snapshot.credits) ? snapshot.credits : [],
+          next_expires_at: snapshot.next_expires_at,
+        });
+      } catch (error) {
+        if (resetCreditConfirmRequestSeqRef.current !== requestSeq) return;
+        setResetCreditConfirmError(
+          t("codex.quota.resetCreditRecordsLoadFailed", {
+            error: String(error).replace(/^Error:\s*/, ""),
+          }),
+        );
+      } finally {
+        if (resetCreditConfirmRequestSeqRef.current === requestSeq) {
+          setResetCreditConfirmLoading(false);
+        }
+      }
+    },
+    [setResetCreditConfirmError, t],
+  );
+
   const openResetCreditConfirmModal = useCallback(
     (account: CodexAccount) => {
-      const availableCount = getResetCreditsAvailable(account);
-      if (availableCount == null || availableCount <= 0) {
-        return;
-      }
-
       setResetCreditConfirmError(null);
       setResetCreditConfirmActionLocked(false);
+      setResetCreditConfirmSnapshot(null);
       setResetCreditConfirmAccountId(account.id);
+      void loadResetCreditConfirmSnapshot(account.id);
     },
-    [getResetCreditsAvailable, setResetCreditConfirmError],
+    [loadResetCreditConfirmSnapshot, setResetCreditConfirmError],
   );
 
   const closeResetCreditConfirmModal = useCallback(() => {
     if (resettingResetCreditAccountId) return;
+    resetCreditConfirmRequestSeqRef.current += 1;
     setResetCreditConfirmAccountId(null);
+    setResetCreditConfirmSnapshot(null);
+    setResetCreditConfirmLoading(false);
     setResetCreditConfirmActionLocked(false);
     setResetCreditConfirmError(null);
   }, [resettingResetCreditAccountId, setResetCreditConfirmError]);
@@ -2373,7 +2405,7 @@ export function CodexAccountsPage() {
     const account = resetCreditConfirmAccount;
     if (!account) return;
 
-    const availableCount = getResetCreditsAvailable(account);
+    const availableCount = resetCreditConfirmAvailableCount;
     if (availableCount == null || availableCount <= 0) {
       setResetCreditConfirmError(
         t("codex.quota.resetCreditNoCredits", "没有可用的主动重置次数"),
@@ -2412,9 +2444,9 @@ export function CodexAccountsPage() {
       setResettingResetCreditAccountId(null);
     }
   }, [
-    getResetCreditsAvailable,
     refreshQuota,
     resetCreditConfirmAccount,
+    resetCreditConfirmAvailableCount,
     setMessage,
     setResetCreditConfirmError,
     t,
@@ -2668,6 +2700,14 @@ export function CodexAccountsPage() {
     setEditingNewManagedProviderNameInput,
   ] = useState("");
   const [savingApiKeyCredentials, setSavingApiKeyCredentials] = useState(false);
+  const [quickSwitchAccountId, setQuickSwitchAccountId] = useState<
+    string | null
+  >(null);
+  const [quickSwitchProviderId, setQuickSwitchProviderId] =
+    useState<string>("");
+  const [quickSwitchApiKeyId, setQuickSwitchApiKeyId] = useState<string>("");
+  const [quickSwitchSubmitting, setQuickSwitchSubmitting] = useState(false);
+  const [quickSwitchError, setQuickSwitchError] = useState<string | null>(null);
   const [oauthBindingTargetKind, setOauthBindingTargetKind] =
     useState<OAuthBindingTargetKind | null>(null);
   const [oauthBindingAccountId, setOauthBindingAccountId] = useState<
@@ -2815,6 +2855,26 @@ export function CodexAccountsPage() {
         (item) => item.id === editingManagedProviderApiKeyId,
       ) ?? null,
     [editingManagedProviderApiKeyId, selectedEditingManagedProvider],
+  );
+  const quickSwitchAccount = useMemo(
+    () =>
+      quickSwitchAccountId
+        ? (accounts.find((item) => item.id === quickSwitchAccountId) ?? null)
+        : null,
+    [accounts, quickSwitchAccountId],
+  );
+  const selectedQuickSwitchProvider = useMemo(
+    () =>
+      managedProviders.find((item) => item.id === quickSwitchProviderId) ??
+      null,
+    [managedProviders, quickSwitchProviderId],
+  );
+  const selectedQuickSwitchApiKey = useMemo(
+    () =>
+      selectedQuickSwitchProvider?.apiKeys.find(
+        (item) => item.id === quickSwitchApiKeyId,
+      ) ?? null,
+    [quickSwitchApiKeyId, selectedQuickSwitchProvider],
   );
   const oauthAccounts = useMemo(
     () => accounts.filter((account) => !isCodexApiKeyAccount(account)),
@@ -3272,6 +3332,30 @@ export function CodexAccountsPage() {
   }, [editingManagedProviderApiKeyId, selectedEditingManagedProviderApiKey]);
 
   useEffect(() => {
+    if (!quickSwitchAccountId) return;
+    if (accounts.some((item) => item.id === quickSwitchAccountId)) return;
+    setQuickSwitchAccountId(null);
+    setQuickSwitchProviderId("");
+    setQuickSwitchApiKeyId("");
+    setQuickSwitchError(null);
+  }, [accounts, quickSwitchAccountId]);
+
+  useEffect(() => {
+    if (!selectedQuickSwitchProvider) {
+      setQuickSwitchApiKeyId("");
+      return;
+    }
+    setQuickSwitchApiKeyId((prev) => {
+      if (
+        selectedQuickSwitchProvider.apiKeys.some((item) => item.id === prev)
+      ) {
+        return prev;
+      }
+      return selectedQuickSwitchProvider.apiKeys[0]?.id ?? "";
+    });
+  }, [selectedQuickSwitchProvider]);
+
+  useEffect(() => {
     const syncCodeReviewVisibility = () => {
       setShowCodeReviewQuota(isCodexCodeReviewQuotaVisibleByDefault());
     };
@@ -3720,16 +3804,27 @@ export function CodexAccountsPage() {
         setOauthBindingUseLocalGateway(false);
         return;
       }
+      const isLocalAccessBinding = oauthBindingTargetKind === "local_access";
       const confirmed = await confirmDialog(
-        t(
-          "codex.api.oauthBinding.localGatewayConfirm.message",
-          "开启后，该 API Key 账号绑定 OAuth 时会通过本地网关兼容模式启动：普通文本请求会自动移除 image_generation，避免部分供应商报“Image generation is not enabled”；OAuth 账号信息仍会保留。是否继续？",
-        ),
+        isLocalAccessBinding
+          ? t(
+              "codex.localAccess.oauthBinding.imageGenerationConfirm.message",
+              "开启后，API 服务会在本地网关转发普通文本对话前移除 image_generation 工具声明，避免部分供应商报 “Image generation is not enabled”；不会删除 gpt-image 等生图模型。是否继续？",
+            )
+          : t(
+              "codex.api.oauthBinding.localGatewayConfirm.message",
+              "开启后，该 API Key 账号绑定 OAuth 后的普通文本对话会走本地网关，并在转发前移除 image_generation 工具声明，避免部分供应商报 “Image generation is not enabled”；不会删除 gpt-image 等生图模型。是否继续？",
+            ),
         {
-          title: t(
-            "codex.api.oauthBinding.localGatewayConfirm.title",
-            "启用本地网关兼容模式",
-          ),
+          title: isLocalAccessBinding
+            ? t(
+                "codex.localAccess.oauthBinding.imageGenerationConfirm.title",
+                "禁用 image_generation 能力",
+              )
+            : t(
+                "codex.api.oauthBinding.localGatewayConfirm.title",
+                "禁用 image_generation 能力",
+              ),
           okLabel: t("common.confirm", "确认"),
           cancelLabel: t("common.cancel", "取消"),
         },
@@ -3738,7 +3833,7 @@ export function CodexAccountsPage() {
         setOauthBindingUseLocalGateway(true);
       }
     },
-    [t],
+    [oauthBindingTargetKind, t],
   );
 
   const openOAuthBindingModal = useCallback(
@@ -3754,8 +3849,7 @@ export function CodexAccountsPage() {
       );
       setOauthBindingAutoSwitch(options?.autoSwitch ?? false);
       setOauthBindingUseLocalGateway(
-        ENABLE_OAUTH_BINDING_LOCAL_GATEWAY_TOGGLE &&
-          Boolean(account.bound_oauth_use_local_gateway),
+        Boolean(account.bound_oauth_use_local_gateway),
       );
       setOauthBindingSearchQuery("");
       setOauthBindingFilterTypes([]);
@@ -3780,7 +3874,9 @@ export function CodexAccountsPage() {
           : "",
       );
       setOauthBindingAutoSwitch(options?.autoSwitch ?? false);
-      setOauthBindingUseLocalGateway(false);
+      setOauthBindingUseLocalGateway(
+        localAccessCollection?.imageGenerationMode === "images_only",
+      );
       setOauthBindingSearchQuery("");
       setOauthBindingFilterTypes([]);
       setOauthBindingTagFilter([]);
@@ -3789,6 +3885,7 @@ export function CodexAccountsPage() {
     [
       boundLocalAccessOAuthAccount,
       isOAuthBindingEligibleAccount,
+      localAccessCollection?.imageGenerationMode,
       setOauthBindingError,
     ],
   );
@@ -3954,14 +4051,14 @@ export function CodexAccountsPage() {
         const nextState =
           await codexLocalAccessService.updateCodexLocalAccessBoundOAuthAccount(
             selectedOAuthBindingAccount.id,
+            oauthBindingUseLocalGateway,
           );
         setLocalAccessState(nextState);
       } else if (oauthBindingAccount) {
         await updateApiKeyBoundOAuthAccount(
           oauthBindingAccount.id,
           selectedOAuthBindingAccount.id,
-          ENABLE_OAUTH_BINDING_LOCAL_GATEWAY_TOGGLE &&
-            oauthBindingUseLocalGateway,
+          oauthBindingUseLocalGateway,
         );
       }
       setMessage({
@@ -4701,6 +4798,124 @@ export function CodexAccountsPage() {
     },
     [selectedEditingManagedProvider],
   );
+
+  const closeQuickSwitchModal = useCallback(() => {
+    if (quickSwitchSubmitting) return;
+    setQuickSwitchAccountId(null);
+    setQuickSwitchProviderId("");
+    setQuickSwitchApiKeyId("");
+    setQuickSwitchError(null);
+  }, [quickSwitchSubmitting]);
+
+  const openQuickSwitchProviderModal = useCallback(
+    (account: CodexAccount) => {
+      if (!isCodexApiKeyAccount(account)) return;
+      const baseUrl = (account.api_base_url || "").trim();
+      const apiKey = (account.openai_api_key || "").trim();
+      const matchedProvider =
+        findCodexModelProviderById(managedProviders, account.api_provider_id) ??
+        findCodexModelProviderByBaseUrl(managedProviders, baseUrl);
+      const fallbackProvider = matchedProvider ?? managedProviders[0] ?? null;
+      const matchedApiKey = matchedProvider?.apiKeys.find(
+        (item) => item.apiKey.trim() === apiKey,
+      );
+      const fallbackApiKey =
+        matchedApiKey ?? fallbackProvider?.apiKeys[0] ?? null;
+
+      setQuickSwitchAccountId(account.id);
+      setQuickSwitchProviderId(fallbackProvider?.id ?? "");
+      setQuickSwitchApiKeyId(fallbackApiKey?.id ?? "");
+      setQuickSwitchError(null);
+    },
+    [managedProviders],
+  );
+
+  const handleSelectQuickSwitchProvider = useCallback(
+    (providerId: string) => {
+      setQuickSwitchProviderId(providerId);
+      const provider = managedProviders.find((item) => item.id === providerId);
+      setQuickSwitchApiKeyId(provider?.apiKeys[0]?.id ?? "");
+      setQuickSwitchError(null);
+    },
+    [managedProviders],
+  );
+
+  const handleSelectQuickSwitchApiKey = useCallback((apiKeyId: string) => {
+    setQuickSwitchApiKeyId(apiKeyId);
+    setQuickSwitchError(null);
+  }, []);
+
+  const handleSubmitQuickSwitch = useCallback(async () => {
+    if (!quickSwitchAccount) return;
+    if (!selectedQuickSwitchProvider) {
+      setQuickSwitchError(
+        t("codex.quickSwitch.validation.providerRequired", "请选择供应商"),
+      );
+      return;
+    }
+    if (!selectedQuickSwitchApiKey) {
+      setQuickSwitchError(
+        t("codex.quickSwitch.validation.apiKeyRequired", "请选择 API Key"),
+      );
+      return;
+    }
+
+    setQuickSwitchSubmitting(true);
+    setQuickSwitchError(null);
+    try {
+      await updateApiKeyCredentials(
+        quickSwitchAccount.id,
+        selectedQuickSwitchApiKey.apiKey,
+        selectedQuickSwitchProvider.baseUrl,
+        "custom",
+        selectedQuickSwitchProvider.id,
+        selectedQuickSwitchProvider.name,
+        selectedQuickSwitchProvider.modelCatalog,
+        selectedQuickSwitchProvider.supportsVision,
+        Object.fromEntries(
+          Object.entries(
+            selectedQuickSwitchProvider.modelCapabilities ?? {},
+          ).map(([model, capability]) => [
+            model,
+            capability.supportsVision === true,
+          ]),
+        ),
+        selectedQuickSwitchProvider.visionRoutingModel,
+        selectedQuickSwitchProvider.wireApi ?? undefined,
+      );
+      setMessage({
+        text: t("codex.quickSwitch.success", {
+          defaultValue: "已切换到供应商：{{provider}}",
+          provider: selectedQuickSwitchProvider.name,
+        }),
+      });
+      setApiKeyUsageMap((previous) => {
+        const next = { ...previous };
+        delete next[quickSwitchAccount.id];
+        return next;
+      });
+      setQuickSwitchAccountId(null);
+      setQuickSwitchProviderId("");
+      setQuickSwitchApiKeyId("");
+      setQuickSwitchError(null);
+    } catch (err) {
+      setQuickSwitchError(
+        t("codex.quickSwitch.failed", {
+          defaultValue: "切换供应商失败：{{error}}",
+          error: String(err).replace(/^Error:\s*/, ""),
+        }),
+      );
+    } finally {
+      setQuickSwitchSubmitting(false);
+    }
+  }, [
+    quickSwitchAccount,
+    selectedQuickSwitchApiKey,
+    selectedQuickSwitchProvider,
+    setMessage,
+    t,
+    updateApiKeyCredentials,
+  ]);
 
   const handleOpenProviderLink = useCallback(async (url: string) => {
     try {
@@ -7816,19 +8031,26 @@ export function CodexAccountsPage() {
   const renderResetCreditControls = (account: CodexAccount) => {
     if (isCodexApiKeyAccount(account)) return null;
 
+    const creditDetails = getResetCreditDetails(account);
     const availableCount = getResetCreditsAvailable(account);
-    if (availableCount == null) return null;
+    if (availableCount == null && creditDetails.length === 0) return null;
 
+    const displayCount =
+      availableCount ??
+      creditDetails.filter(isAvailableResetCredit).length;
     const isResetting = resettingResetCreditAccountId === account.id;
-    const isDisabled = isResetting || availableCount <= 0;
-    const titleText = buildResetCreditsTitle(account, availableCount);
+    const isDisabled = isResetting;
+    const titleText =
+      displayCount > 0
+        ? buildResetCreditsTitle(account, displayCount)
+        : t("codex.quota.resetCreditDetailsTitle", "重置次数明细");
 
     return (
       <div className="codex-reset-credit-row inline">
         <button
           type="button"
           className={`codex-reset-credit-pill ${
-            availableCount > 0 ? "is-available" : "is-unavailable"
+            displayCount > 0 ? "is-available" : "is-unavailable"
           }`}
           onClick={() => openResetCreditConfirmModal(account)}
           disabled={isDisabled}
@@ -7839,7 +8061,7 @@ export function CodexAccountsPage() {
           ) : (
             <RotateCw size={13} />
           )}
-          {t("codex.quota.resetCredits", { count: availableCount })}
+          {t("codex.quota.resetCredits", { count: displayCount })}
         </button>
       </div>
     );
@@ -8171,6 +8393,16 @@ export function CodexAccountsPage() {
                 >
                   {apiProviderLine}
                 </span>
+                {!isNewApiAccount && (
+                  <button
+                    type="button"
+                    className="codex-provider-inline-switch"
+                    onClick={() => openQuickSwitchProviderModal(account)}
+                    title={t("codex.quickSwitch.action", "快速切换供应商")}
+                  >
+                    {t("codex.quickSwitch.inlineAction", "切换")}
+                  </button>
+                )}
               </div>
               <div className="account-sub-line">
                 <span className="codex-login-subline" title={apiBaseUrlLine}>
@@ -9456,6 +9688,16 @@ export function CodexAccountsPage() {
                     >
                       {apiProviderLine}
                     </span>
+                    {!isNewApiAccount && (
+                      <button
+                        type="button"
+                        className="codex-provider-inline-switch"
+                        onClick={() => openQuickSwitchProviderModal(account)}
+                        title={t("codex.quickSwitch.action", "快速切换供应商")}
+                      >
+                        {t("codex.quickSwitch.inlineAction", "切换")}
+                      </button>
+                    )}
                   </div>
                   <div className="account-sub-line codex-account-meta-inline">
                     <span
@@ -12385,6 +12627,164 @@ export function CodexAccountsPage() {
             </div>
           )}
 
+          {quickSwitchAccountId && (
+            <div className="modal-overlay">
+              <div
+                className="modal-content codex-add-modal codex-api-key-edit-modal"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="modal-header">
+                  <h2>{t("codex.quickSwitch.title", "快速切换供应商")}</h2>
+                  <button
+                    className="modal-close"
+                    onClick={closeQuickSwitchModal}
+                    aria-label={t("common.close", "关闭")}
+                    disabled={quickSwitchSubmitting}
+                  >
+                    <X />
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <div className="add-section">
+                    <p className="section-desc">
+                      {t(
+                        "codex.quickSwitch.desc",
+                        "为当前 API Key 账号快速切换到已保存的供应商与 API Key。",
+                      )}
+                    </p>
+                    {quickSwitchAccount && (
+                      <div className="section-desc">
+                        {t("codex.quickSwitch.currentAccount", {
+                          defaultValue: "当前账号：{{name}}",
+                          name: maskAccountText(
+                            resolvePresentation(quickSwitchAccount).displayName,
+                          ),
+                        })}
+                      </div>
+                    )}
+                    <div className="oauth-link">
+                      <label>
+                        {t(
+                          "codex.modelProviders.selectSavedProvider",
+                          "已保存供应商",
+                        )}
+                      </label>
+                      {managedProvidersLoading ? (
+                        <div className="section-desc">
+                          {t("common.loading", "加载中...")}
+                        </div>
+                      ) : managedProviders.length === 0 ? (
+                        <div className="add-status error">
+                          <CircleAlert size={16} />
+                          <span>
+                            {t(
+                              "codex.quickSwitch.noProviders",
+                              "暂无已保存供应商，请先在“模型供应商”中添加。",
+                            )}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="api-provider-chip-list">
+                          {managedProviders.map((provider) => (
+                            <button
+                              key={provider.id}
+                              className={`api-provider-chip ${quickSwitchProviderId === provider.id ? "active" : ""}`}
+                              onClick={() =>
+                                handleSelectQuickSwitchProvider(provider.id)
+                              }
+                              type="button"
+                              disabled={quickSwitchSubmitting}
+                            >
+                              <span>{provider.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedQuickSwitchProvider &&
+                      selectedQuickSwitchProvider.apiKeys.length > 0 && (
+                        <div className="oauth-link">
+                          <label>
+                            {t(
+                              "codex.modelProviders.selectSavedApiKey",
+                              "已保存 API Key",
+                            )}
+                          </label>
+                          <div className="api-provider-endpoint-list">
+                            {selectedQuickSwitchProvider.apiKeys.map((item) => (
+                              <button
+                                key={item.id}
+                                className={`api-provider-endpoint-chip ${quickSwitchApiKeyId === item.id ? "active" : ""}`}
+                                onClick={() =>
+                                  handleSelectQuickSwitchApiKey(item.id)
+                                }
+                                type="button"
+                                disabled={quickSwitchSubmitting}
+                              >
+                                {item.name ||
+                                  t(
+                                    "codex.modelProviders.unnamedKey",
+                                    "未命名 Key",
+                                  )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    {selectedQuickSwitchProvider &&
+                      selectedQuickSwitchProvider.apiKeys.length === 0 && (
+                        <div className="add-status error">
+                          <CircleAlert size={16} />
+                          <span>
+                            {t(
+                              "codex.quickSwitch.providerHasNoKeys",
+                              "该供应商没有可用 API Key，请先在模型供应商中添加。",
+                            )}
+                          </span>
+                        </div>
+                      )}
+
+                    {quickSwitchError && (
+                      <div className="add-status error">
+                        <CircleAlert size={16} />
+                        <span>{quickSwitchError}</span>
+                      </div>
+                    )}
+
+                    <div className="api-key-edit-actions">
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => {
+                          setActiveTab("providers");
+                          closeQuickSwitchModal();
+                        }}
+                        disabled={quickSwitchSubmitting}
+                      >
+                        {t("codex.quickSwitch.gotoProviders", "管理供应商")}
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => void handleSubmitQuickSwitch()}
+                        disabled={
+                          quickSwitchSubmitting ||
+                          managedProvidersLoading ||
+                          !selectedQuickSwitchProvider ||
+                          !selectedQuickSwitchApiKey
+                        }
+                      >
+                        {quickSwitchSubmitting
+                          ? t("common.saving", "保存中...")
+                          : t("codex.quickSwitch.apply", "立即切换")}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {oauthBindingTargetActive && (
             <div className="modal-overlay">
               <div
@@ -12447,13 +12847,16 @@ export function CodexAccountsPage() {
                             "选择 OAuth 账号",
                           )}
                         </label>
-                        {ENABLE_OAUTH_BINDING_LOCAL_GATEWAY_TOGGLE &&
-                          oauthBindingTargetKind === "api_key_account" && (
+                        {oauthBindingTargetKind && (
                           <label
                             className="codex-oauth-binding-gateway-toggle"
                             title={t(
-                              "codex.api.oauthBinding.localGatewayTooltip",
-                              "开启后普通文本请求会通过本地网关移除 image_generation，用于兼容未开通图片生成的供应商。",
+                              oauthBindingTargetKind === "local_access"
+                                ? "codex.localAccess.oauthBinding.imageGenerationTooltip"
+                                : "codex.api.oauthBinding.localGatewayTooltip",
+                              oauthBindingTargetKind === "local_access"
+                                ? "开启后，API 服务会在本地网关转发普通文本对话前移除 image_generation 工具声明；不会删除生图模型。"
+                                : "开启后，绑定 OAuth 的 API Key 文本对话会走本地网关，并在转发前移除 image_generation 工具声明；不会删除生图模型。",
                             )}
                           >
                             <input
@@ -12469,7 +12872,7 @@ export function CodexAccountsPage() {
                             <span>
                               {t(
                                 "codex.api.oauthBinding.useLocalGateway",
-                                "使用本地网关兼容模式",
+                                "禁用 image_generation",
                               )}
                             </span>
                             <Info size={14} />
@@ -13608,12 +14011,17 @@ export function CodexAccountsPage() {
                       </span>
                     </div>
                   )}
-                  {resetCreditConfirmCredits.length > 0 && (
-                    <div className="codex-reset-credit-confirm-details">
-                      <div className="codex-reset-credit-confirm-details-title">
-                        {t("codex.quota.resetCreditDetailsTitle", "重置次数明细")}
+                  <div className="codex-reset-credit-confirm-details">
+                    <div className="codex-reset-credit-confirm-details-title">
+                      {t("codex.quota.resetCreditDetailsTitle", "重置次数明细")}
+                    </div>
+                    {resetCreditConfirmLoading ? (
+                      <div className="codex-reset-credit-confirm-empty">
+                        <RefreshCw size={14} className="loading-spinner" />
+                        <span>{t("common.loading", "加载中...")}</span>
                       </div>
-                      {resetCreditConfirmCredits.map((credit, index) => (
+                    ) : resetCreditConfirmCredits.length > 0 ? (
+                      resetCreditConfirmCredits.map((credit, index) => (
                         <div
                           className="codex-reset-credit-confirm-detail"
                           key={credit.id || `${credit.status || "credit"}-${index}`}
@@ -13638,9 +14046,13 @@ export function CodexAccountsPage() {
                             </strong>
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      ))
+                    ) : (
+                      <div className="codex-reset-credit-confirm-empty">
+                        {t("codex.quota.resetCreditNoRecords", "暂无重置记录")}
+                      </div>
+                    )}
+                  </div>
                   <ModalErrorMessage
                     message={resetCreditConfirmError}
                     scrollKey={resetCreditConfirmErrorScrollKey}
@@ -13654,6 +14066,7 @@ export function CodexAccountsPage() {
                     onClick={() => void handleConfirmConsumeResetCredit()}
                     disabled={
                       isResetCreditConfirmSubmitting ||
+                      resetCreditConfirmLoading ||
                       resetCreditConfirmActionLocked ||
                       resetCreditConfirmAvailableCount == null ||
                       resetCreditConfirmAvailableCount <= 0

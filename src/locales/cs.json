@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "Volitelné. Vybrat lze pouze účty OAuth s refresh_token. Bez propojení služba API používá původní logiku API Key; po propojení se přihlášení bere z účtu OAuth a Provider z konfigurace služby API.",
-        "currentService": "Služba API: {{name}}"
+        "currentService": "Služba API: {{name}}",
+        "imageGenerationTooltip": "Po zapnutí služba API v místní bráně před přeposláním běžných textových konverzací odstraní deklaraci nástroje image_generation; obrazové modely se nemažou.",
+        "imageGenerationConfirm": {
+          "title": "Zakázat image_generation",
+          "message": "Po zapnutí služba API v místní bráně před přeposláním běžných textových konverzací odstraní deklaraci nástroje image_generation, aby se předešlo chybám typu „Image generation is not enabled“. Modely obrázků jako gpt-image se nemažou. Pokračovat?"
+        }
       },
       "customRoutingEdit": "Upravit vlastní směrování",
       "customRoutingTitle": "Vlastní směrování",
@@ -2064,6 +2069,8 @@
       "resetCreditStatusUnknown": "Neznámé",
       "resetCreditNextExpiry": "Nejbližší expirace: {{time}}",
       "resetCreditDetailsTitle": "Podrobnosti resetů",
+      "resetCreditNoRecords": "Žádné záznamy resetů",
+      "resetCreditRecordsLoadFailed": "Načtení záznamů resetů selhalo: {{error}}",
       "resetCreditGrantedAt": "Přiděleno",
       "resetCreditExpiresAt": "Vyprší"
     },
@@ -2543,11 +2550,11 @@
         "clearAction": "Odpojit",
         "clearSuccess": "Propojení OAuth bylo odebráno.",
         "clearFailed": "Odebrání propojení OAuth selhalo: {{error}}",
-        "useLocalGateway": "Pouzit lokalni rezim kompatibility brany",
-        "localGatewayTooltip": "Smeruje bezne textove pozadavky pres lokalni branu a odebere image_generation pro poskytovatele bez generovani obrazku.",
+        "useLocalGateway": "Zakázat image_generation",
+        "localGatewayTooltip": "Po zapnutí textové konverzace API Key navázaného na OAuth půjdou přes místní bránu, která před přeposláním odstraní image_generation; obrazové modely se nemažou.",
         "localGatewayConfirm": {
-          "title": "Zapnout lokalni rezim kompatibility brany",
-          "message": "Po zapnuti tento ucet API Key pri vazbe OAuth pouzije lokalni rezim kompatibility: bezne textove pozadavky odeberou image_generation, identita OAuth zustane zachovana. Pokracovat?"
+          "title": "Zakázat schopnost image_generation",
+          "message": "Po zapnutí budou běžné textové konverzace tohoto účtu API Key navázaného na OAuth procházet místní bránou, kde se před přeposláním odstraní deklarace nástroje image_generation, aby se předešlo chybám typu „Image generation is not enabled“. Modely obrázků jako gpt-image se nemažou. Pokračovat?"
         }
       }
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "Zkontrolujte stav služby poskytovatele, proxy nebo kompatibilitu API.",
         "checkModelsApi": "Ověřte, že poskytovatel vrací seznam modelů kompatibilní s OpenAI."
       },
+      "batchTest": {
+        "entry": "Otestovat vše",
+        "entryHint": "Hromadně otestovat skutečnou schopnost chatu poskytovatelů",
+        "selectedCount": "Vybráno {{count}}",
+        "title": "Hromadný test poskytovatelů modelů",
+        "selectTitle": "Vyberte poskytovatele k testu",
+        "selectDesc": "Vybraní poskytovatelé se dočasně připojí k místní bráně pro test chatu a podle svého protokolu se předají upstreamu.",
+        "selectionSummary": "Vybráno {{selected}} / testovatelných {{total}}",
+        "emptySelection": "Vyberte alespoň jednoho poskytovatele s API Key.",
+        "noApiKey": "Chybí API Key",
+        "gatewayProtocol": "Chat Completions · brána",
+        "directProtocol": "Responses · brána",
+        "start": "Spustit test",
+        "kicker": "Test poskytovatele",
+        "resultsTitle": "Výsledky testu chatu poskytovatelů",
+        "totalCount": "{{count}} poskytovatelů",
+        "progress": "Průběh testu",
+        "selectVisible": "Vybrat viditelné",
+        "resultSelectedCount": "Vybráno {{count}}",
+        "selectFailed": "Vybrat neúspěšné",
+        "deleteConfirm": "Smazat {{providerCount}} vybraných poskytovatelů? Zároveň se smaže {{accountCount}} přesně propojených účtů Codex API Key.",
+        "deleteSuccess": "Smazáno {{providerCount}} poskytovatelů a {{accountCount}} propojených účtů.",
+        "deleteFailed": "Nepodařilo se smazat vybrané položky: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Model čeká",
+        "promptLabel": "Výzva",
+        "pendingDesc": "Čeká na spuštění.",
+        "runningDesc": "Odesílá se požadavek chatu.",
+        "noReply": "Upstream nevrátil čitelnou odpověď.",
+        "unknownError": "Neznámá chyba",
+        "status": {
+          "all": "Vše",
+          "success": "Úspěch",
+          "error": "Selhalo",
+          "running": "Běží",
+          "pending": "Čeká",
+          "completed": "Dokončeno"
+        },
+        "officialClientOnlyError": "Tento poskytovatel povoluje jen požadavky z oficiálního klienta Codex. Jednorázový test teď používá místní bránu, ale upstream tento testovací požadavek stále odmítl. Řiďte se skutečným chováním po spuštění v oficiálním Codexu."
+      },
       "enableAndStart": "Spustit",
       "instance": {
         "label": "Spustit instanci",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "Volitelné. Lze připojit libovolný OAuth účet s refresh_token. Bez propojení poskytovatel dál používá původní tok API Key.",
         "currentProvider": "Poskytovatel: {{name}}"
+      },
+      "sort": {
+        "custom": "Vlastní pořadí",
+        "customModalTitle": "Vlastní pořadí poskytovatelů",
+        "customModalDesc": "Přetáhněte poskytovatele nebo použijte tlačítka nahoru/dolů pro úpravu pořadí.",
+        "customDragHandle": "Přetáhnout pro řazení",
+        "customMoveUp": "Posunout nahoru",
+        "customMoveDown": "Posunout dolů",
+        "customReset": "Obnovit pořadí"
       }
     },
     "quickSwitch": {

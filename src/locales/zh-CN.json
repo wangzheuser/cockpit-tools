@@ -2198,7 +2198,12 @@
       },
       "oauthBinding": {
         "desc": "可选绑定。只要 OAuth 账号带 refresh_token 即可选择；未绑定时 API 服务按原 API Key 逻辑运行；绑定后登录态使用 OAuth 账号，Provider 使用当前 API 服务配置。",
-        "currentService": "API 服务：{{name}}"
+        "currentService": "API 服务：{{name}}",
+        "imageGenerationTooltip": "开启后，API 服务会在本地网关转发普通文本对话前移除 image_generation 工具声明；不会删除生图模型。",
+        "imageGenerationConfirm": {
+          "title": "禁用 image_generation 能力",
+          "message": "开启后，API 服务会在本地网关转发普通文本对话前移除 image_generation 工具声明，避免部分供应商报 “Image generation is not enabled”；不会删除 gpt-image 等生图模型。是否继续？"
+        }
       },
       "customRoutingEdit": "编辑自定义调度",
       "customRoutingTitle": "自定义调度",
@@ -2367,11 +2372,11 @@
         "clearAction": "解除绑定",
         "clearSuccess": "OAuth 绑定已解除",
         "clearFailed": "解除 OAuth 绑定失败：{{error}}",
-        "useLocalGateway": "使用本地网关兼容模式",
-        "localGatewayTooltip": "开启后普通文本请求会通过本地网关移除 image_generation，用于兼容未开通图片生成的供应商。",
+        "useLocalGateway": "禁用 image_generation",
+        "localGatewayTooltip": "开启后，绑定 OAuth 的 API Key 文本对话会走本地网关，并在转发前移除 image_generation 工具声明；不会删除生图模型。",
         "localGatewayConfirm": {
-          "title": "启用本地网关兼容模式",
-          "message": "开启后，该 API Key 账号绑定 OAuth 时会通过本地网关兼容模式启动：普通文本请求会自动移除 image_generation，避免部分供应商报“Image generation is not enabled”；OAuth 账号信息仍会保留。是否继续？"
+          "title": "禁用 image_generation 能力",
+          "message": "开启后，该 API Key 账号绑定 OAuth 后的普通文本对话会走本地网关，并在转发前移除 image_generation 工具声明，避免部分供应商报 “Image generation is not enabled”；不会删除 gpt-image 等生图模型。是否继续？"
         }
       }
     },
@@ -2534,6 +2539,46 @@
         "checkProviderStatus": "请检查供应商服务状态、网络代理或供应商接口兼容性。",
         "checkModelsApi": "请确认该供应商提供 OpenAI 兼容的模型列表响应。"
       },
+      "batchTest": {
+        "entry": "一键测试",
+        "entryHint": "批量测试供应商真实对话能力",
+        "selectedCount": "已选 {{count}} 个",
+        "title": "一键测试模型供应商",
+        "selectTitle": "选择要测试的供应商",
+        "selectDesc": "会把选中的供应商临时接入本地网关发起对话测试，并按供应商协议能力转发到上游。",
+        "selectionSummary": "已选 {{selected}} / 可测 {{total}}",
+        "emptySelection": "请选择至少一个带 API Key 的供应商。",
+        "noApiKey": "缺少 API Key",
+        "gatewayProtocol": "Chat Completions · 网关",
+        "directProtocol": "Responses · 网关",
+        "start": "开始测试",
+        "kicker": "供应商测试",
+        "resultsTitle": "供应商对话测试结果",
+        "totalCount": "供应商 {{count}} 个",
+        "progress": "测试进度",
+        "selectVisible": "选择当前结果",
+        "resultSelectedCount": "已选 {{count}} 个",
+        "selectFailed": "选择失败",
+        "deleteConfirm": "确认删除选中的 {{providerCount}} 个供应商吗？会同时删除 {{accountCount}} 个精确关联的 Codex API Key 账号。",
+        "deleteSuccess": "已删除 {{providerCount}} 个供应商和 {{accountCount}} 个关联账号。",
+        "deleteFailed": "删除选中项失败：{{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "模型待定",
+        "promptLabel": "提示词",
+        "pendingDesc": "等待开始测试。",
+        "runningDesc": "正在发送对话请求。",
+        "noReply": "上游未返回可读回复。",
+        "unknownError": "未知错误",
+        "status": {
+          "all": "全部",
+          "success": "成功",
+          "error": "失败",
+          "running": "测试中",
+          "pending": "等待中",
+          "completed": "已完成"
+        },
+        "officialClientOnlyError": "该供应商限制只允许 Codex 官方客户端请求；当前一键测试已走本地网关，但上游仍拒绝了这次测试请求。请以官方 Codex 实际启动后的表现为准。"
+      },
       "enableAndStart": "启动",
       "instance": {
         "label": "启动实例",
@@ -2605,6 +2650,15 @@
       "oauthBinding": {
         "desc": "可选绑定。只要 OAuth 账号带 refresh_token 即可选择；未绑定时供应商仍按原 API Key 逻辑运行。",
         "currentProvider": "供应商：{{name}}"
+      },
+      "sort": {
+        "custom": "自定义顺序",
+        "customModalTitle": "自定义供应商排序",
+        "customModalDesc": "拖动供应商或使用上下按钮调整展示顺序。",
+        "customDragHandle": "拖拽排序",
+        "customMoveUp": "上移",
+        "customMoveDown": "下移",
+        "customReset": "重置自定义顺序"
       }
     },
     "quickSwitch": {
@@ -2656,6 +2710,8 @@
       "resetCreditStatusUnknown": "未知",
       "resetCreditNextExpiry": "最近到期：{{time}}",
       "resetCreditDetailsTitle": "重置次数明细",
+      "resetCreditNoRecords": "暂无重置记录",
+      "resetCreditRecordsLoadFailed": "加载重置记录失败：{{error}}",
       "resetCreditGrantedAt": "发放",
       "resetCreditExpiresAt": "到期"
     },

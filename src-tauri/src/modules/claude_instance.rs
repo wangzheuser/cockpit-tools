@@ -868,7 +868,9 @@ fn normalize_windows_shell_app_target(value: &str) -> Option<String> {
 }
 
 #[cfg(target_os = "windows")]
-fn resolve_windows_claude_launch_target(path_str: &str) -> Result<ClaudeWindowsLaunchTarget, String> {
+fn resolve_windows_claude_launch_target(
+    path_str: &str,
+) -> Result<ClaudeWindowsLaunchTarget, String> {
     if let Some(shell_target) = normalize_windows_shell_app_target(path_str) {
         return Ok(ClaudeWindowsLaunchTarget::ShellApp(shell_target));
     }
@@ -1166,12 +1168,10 @@ fn scan_windows_appx_packages_for_claude(
         let install_dir = PathBuf::from(install_location);
         let normalized_install_dir = normalize_path_for_compare(install_location);
         if !normalized_roots.is_empty()
-            && !normalized_roots
-                .iter()
-                .any(|root| {
-                    normalized_install_dir.starts_with(root.as_str())
-                        || root.starts_with(normalized_install_dir.as_str())
-                })
+            && !normalized_roots.iter().any(|root| {
+                normalized_install_dir.starts_with(root.as_str())
+                    || root.starts_with(normalized_install_dir.as_str())
+            })
         {
             continue;
         }
@@ -1339,22 +1339,22 @@ pub fn detect_and_save_claude_launch_path(force: bool) -> Option<String> {
 
     #[cfg(not(target_os = "windows"))]
     {
-    if !force {
-        if let Some(custom) = normalize_custom_path(&current.claude_app_path) {
-            return Some(current.claude_app_path);
+        if !force {
+            if let Some(custom) = normalize_custom_path(&current.claude_app_path) {
+                return Some(current.claude_app_path);
+            }
         }
-    }
 
-    let detected = detect_claude_exec_path()?;
-    let normalized = normalize_claude_path_for_config(&detected);
-    if current.claude_app_path != normalized {
-        let mut next = current.clone();
-        next.claude_app_path = normalized.clone();
-        if let Err(err) = modules::config::save_user_config(&next) {
-            modules::logger::log_warn(&format!("保存 Claude 启动路径失败（已忽略）: {}", err));
+        let detected = detect_claude_exec_path()?;
+        let normalized = normalize_claude_path_for_config(&detected);
+        if current.claude_app_path != normalized {
+            let mut next = current.clone();
+            next.claude_app_path = normalized.clone();
+            if let Err(err) = modules::config::save_user_config(&next) {
+                modules::logger::log_warn(&format!("保存 Claude 启动路径失败（已忽略）: {}", err));
+            }
         }
-    }
-    Some(normalized)
+        Some(normalized)
     }
 }
 

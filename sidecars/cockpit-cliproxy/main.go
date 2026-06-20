@@ -3281,6 +3281,7 @@ func (s *relayServer) handleProviderGatewayRequest(c *gin.Context, gateway *prov
 	if stream {
 		req.Header.Set("Accept", "text/event-stream")
 	}
+	copyProviderGatewayDiagnosticHeaders(req.Header, c.Request.Header)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -3363,6 +3364,31 @@ func rewriteProviderGatewayBodyModel(body []byte, model string) []byte {
 		return body
 	}
 	return next
+}
+
+func copyProviderGatewayDiagnosticHeaders(dst http.Header, src http.Header) {
+	if dst == nil || src == nil {
+		return
+	}
+	for key, values := range src {
+		trimmedKey := strings.TrimSpace(key)
+		if trimmedKey == "" {
+			continue
+		}
+		lowerKey := strings.ToLower(trimmedKey)
+		if lowerKey != "x-client-request-id" && !strings.HasPrefix(lowerKey, "x-agtools-") {
+			continue
+		}
+		canonicalKey := http.CanonicalHeaderKey(trimmedKey)
+		dst.Del(canonicalKey)
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				continue
+			}
+			dst.Add(canonicalKey, value)
+		}
+	}
 }
 
 func (s *relayServer) writeProviderGatewayChatStream(c *gin.Context, body io.Reader, model string, originalBody []byte, chatBody []byte) {
@@ -4497,6 +4523,7 @@ func (s *relayServer) handleOllamaProviderGatewayChat(c *gin.Context, gateway *p
 	if stream {
 		req.Header.Set("Accept", "text/event-stream")
 	}
+	copyProviderGatewayDiagnosticHeaders(req.Header, c.Request.Header)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		writeAPIError(c, http.StatusBadGateway, err.Error(), "bad_gateway")

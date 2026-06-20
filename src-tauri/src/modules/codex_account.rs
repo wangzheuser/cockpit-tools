@@ -2090,6 +2090,21 @@ pub fn load_account(account_id: &str) -> Option<CodexAccount> {
     load_account_with_summary(account_id, None).ok().flatten()
 }
 
+fn migrate_bound_oauth_use_local_gateway_if_missing(
+    account: &mut CodexAccount,
+    raw_value: &serde_json::Value,
+) -> bool {
+    if !account.is_api_key_auth()
+        || normalize_optional_ref(account.bound_oauth_account_id.as_deref()).is_none()
+        || raw_value.get("bound_oauth_use_local_gateway").is_some()
+    {
+        return false;
+    }
+
+    account.bound_oauth_use_local_gateway = true;
+    true
+}
+
 fn load_account_after_index_repair(account_id: &str) -> Option<CodexAccount> {
     if let Some(account) = load_account(account_id) {
         return Some(account);
@@ -2127,10 +2142,15 @@ fn load_account_with_summary(
     let content = fs::read_to_string(&path)
         .map_err(|error| format!("读取账号详情失败 ({}): {}", path.display(), error))?;
     if let Ok(mut account) = serde_json::from_str::<CodexAccount>(&content) {
-        if migrate_apikey_fun_wire_api(&mut account) {
+        let raw_value = serde_json::from_str::<serde_json::Value>(&content).ok();
+        let migrated_bound_oauth = raw_value
+            .as_ref()
+            .map(|value| migrate_bound_oauth_use_local_gateway_if_missing(&mut account, value))
+            .unwrap_or(false);
+        if migrate_apikey_fun_wire_api(&mut account) || migrated_bound_oauth {
             if let Err(error) = save_account(&account) {
                 logger::log_warn(&format!(
-                    "[Codex Account][Migration] APIKEY.FUN 协议迁移写回失败: account_id={}, error={}",
+                    "[Codex Account][Migration] 账号详情迁移写回失败: account_id={}, error={}",
                     account.id, error
                 ));
             }
@@ -2140,9 +2160,10 @@ fn load_account_with_summary(
 
     let value = serde_json::from_str::<serde_json::Value>(&content)
         .map_err(|error| format!("账号详情不是有效 JSON ({}): {}", path.display(), error))?;
-    let mut account = parse_codex_account_compat(value, account_id, summary)?
+    let mut account = parse_codex_account_compat(value.clone(), account_id, summary)?
         .ok_or_else(|| format!("账号详情缺少可识别凭据 ({})", path.display()))?;
     let _ = migrate_apikey_fun_wire_api(&mut account);
+    let _ = migrate_bound_oauth_use_local_gateway_if_missing(&mut account, &value);
 
     if let Err(error) = save_account(&account) {
         logger::log_warn(&format!(
@@ -3807,20 +3828,37 @@ fn load_bound_api_key_account_for_projection_dir(
 
 fn write_managed_account_projections(account: &CodexAccount) {
     for dir in managed_projection_dirs_for_account(&account.id) {
-        let result = if let Some(api_key_account) =
-            load_bound_api_key_account_for_projection_dir(&account.id, &dir)
-        {
-            write_api_key_account_bundle_with_oauth_to_dir(&dir, &api_key_account, account)
+        let bound_api_key_account =
+            load_bound_api_key_account_for_projection_dir(&account.id, &dir);
+        let result = if let Some(api_key_account) = bound_api_key_account.as_ref() {
+            write_api_key_account_bundle_with_oauth_to_dir(&dir, api_key_account, account)
         } else {
             write_prepared_account_bundle_to_dir(&dir, account)
         };
-        if let Err(err) = result {
-            logger::log_warn(&format!(
-                "Codex Token 写穿受管投影失败: account_id={}, target_dir={}, error={}",
-                account.id,
-                dir.display(),
-                err
-            ));
+        match result {
+            Ok(()) => {
+                if let Some(api_key_account) = bound_api_key_account {
+                    if crate::modules::codex_local_access::account_requires_provider_gateway(
+                        &api_key_account,
+                    ) || crate::modules::codex_local_access::account_requires_bound_oauth_local_gateway(
+                        &api_key_account,
+                    ) {
+                        crate::modules::codex_local_access::reload_provider_gateway_for_profile_in_background(
+                            dir,
+                            api_key_account.id,
+                            "OAuth token 写穿后恢复本地网关配置",
+                        );
+                    }
+                }
+            }
+            Err(err) => {
+                logger::log_warn(&format!(
+                    "Codex Token 写穿受管投影失败: account_id={}, target_dir={}, error={}",
+                    account.id,
+                    dir.display(),
+                    err
+                ));
+            }
         }
     }
 }
@@ -4151,18 +4189,32 @@ async fn activate_provider_gateway_after_switch_if_needed(
     base_dir: &Path,
     account: &CodexAccount,
 ) -> Result<(), String> {
-    if !crate::modules::codex_local_access::account_requires_provider_gateway(account) {
-        crate::modules::codex_local_access::stop_provider_gateways_for_profile(base_dir).await;
+    if crate::modules::codex_local_access::account_requires_provider_gateway(account) {
+        logger::log_info(&format!(
+            "[Codex切号] API Key 账号使用 Chat Completions 协议，启用本地供应商网关: account_id={}, target_dir={}",
+            account.id,
+            base_dir.display()
+        ));
+        crate::modules::codex_local_access::ensure_provider_gateway_for_dir(base_dir, &account.id)
+            .await?;
         return Ok(());
     }
 
-    logger::log_info(&format!(
-        "[Codex切号] API Key 账号使用 Chat Completions 协议，启用本地供应商网关: account_id={}, target_dir={}",
-        account.id,
-        base_dir.display()
-    ));
-    crate::modules::codex_local_access::ensure_provider_gateway_for_dir(base_dir, &account.id)
+    if crate::modules::codex_local_access::account_requires_bound_oauth_local_gateway(account) {
+        logger::log_info(&format!(
+            "[Codex切号] API Key 账号绑定 OAuth 且禁用 image_generation，启用 Responses 本地网关: account_id={}, target_dir={}",
+            account.id,
+            base_dir.display()
+        ));
+        crate::modules::codex_local_access::ensure_bound_oauth_local_gateway_for_dir(
+            base_dir,
+            &account.id,
+        )
         .await?;
+        return Ok(());
+    }
+
+    crate::modules::codex_local_access::stop_provider_gateways_for_profile(base_dir).await;
     Ok(())
 }
 
@@ -6407,6 +6459,86 @@ mod tests {
             .join(format!("{}.json", account_id));
         let content = fs::read_to_string(&path).expect("read test account");
         serde_json::from_str(&content).expect("parse test account")
+    }
+
+    #[test]
+    fn load_account_migrates_legacy_bound_oauth_api_key_to_disable_image_generation() {
+        let _lock = TEST_ENV_LOCK.lock().expect("lock test env");
+        let _env = TestEnvGuard::new("codex-legacy-bound-oauth-migration");
+        let mut account = CodexAccount::new_api_key(
+            "api-legacy-bound-oauth".to_string(),
+            "api-key@example.com".to_string(),
+            "sk-test".to_string(),
+            CodexApiProviderMode::Custom,
+            Some("https://relay.example/v1".to_string()),
+            Some("relay".to_string()),
+            Some("Relay".to_string()),
+            vec!["gpt-5.5".to_string()],
+        );
+        account.bound_oauth_account_id = Some("oauth-1".to_string());
+        let accounts_dir = get_accounts_dir();
+        fs::create_dir_all(&accounts_dir).expect("create accounts dir");
+        let mut value = serde_json::to_value(&account).expect("serialize account");
+        value
+            .as_object_mut()
+            .expect("account should be object")
+            .remove("bound_oauth_use_local_gateway");
+        fs::write(
+            accounts_dir.join(format!("{}.json", account.id)),
+            serde_json::to_string_pretty(&value).expect("serialize legacy account"),
+        )
+        .expect("write legacy account");
+
+        let loaded = load_account(&account.id).expect("load account");
+
+        assert!(loaded.bound_oauth_use_local_gateway);
+        let persisted: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(accounts_dir.join(format!("{}.json", account.id)))
+                .expect("read migrated account"),
+        )
+        .expect("parse migrated account");
+        assert_eq!(
+            persisted
+                .get("bound_oauth_use_local_gateway")
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+    }
+
+    #[test]
+    fn load_account_respects_explicit_bound_oauth_image_generation_false() {
+        let _lock = TEST_ENV_LOCK.lock().expect("lock test env");
+        let _env = TestEnvGuard::new("codex-bound-oauth-explicit-false");
+        let mut account = CodexAccount::new_api_key(
+            "api-bound-oauth-explicit-false".to_string(),
+            "api-key@example.com".to_string(),
+            "sk-test".to_string(),
+            CodexApiProviderMode::Custom,
+            Some("https://relay.example/v1".to_string()),
+            Some("relay".to_string()),
+            Some("Relay".to_string()),
+            vec!["gpt-5.5".to_string()],
+        );
+        account.bound_oauth_account_id = Some("oauth-1".to_string());
+        let accounts_dir = get_accounts_dir();
+        fs::create_dir_all(&accounts_dir).expect("create accounts dir");
+        let mut value = serde_json::to_value(&account).expect("serialize account");
+        value
+            .as_object_mut()
+            .expect("account should be object")
+            .insert(
+                "bound_oauth_use_local_gateway".to_string(),
+                serde_json::json!(false),
+            );
+        fs::write(
+            accounts_dir.join(format!("{}.json", account.id)),
+            serde_json::to_string_pretty(&value).expect("serialize account"),
+        )
+        .expect("write account");
+
+        let loaded = load_account(&account.id).expect("load account");
+
+        assert!(!loaded.bound_oauth_use_local_gateway);
     }
 
     fn write_oauth_auth_file(base_dir: &std::path::Path, tokens: &CodexTokens, account_id: &str) {

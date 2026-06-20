@@ -106,6 +106,12 @@ export interface CodexResetCredit {
   raw_status?: string;
 }
 
+export interface CodexResetCreditsSnapshot {
+  available_count?: number;
+  credits: CodexResetCredit[];
+  next_expires_at?: number;
+}
+
 const COCKPIT_API_BASE_URL = "https://chongcodex.cn/v1";
 
 function normalizeCodexApiBaseUrlForMatch(rawValue?: string | null): string {

@@ -742,6 +742,26 @@ func TestApplyCodexHeadersDoesNotInjectClientOnlyHeadersByDefault(t *testing.T) 
 	}
 }
 
+func TestApplyCodexWebsocketHeadersPassesThroughAgtoolsDiagnosticHeaders(t *testing.T) {
+	ctx := contextWithGinHeaders(map[string]string{
+		"X-Agtools-Test-Run-Id":       "run-1",
+		"X-Agtools-Provider-Name-B64": "UHJvdmlkZXI=",
+		"X-Not-Agtools":               "drop-me",
+	})
+
+	headers := applyCodexWebsocketHeaders(ctx, http.Header{}, nil, "", nil)
+
+	if got := headers.Get("X-Agtools-Test-Run-Id"); got != "run-1" {
+		t.Fatalf("X-Agtools-Test-Run-Id = %q, want run-1", got)
+	}
+	if got := headers.Get("X-Agtools-Provider-Name-B64"); got != "UHJvdmlkZXI=" {
+		t.Fatalf("X-Agtools-Provider-Name-B64 = %q, want UHJvdmlkZXI=", got)
+	}
+	if got := headers.Get("X-Not-Agtools"); got != "" {
+		t.Fatalf("X-Not-Agtools = %q, want empty", got)
+	}
+}
+
 func contextWithGinHeaders(headers map[string]string) context.Context {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()

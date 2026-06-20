@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "Tùy chọn. Chỉ có thể chọn tài khoản OAuth có refresh_token. Khi chưa liên kết, dịch vụ API chạy theo luồng API Key cũ; sau khi liên kết, trạng thái đăng nhập dùng tài khoản OAuth và Provider dùng cấu hình dịch vụ API hiện tại.",
-        "currentService": "Dịch vụ API: {{name}}"
+        "currentService": "Dịch vụ API: {{name}}",
+        "imageGenerationTooltip": "Khi bật, dịch vụ API sẽ bỏ khai báo công cụ image_generation trong cổng cục bộ trước khi chuyển tiếp hội thoại văn bản; không xóa mô hình tạo ảnh.",
+        "imageGenerationConfirm": {
+          "title": "Tắt image_generation",
+          "message": "Khi bật, dịch vụ API sẽ bỏ khai báo công cụ image_generation trong cổng cục bộ trước khi chuyển tiếp hội thoại văn bản để tránh lỗi như \"Image generation is not enabled\". Không xóa gpt-image hay các mô hình tạo ảnh khác. Tiếp tục?"
+        }
       },
       "customRoutingEdit": "Sửa định tuyến tùy chỉnh",
       "customRoutingTitle": "Định tuyến tùy chỉnh",
@@ -2064,6 +2069,8 @@
       "resetCreditStatusUnknown": "Không rõ",
       "resetCreditNextExpiry": "Hết hạn gần nhất: {{time}}",
       "resetCreditDetailsTitle": "Chi tiết lượt đặt lại",
+      "resetCreditNoRecords": "Chưa có bản ghi đặt lại",
+      "resetCreditRecordsLoadFailed": "Không tải được bản ghi đặt lại: {{error}}",
       "resetCreditGrantedAt": "Được cấp",
       "resetCreditExpiresAt": "Hết hạn"
     },
@@ -2543,11 +2550,11 @@
         "clearAction": "Bỏ liên kết",
         "clearSuccess": "Đã bỏ liên kết OAuth.",
         "clearFailed": "Không thể bỏ liên kết OAuth: {{error}}",
-        "useLocalGateway": "Dung che do tuong thich gateway cuc bo",
-        "localGatewayTooltip": "Dinh tuyen yeu cau van ban thuong qua gateway cuc bo va go image_generation voi nha cung cap chua bat tao anh.",
+        "useLocalGateway": "Tắt image_generation",
+        "localGatewayTooltip": "Khi bật, hội thoại văn bản của API Key đã liên kết OAuth sẽ đi qua cổng cục bộ và bỏ image_generation trước khi chuyển tiếp; không xóa mô hình tạo ảnh.",
         "localGatewayConfirm": {
-          "title": "Bat che do tuong thich gateway cuc bo",
-          "message": "Khi bat, tai khoan API Key nay se dung gateway cuc bo khi lien ket OAuth: yeu cau van ban go image_generation, danh tinh OAuth van duoc giu. Tiep tuc?"
+          "title": "Tắt năng lực image_generation",
+          "message": "Khi bật, hội thoại văn bản thường của tài khoản API Key đã liên kết OAuth này sẽ đi qua cổng cục bộ, nơi khai báo công cụ image_generation được bỏ trước khi chuyển tiếp để tránh lỗi như \"Image generation is not enabled\". Không xóa gpt-image hay các mô hình tạo ảnh khác. Tiếp tục?"
         }
       }
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "Kiểm tra trạng thái dịch vụ nhà cung cấp, proxy hoặc khả năng tương thích API.",
         "checkModelsApi": "Xác nhận nhà cung cấp trả về danh sách mô hình tương thích OpenAI."
       },
+      "batchTest": {
+        "entry": "Kiểm tra tất cả",
+        "entryHint": "Kiểm tra hàng loạt năng lực chat thực của nhà cung cấp",
+        "selectedCount": "Đã chọn {{count}}",
+        "title": "Kiểm tra hàng loạt nhà cung cấp mô hình",
+        "selectTitle": "Chọn nhà cung cấp để kiểm tra",
+        "selectDesc": "Nhà cung cấp đã chọn được tạm nối vào gateway cục bộ để kiểm thử chat, rồi chuyển lên upstream theo giao thức của từng nhà cung cấp.",
+        "selectionSummary": "Đã chọn {{selected}} / có thể kiểm tra {{total}}",
+        "emptySelection": "Chọn ít nhất một nhà cung cấp có API Key.",
+        "noApiKey": "Không có API Key",
+        "gatewayProtocol": "Chat Completions · gateway",
+        "directProtocol": "Responses · gateway",
+        "start": "Bắt đầu kiểm tra",
+        "kicker": "Kiểm tra nhà cung cấp",
+        "resultsTitle": "Kết quả kiểm tra chat nhà cung cấp",
+        "totalCount": "{{count}} nhà cung cấp",
+        "progress": "Tiến độ kiểm tra",
+        "selectVisible": "Chọn mục đang hiển thị",
+        "resultSelectedCount": "Đã chọn {{count}}",
+        "selectFailed": "Chọn lỗi",
+        "deleteConfirm": "Xóa {{providerCount}} nhà cung cấp đã chọn? Thao tác này cũng xóa {{accountCount}} tài khoản Codex API Key được liên kết chính xác.",
+        "deleteSuccess": "Đã xóa {{providerCount}} nhà cung cấp và {{accountCount}} tài khoản liên kết.",
+        "deleteFailed": "Không thể xóa các mục đã chọn: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Mô hình đang chờ",
+        "promptLabel": "Lời nhắc",
+        "pendingDesc": "Đang chờ bắt đầu.",
+        "runningDesc": "Đang gửi yêu cầu chat.",
+        "noReply": "Upstream không trả về phản hồi đọc được.",
+        "unknownError": "Lỗi không xác định",
+        "status": {
+          "all": "Tất cả",
+          "success": "Thành công",
+          "error": "Thất bại",
+          "running": "Đang chạy",
+          "pending": "Đang chờ",
+          "completed": "Hoàn tất"
+        },
+        "officialClientOnlyError": "Nhà cung cấp này chỉ nhận yêu cầu từ ứng dụng Codex chính thức. Kiểm thử một lần bấm hiện dùng gateway cục bộ, nhưng upstream vẫn từ chối yêu cầu kiểm thử này. Hãy dựa vào hành vi khi chạy trong Codex chính thức."
+      },
       "enableAndStart": "Chạy",
       "instance": {
         "label": "Phiên bản",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "Tùy chọn. Có thể liên kết bất kỳ tài khoản OAuth nào có refresh_token. Nếu không liên kết, nhà cung cấp tiếp tục dùng luồng API Key gốc.",
         "currentProvider": "Nhà cung cấp: {{name}}"
+      },
+      "sort": {
+        "custom": "Thứ tự tùy chỉnh",
+        "customModalTitle": "Sắp xếp nhà cung cấp tùy chỉnh",
+        "customModalDesc": "Kéo nhà cung cấp hoặc dùng nút lên/xuống để chỉnh thứ tự hiển thị.",
+        "customDragHandle": "Kéo để sắp xếp",
+        "customMoveUp": "Chuyển lên",
+        "customMoveDown": "Chuyển xuống",
+        "customReset": "Đặt lại thứ tự"
       }
     },
     "quickSwitch": {

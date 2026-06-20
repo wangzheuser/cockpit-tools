@@ -1926,7 +1926,12 @@
       },
       "oauthBinding": {
         "desc": "İsteğe bağlı. Yalnızca refresh_token içeren OAuth hesapları seçilebilir. Bağlantı yoksa API hizmeti eski API Key akışıyla çalışır; bağlanınca oturum OAuth hesabını, Provider ise API hizmeti yapılandırmasını kullanır.",
-        "currentService": "API hizmeti: {{name}}"
+        "currentService": "API hizmeti: {{name}}",
+        "imageGenerationTooltip": "Açılınca API hizmeti, normal metin sohbetlerini iletmeden önce yerel ağ geçidinde image_generation araç bildirimini kaldırır; görsel modeller silinmez.",
+        "imageGenerationConfirm": {
+          "title": "image_generation kapat",
+          "message": "Açılınca API hizmeti, normal metin sohbetlerini iletmeden önce yerel ağ geçidinde image_generation araç bildirimini kaldırarak \"Image generation is not enabled\" gibi hataları önler. gpt-image ve diğer görsel modeller silinmez. Devam edilsin mi?"
+        }
       },
       "customRoutingEdit": "Özel yönlendirmeyi düzenle",
       "customRoutingTitle": "Özel yönlendirme",
@@ -2064,6 +2069,8 @@
       "resetCreditStatusUnknown": "Bilinmiyor",
       "resetCreditNextExpiry": "En yakın bitiş: {{time}}",
       "resetCreditDetailsTitle": "Sıfırlama ayrıntıları",
+      "resetCreditNoRecords": "Sıfırlama kaydı yok",
+      "resetCreditRecordsLoadFailed": "Sıfırlama kayıtları yüklenemedi: {{error}}",
       "resetCreditGrantedAt": "Verildi",
       "resetCreditExpiresAt": "Biter"
     },
@@ -2543,11 +2550,11 @@
         "clearAction": "Bağı kaldır",
         "clearSuccess": "OAuth bağlantısı kaldırıldı.",
         "clearFailed": "OAuth bağlantısı kaldırılamadı: {{error}}",
-        "useLocalGateway": "Yerel gateway uyumluluk modunu kullan",
-        "localGatewayTooltip": "Normal metin isteklerini yerel gateway uzerinden yonlendirir ve gorsel uretimi olmayan saglayicilarda image_generation alanini kaldirir.",
+        "useLocalGateway": "image_generation kapat",
+        "localGatewayTooltip": "Açılınca OAuth bağlı API Key metin sohbetleri yerel ağ geçidinden geçer; iletmeden önce image_generation araç bildirimi kaldırılır, görsel modeller silinmez.",
         "localGatewayConfirm": {
-          "title": "Yerel gateway uyumluluk modunu etkinlestir",
-          "message": "Etkinlestirilince bu API Key hesabi OAuth bagliyken yerel gateway uyumluluk modunu kullanir: metin istekleri image_generation alanini kaldirir, OAuth kimligi korunur. Devam edilsin mi?"
+          "title": "image_generation özelliğini kapat",
+          "message": "Açılınca bu OAuth bağlı API Key hesabının normal metin sohbetleri yerel ağ geçidinden geçer; iletmeden önce image_generation araç bildirimi kaldırılarak \"Image generation is not enabled\" gibi hatalar önlenir. gpt-image ve diğer görsel modeller silinmez. Devam edilsin mi?"
         }
       }
     },
@@ -2692,6 +2699,46 @@
         "checkProviderStatus": "Sağlayıcı servis durumunu, proxy’yi veya API uyumluluğunu kontrol edin.",
         "checkModelsApi": "Sağlayıcının OpenAI uyumlu model listesi yanıtı döndürdüğünü doğrulayın."
       },
+      "batchTest": {
+        "entry": "Tümünü test et",
+        "entryHint": "Sağlayıcıların gerçek sohbet yeteneğini toplu test et",
+        "selectedCount": "{{count}} seçildi",
+        "title": "Model Sağlayıcılarını Toplu Test Et",
+        "selectTitle": "Test edilecek sağlayıcıları seç",
+        "selectDesc": "Seçilen sağlayıcılar sohbet testi için geçici olarak yerel gateway’e bağlanır ve sağlayıcı protokolüne göre upstream’e iletilir.",
+        "selectionSummary": "{{selected}} seçildi / {{total}} test edilebilir",
+        "emptySelection": "API Key içeren en az bir sağlayıcı seçin.",
+        "noApiKey": "API Key yok",
+        "gatewayProtocol": "Chat Completions · gateway",
+        "directProtocol": "Responses · gateway",
+        "start": "Testi başlat",
+        "kicker": "Sağlayıcı testi",
+        "resultsTitle": "Sağlayıcı sohbet testi sonuçları",
+        "totalCount": "{{count}} sağlayıcı",
+        "progress": "Test ilerlemesi",
+        "selectVisible": "Görünenleri seç",
+        "resultSelectedCount": "{{count}} seçildi",
+        "selectFailed": "Başarısızları seç",
+        "deleteConfirm": "Seçili {{providerCount}} sağlayıcı silinsin mi? Tam olarak bağlı {{accountCount}} Codex API Key hesabı da silinecek.",
+        "deleteSuccess": "{{providerCount}} sağlayıcı ve {{accountCount}} bağlı hesap silindi.",
+        "deleteFailed": "Seçili öğeler silinemedi: {{error}}",
+        "protocolSummary": "{{protocol}} · {{mode}} · {{model}}",
+        "modelUnknown": "Model beklemede",
+        "promptLabel": "İstem",
+        "pendingDesc": "Başlamayı bekliyor.",
+        "runningDesc": "Sohbet isteği gönderiliyor.",
+        "noReply": "Upstream okunabilir bir yanıt döndürmedi.",
+        "unknownError": "Bilinmeyen hata",
+        "status": {
+          "all": "Tümü",
+          "success": "Başarılı",
+          "error": "Başarısız",
+          "running": "Çalışıyor",
+          "pending": "Bekliyor",
+          "completed": "Tamamlandı"
+        },
+        "officialClientOnlyError": "Bu sağlayıcı yalnızca resmi Codex istemcisinden gelen istekleri kabul eder. Tek tıkla test artık yerel gateway’i kullanıyor, ancak upstream bu test isteğini yine de reddetti. Esas sonucu resmi Codex istemcisinde başlattıktan sonra kontrol edin."
+      },
       "enableAndStart": "Başlat",
       "instance": {
         "label": "Başlatılacak örnek",
@@ -2766,6 +2813,15 @@
       "oauthBinding": {
         "desc": "İsteğe bağlı. refresh_token içeren herhangi bir OAuth hesabı bağlanabilir. Bağlantı yoksa sağlayıcı özgün API Key akışıyla çalışmaya devam eder.",
         "currentProvider": "Sağlayıcı: {{name}}"
+      },
+      "sort": {
+        "custom": "Özel sıra",
+        "customModalTitle": "Özel sağlayıcı sırası",
+        "customModalDesc": "Sağlayıcıları sürükleyin veya görüntü sırasını ayarlamak için yukarı/aşağı düğmelerini kullanın.",
+        "customDragHandle": "Sıralamak için sürükle",
+        "customMoveUp": "Yukarı taşı",
+        "customMoveDown": "Aşağı taşı",
+        "customReset": "Sıralamayı sıfırla"
       }
     },
     "quickSwitch": {
