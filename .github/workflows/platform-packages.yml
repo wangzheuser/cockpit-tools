@@ -362,8 +362,10 @@ jobs:
           rm -f platform-packages/test/dist/*.zip
           cp "${tmp_dir}"/*.zip platform-packages/test/dist/
           cp "${tmp_dir}/index.json" platform-packages/test/index.json
+          echo "Publishing $(find platform-packages/test/dist -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ') test platform package zip files."
 
-          git add platform-packages/test
+          git add platform-packages/test/index.json
+          git add -f platform-packages/test/dist/*.zip
           if git diff --cached --quiet; then
             echo "No test platform package changes to publish."
             exit 0
