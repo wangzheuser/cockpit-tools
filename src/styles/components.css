@@ -1695,6 +1695,18 @@
   transform: rotate(90deg);
 }
 
+.modal-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
+}
+
+.modal-close:disabled:hover {
+  background: transparent;
+  color: var(--text-secondary);
+  transform: none;
+}
+
 .modal-body {
   padding: 28px;
   overflow-y: auto;

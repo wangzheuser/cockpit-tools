@@ -21,6 +21,7 @@ import { getPlatformLabel } from '../utils/platformMeta';
 import './PlatformPackageToolbar.css';
 
 const PLATFORM_PACKAGE_PROGRESS_EVENT = 'platform-package://progress';
+const PLATFORM_PACKAGE_PROGRESS_LOCAL_EVENT = 'agtools:platform-package-progress';
 
 type PackageAction = PlatformPackageOperation;
 
@@ -251,6 +252,17 @@ function dispatchPlatformPackageChanged(state: PlatformPackageState) {
   );
 }
 
+function dispatchPlatformPackageProgress(payload: PlatformPackageProgressPayload) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.dispatchEvent(
+    new CustomEvent<PlatformPackageProgressPayload>(PLATFORM_PACKAGE_PROGRESS_LOCAL_EVENT, {
+      detail: payload,
+    }),
+  );
+}
+
 function getProgressPhaseText(phase: PlatformPackageProgressPhase, t: TFunction): string {
   switch (phase) {
     case 'resolving':
@@ -289,6 +301,17 @@ export function PlatformPackageOperationProgress({
     let unlisten: UnlistenFn | null = null;
 
     setProgress(null);
+
+    const handleLocalProgress = (event: Event) => {
+      const payload = (event as CustomEvent<PlatformPackageProgressPayload>).detail;
+      if (!payload || payload.platformId !== platformId || payload.operation !== operation) {
+        return;
+      }
+      setProgress(payload);
+    };
+
+    window.addEventListener(PLATFORM_PACKAGE_PROGRESS_LOCAL_EVENT, handleLocalProgress);
+
     void listen<PlatformPackageProgressPayload>(PLATFORM_PACKAGE_PROGRESS_EVENT, (event) => {
       const payload = event.payload;
       if (payload.platformId !== platformId || payload.operation !== operation) {
@@ -305,6 +328,7 @@ export function PlatformPackageOperationProgress({
 
     return () => {
       disposed = true;
+      window.removeEventListener(PLATFORM_PACKAGE_PROGRESS_LOCAL_EVENT, handleLocalProgress);
       if (unlisten) {
         unlisten();
       }
@@ -389,7 +413,7 @@ export function PlatformPackageToolbar({
 
   const runAction = useCallback(async (
     action: PackageAction,
-    options?: { requireRuntimeReady?: boolean },
+    options?: { requireRuntimeReady?: boolean; totalBytes?: number | null },
   ): Promise<PlatformPackageState> => {
     const key = `${platformId}:${action}`;
     const existing = actionPromisesRef.current.get(key);
@@ -400,6 +424,17 @@ export function PlatformPackageToolbar({
     const promise = (async () => {
       setActionKey(key);
       setOperationError(null);
+      if (action !== 'uninstall') {
+        dispatchPlatformPackageProgress({
+          platformId,
+          operation: action,
+          phase: 'resolving',
+          percent: 0,
+          downloadedBytes: null,
+          totalBytes: options?.totalBytes ?? null,
+          message: null,
+        });
+      }
       let nextState = action === 'install'
         ? await installPackage(platformId)
         : action === 'update'
@@ -423,11 +458,33 @@ export function PlatformPackageToolbar({
           nextState.errorMessage || t('platformLayout.packageInstallNotReady', '平台包已处理，但运行组件尚未就绪'),
         );
       }
+      if (action !== 'uninstall') {
+        dispatchPlatformPackageProgress({
+          platformId,
+          operation: action,
+          phase: 'completed',
+          percent: 100,
+          downloadedBytes: null,
+          totalBytes: options?.totalBytes ?? null,
+          message: null,
+        });
+      }
       return nextState;
     })()
       .catch((error) => {
         const message = error instanceof Error ? error.message : String(error);
         setOperationError(message);
+        if (action !== 'uninstall') {
+          dispatchPlatformPackageProgress({
+            platformId,
+            operation: action,
+            phase: 'failed',
+            percent: null,
+            downloadedBytes: null,
+            totalBytes: options?.totalBytes ?? null,
+            message,
+          });
+        }
         throw error;
       })
       .finally(() => {
@@ -530,7 +587,10 @@ export function PlatformPackageToolbar({
           label: actionLabel,
           variant: action === 'uninstall' ? 'danger' : 'primary',
           onClick: async () => {
-            await runAction(action, { requireRuntimeReady: action !== 'uninstall' });
+            await runAction(action, {
+              requireRuntimeReady: action !== 'uninstall',
+              totalBytes: platformPackage.downloadSizeBytes,
+            });
           },
         },
       ],
@@ -641,7 +701,10 @@ export function PlatformPackageToolbar({
           label: t('update_notification.updateNow', '立即更新'),
           variant: 'primary',
           onClick: async () => {
-            await runAction('update', { requireRuntimeReady: true });
+            await runAction('update', {
+              requireRuntimeReady: true,
+              totalBytes: platformPackage.downloadSizeBytes,
+            });
           },
         },
       ],

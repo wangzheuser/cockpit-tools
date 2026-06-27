@@ -7,46 +7,71 @@ pub fn list_platform_packages(app: AppHandle) -> Result<Vec<PlatformPackageState
 }
 
 #[tauri::command]
-pub fn check_platform_package_update(
+pub async fn check_platform_package_update(
     app: AppHandle,
     platform_id: String,
 ) -> Result<PlatformPackageState, String> {
-    platform_package::check_platform_package_update(&app, platform_id.as_str())
+    let app_for_task = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        platform_package::check_platform_package_update(&app_for_task, platform_id.as_str())
+    })
+    .await
+    .map_err(|err| format!("检查平台包更新任务失败: {}", err))?
 }
 
 #[tauri::command]
-pub fn prepare_platform_package_updates(
+pub async fn prepare_platform_package_updates(
     app: AppHandle,
 ) -> Result<Vec<PlatformPackageState>, String> {
-    platform_package::prepare_platform_package_updates(&app)
+    let app_for_task = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        platform_package::prepare_platform_package_updates(&app_for_task)
+    })
+    .await
+    .map_err(|err| format!("预准备平台包任务失败: {}", err))?
 }
 
 #[tauri::command]
-pub fn install_platform_package(
+pub async fn install_platform_package(
     app: AppHandle,
     platform_id: String,
 ) -> Result<PlatformPackageState, String> {
-    let state = platform_package::install_platform_package(&app, platform_id.as_str())?;
+    let app_for_task = app.clone();
+    let state = tauri::async_runtime::spawn_blocking(move || {
+        platform_package::install_platform_package(&app_for_task, platform_id.as_str())
+    })
+    .await
+    .map_err(|err| format!("安装平台包任务失败: {}", err))??;
     let _ = crate::modules::tray::update_tray_menu(&app);
     Ok(state)
 }
 
 #[tauri::command]
-pub fn update_platform_package(
+pub async fn update_platform_package(
     app: AppHandle,
     platform_id: String,
 ) -> Result<PlatformPackageState, String> {
-    let state = platform_package::update_platform_package(&app, platform_id.as_str())?;
+    let app_for_task = app.clone();
+    let state = tauri::async_runtime::spawn_blocking(move || {
+        platform_package::update_platform_package(&app_for_task, platform_id.as_str())
+    })
+    .await
+    .map_err(|err| format!("更新平台包任务失败: {}", err))??;
     let _ = crate::modules::tray::update_tray_menu(&app);
     Ok(state)
 }
 
 #[tauri::command]
-pub fn uninstall_platform_package(
+pub async fn uninstall_platform_package(
     app: AppHandle,
     platform_id: String,
 ) -> Result<PlatformPackageState, String> {
-    let state = platform_package::uninstall_platform_package(Some(&app), platform_id.as_str())?;
+    let app_for_task = app.clone();
+    let state = tauri::async_runtime::spawn_blocking(move || {
+        platform_package::uninstall_platform_package(Some(&app_for_task), platform_id.as_str())
+    })
+    .await
+    .map_err(|err| format!("卸载平台包任务失败: {}", err))??;
     let _ = crate::modules::tray::update_tray_menu(&app);
     Ok(state)
 }
