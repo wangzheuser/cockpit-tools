@@ -9,6 +9,7 @@ use cockpit_core::modules::{
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -28,6 +29,10 @@ const OAUTH_CALLBACK_PATH: &str = "/oauth-callback";
 const MAX_HTTP_REQUEST_BYTES: usize = 32 * 1024;
 const REQUEST_READ_TIMEOUT: Duration = Duration::from_secs(5);
 const OAUTH_FLOW_WAIT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+const RUNTIME_CURRENT_ACCOUNTS_FILE: &str = "antigravity_runtime_current_accounts.json";
+
+static RUNTIME_CURRENT_ACCOUNT_LOCK: std::sync::LazyLock<Mutex<()>> =
+    std::sync::LazyLock::new(|| Mutex::new(()));
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RuntimeTarget {
@@ -64,6 +69,13 @@ struct RpcResponse {
 struct HostEventResponse {
     ok: bool,
     error: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RuntimeCurrentAccountsState {
+    #[serde(default)]
+    current_accounts: HashMap<String, String>,
 }
 
 struct OAuthFlowState {
@@ -276,6 +288,169 @@ fn runtime_label(target: RuntimeTarget) -> &'static str {
         RuntimeTarget::Legacy => "Antigravity",
         RuntimeTarget::Ide => "Antigravity IDE",
     }
+}
+
+fn runtime_target_key(target: RuntimeTarget) -> &'static str {
+    match target {
+        RuntimeTarget::Legacy => "antigravity",
+        RuntimeTarget::Ide => "antigravity_ide",
+    }
+}
+
+fn all_runtime_targets() -> [RuntimeTarget; 2] {
+    [RuntimeTarget::Legacy, RuntimeTarget::Ide]
+}
+
+fn runtime_current_accounts_path() -> Result<PathBuf, String> {
+    Ok(account::get_data_dir()?.join(RUNTIME_CURRENT_ACCOUNTS_FILE))
+}
+
+fn load_runtime_current_accounts_state() -> Result<RuntimeCurrentAccountsState, String> {
+    let path = runtime_current_accounts_path()?;
+    if !path.exists() {
+        return Ok(RuntimeCurrentAccountsState::default());
+    }
+    let content = std::fs::read_to_string(&path)
+        .map_err(|error| format!("读取 Antigravity 当前账号索引失败: {}", error))?;
+    if content.trim().is_empty() {
+        return Ok(RuntimeCurrentAccountsState::default());
+    }
+    serde_json::from_str(&content)
+        .map_err(|error| format!("解析 Antigravity 当前账号索引失败: {}", error))
+}
+
+fn save_runtime_current_accounts_state(state: &RuntimeCurrentAccountsState) -> Result<(), String> {
+    let path = runtime_current_accounts_path()?;
+    let content = serde_json::to_string_pretty(state)
+        .map_err(|error| format!("序列化 Antigravity 当前账号索引失败: {}", error))?;
+    std::fs::write(path, content)
+        .map_err(|error| format!("写入 Antigravity 当前账号索引失败: {}", error))
+}
+
+fn account_id_exists(account_id: &str) -> bool {
+    account::load_account(account_id).is_ok()
+}
+
+fn resolve_local_account_id_for_target(target: RuntimeTarget) -> Option<String> {
+    match target {
+        RuntimeTarget::Legacy => resolve_legacy_local_account_id(),
+        RuntimeTarget::Ide => resolve_ide_local_account_id(),
+    }
+}
+
+fn store_current_account_id_for_target_only(
+    target: RuntimeTarget,
+    account_id: &str,
+) -> Result<(), String> {
+    account::load_account(account_id)?;
+    let _lock = RUNTIME_CURRENT_ACCOUNT_LOCK
+        .lock()
+        .map_err(|error| format!("获取 Antigravity 当前账号锁失败: {}", error))?;
+    let mut state = load_runtime_current_accounts_state()?;
+    state.current_accounts.insert(
+        runtime_target_key(target).to_string(),
+        account_id.to_string(),
+    );
+    save_runtime_current_accounts_state(&state)
+}
+
+fn initialize_missing_runtime_current_accounts(exclude_target: RuntimeTarget) {
+    let legacy_global_current = account::get_current_account_id().ok().flatten();
+    let Ok(_lock) = RUNTIME_CURRENT_ACCOUNT_LOCK.lock() else {
+        return;
+    };
+    let Ok(mut state) = load_runtime_current_accounts_state() else {
+        return;
+    };
+    let mut changed = false;
+
+    for target in all_runtime_targets() {
+        if target == exclude_target {
+            continue;
+        }
+        let key = runtime_target_key(target);
+        let existing = state
+            .current_accounts
+            .get(key)
+            .filter(|account_id| account_id_exists(account_id));
+        if existing.is_some() {
+            continue;
+        }
+        let fallback = resolve_local_account_id_for_target(target)
+            .or_else(|| legacy_global_current.clone())
+            .filter(|account_id| account_id_exists(account_id));
+        if let Some(account_id) = fallback {
+            state.current_accounts.insert(key.to_string(), account_id);
+            changed = true;
+        }
+    }
+
+    if changed {
+        let _ = save_runtime_current_accounts_state(&state);
+    }
+}
+
+fn set_current_account_id_for_target(
+    target: RuntimeTarget,
+    account_id: &str,
+) -> Result<(), String> {
+    initialize_missing_runtime_current_accounts(target);
+    store_current_account_id_for_target_only(target, account_id)?;
+    account::set_current_account_id(account_id)
+}
+
+fn get_current_account_id_for_target(target: RuntimeTarget) -> Result<Option<String>, String> {
+    let key = runtime_target_key(target);
+    {
+        let _lock = RUNTIME_CURRENT_ACCOUNT_LOCK
+            .lock()
+            .map_err(|error| format!("获取 Antigravity 当前账号锁失败: {}", error))?;
+        let mut state = load_runtime_current_accounts_state()?;
+        if let Some(account_id) = state.current_accounts.get(key).cloned() {
+            if account_id_exists(&account_id) {
+                return Ok(Some(account_id));
+            }
+            state.current_accounts.remove(key);
+            let _ = save_runtime_current_accounts_state(&state);
+        }
+    }
+
+    let fallback = resolve_local_account_id_for_target(target)
+        .or_else(|| account::get_current_account_id().ok().flatten())
+        .filter(|account_id| account_id_exists(account_id));
+    if let Some(account_id) = fallback.as_deref() {
+        let _ = store_current_account_id_for_target_only(target, account_id);
+    }
+    Ok(fallback)
+}
+
+fn get_current_account_for_target(target: RuntimeTarget) -> Result<Option<Account>, String> {
+    let Some(account_id) = get_current_account_id_for_target(target)? else {
+        return Ok(None);
+    };
+    let mut account = account::load_account(&account_id)?;
+    let _ = modules::quota_cache::apply_cached_quota(&mut account, "authorized");
+    Ok(Some(account))
+}
+
+fn clear_runtime_current_account_ids(account_ids: &[String]) -> Result<(), String> {
+    if account_ids.is_empty() {
+        return Ok(());
+    }
+    let _lock = RUNTIME_CURRENT_ACCOUNT_LOCK
+        .lock()
+        .map_err(|error| format!("获取 Antigravity 当前账号锁失败: {}", error))?;
+    let mut state = load_runtime_current_accounts_state()?;
+    let original_len = state.current_accounts.len();
+    state.current_accounts.retain(|_, current_id| {
+        !account_ids
+            .iter()
+            .any(|account_id| account_id == current_id)
+    });
+    if state.current_accounts.len() != original_len {
+        save_runtime_current_accounts_state(&state)?;
+    }
+    Ok(())
 }
 
 fn json_header() -> Header {
@@ -851,8 +1026,9 @@ fn resolve_default_account_id(
     }
     match target {
         RuntimeTarget::Legacy => resolve_legacy_local_account_id()
-            .or_else(|| account::get_current_account_id().ok().flatten()),
-        RuntimeTarget::Ide => resolve_ide_local_account_id(),
+            .or_else(|| get_current_account_id_for_target(target).ok().flatten()),
+        RuntimeTarget::Ide => resolve_ide_local_account_id()
+            .or_else(|| get_current_account_id_for_target(target).ok().flatten()),
     }
 }
 
@@ -1173,7 +1349,7 @@ fn switch_account_restart(
     ));
     ensure_launch_path(target)?;
     let mut account = runtime.block_on(account::prepare_account_for_injection(&account_id))?;
-    account::set_current_account_id(&account_id)?;
+    set_current_account_id_for_target(target, &account_id)?;
     account.update_last_used();
     account::save_account(&account)?;
     if let Err(error) =
@@ -1213,13 +1389,16 @@ fn switch_account(payload: Value, runtime: &Runtime) -> Result<Value, String> {
     if target == RuntimeTarget::Ide
         && modules::config::get_user_config().antigravity_dual_switch_no_restart_enabled
     {
-        return to_value(runtime.block_on(account::switch_account_dual_no_restart(
+        initialize_missing_runtime_current_accounts(target);
+        let account = runtime.block_on(account::switch_account_dual_no_restart(
             &payload.account_id,
             "manual",
             "tools.account.switch",
             "dual_no_restart",
             None,
-        ))?);
+        ))?;
+        store_current_account_id_for_target_only(target, &account.id)?;
+        return to_value(account);
     }
     to_value(switch_account_restart(target, payload.account_id, runtime)?)
 }
@@ -1518,7 +1697,8 @@ fn add_account_with_refresh_token(payload: Value, runtime: &Runtime) -> Result<V
 }
 
 fn refresh_current_quota(runtime: &Runtime) -> Result<Value, String> {
-    let Some(mut current_account) = account::get_current_account()? else {
+    let target = runtime_target();
+    let Some(mut current_account) = get_current_account_for_target(target)? else {
         return Err("未找到当前账号".to_string());
     };
     let account_id = current_account.id.clone();
@@ -1532,6 +1712,7 @@ fn refresh_current_quota(runtime: &Runtime) -> Result<Value, String> {
 
     let switched = match runtime.block_on(account::run_auto_switch_if_needed()) {
         Ok(Some(account)) => {
+            let _ = store_current_account_id_for_target_only(target, &account.id);
             logger::log_info(&format!(
                 "[AntigravityAdapter][AutoSwitch] 当前账号刷新后自动切号完成: {}",
                 account.email
@@ -1580,22 +1761,24 @@ fn handle_rpc(runtime: &Runtime, request: RpcRequest) -> Result<Value, String> {
         })),
         "adapter.shutdown" => Ok(Value::Null),
         "accounts.list" => to_value(account::list_accounts()?),
-        "accounts.current" => to_value(account::get_current_account()?),
-        "accounts.currentId" => to_value(account::get_current_account_id()?),
+        "accounts.current" => to_value(get_current_account_for_target(target)?),
+        "accounts.currentId" => to_value(get_current_account_id_for_target(target)?),
         "accounts.addRefreshToken" => add_account_with_refresh_token(request.payload, runtime),
         "accounts.setCurrent" => {
             let payload: AccountIdPayload = parse_payload(request.payload)?;
-            account::set_current_account_id(&payload.account_id)?;
+            set_current_account_id_for_target(target, &payload.account_id)?;
             Ok(Value::Null)
         }
         "accounts.delete" => {
             let payload: AccountIdPayload = parse_payload(request.payload)?;
             account::delete_account(&payload.account_id)?;
+            clear_runtime_current_account_ids(&[payload.account_id])?;
             Ok(Value::Null)
         }
         "accounts.deleteMany" => {
             let payload: AccountIdsPayload = parse_payload(request.payload)?;
             account::delete_accounts(&payload.account_ids)?;
+            clear_runtime_current_account_ids(&payload.account_ids)?;
             Ok(Value::Null)
         }
         "accounts.reorder" => {

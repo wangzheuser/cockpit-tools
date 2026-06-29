@@ -94,10 +94,8 @@ import { TraeIcon } from '../components/icons/TraeIcon';
 import { WorkbuddyIcon } from '../components/icons/WorkbuddyIcon';
 import { PlatformId, PLATFORM_PAGE_MAP } from '../types/platform';
 import { getPlatformLabel, renderPlatformIcon } from '../utils/platformMeta';
-import {
-  getAntigravityRuntimeTarget,
-  setAntigravityRuntimeTargetFromPlatform,
-} from '../utils/antigravityRuntimeTarget';
+import { setAntigravityRuntimeTargetFromPlatform } from '../utils/antigravityRuntimeTarget';
+import { useAntigravityRuntimeTarget } from '../hooks/useAntigravityRuntimeTarget';
 import { ManualHelpIconButton } from '../components/ManualHelpIconButton';
 import { AnnouncementCenter } from '../components/AnnouncementCenter';
 import { isPrivacyModeEnabledByDefault, maskSensitiveValue } from '../utils/privacy';
@@ -231,6 +229,7 @@ export function DashboardPage({
   topCenterBanner,
 }: DashboardPageProps) {
   const { t } = useTranslation();
+  const antigravityRuntimeTarget = useAntigravityRuntimeTarget();
 
   const [tagModalState, setTagModalState] = React.useState<{ accountId: string; platform: PlatformId | 'codebuddy_cn'; tags: string[] } | null>(null);
   const [dashboardCardCollapse, setDashboardCardCollapse] = React.useState<DashboardCardCollapseState>({
@@ -413,7 +412,7 @@ export function DashboardPage({
   // Antigravity Data
   const {
     accounts: agAccounts,
-    currentAccount: agCurrent,
+    currentAccountsByTarget: agCurrentAccountsByTarget,
     switchAccount: switchAgAccount,
     fetchAccounts: fetchAgAccounts,
     fetchCurrentAccount: fetchAgCurrent
@@ -596,6 +595,7 @@ export function DashboardPage({
   );
   const activeCodexCurrent = codexRuntimeReady ? codexCurrent : null;
 
+  const agCurrent = agCurrentAccountsByTarget[antigravityRuntimeTarget] ?? null;
   const agCurrentId = agCurrent?.id;
   const codexCurrentId = activeCodexCurrent?.id;
 
@@ -630,7 +630,7 @@ export function DashboardPage({
     };
 
     // 首屏优先：先拉 Antigravity 数据，其它平台延后，避免启动期并发请求过多。
-    void Promise.allSettled([fetchAgAccounts(), fetchAgCurrent()]);
+    void Promise.allSettled([fetchAgAccounts(), fetchAgCurrent(antigravityRuntimeTarget)]);
     loadDisplayGroups();
 
     const deferredTasks: Array<() => Promise<unknown>> = [
@@ -763,6 +763,10 @@ export function DashboardPage({
     };
   }, []);
 
+  React.useEffect(() => {
+    void fetchAgCurrent(antigravityRuntimeTarget);
+  }, [antigravityRuntimeTarget, fetchAgCurrent]);
+
   // Statistics
   const stats = useMemo(() => {
     return {
@@ -872,7 +876,7 @@ export function DashboardPage({
     if (refreshing.has(accountId)) return;
     setRefreshing(prev => new Set(prev).add(accountId));
     try {
-      await useAccountStore.getState().refreshQuota(accountId);
+      await useAccountStore.getState().refreshQuota(accountId, antigravityRuntimeTarget);
     } catch (error) {
       console.error('Refresh failed:', error);
     } finally {
@@ -1061,7 +1065,7 @@ export function DashboardPage({
     const idsToRefresh = Array.from(new Set([agCurrentAccount?.id, agRecommended?.id].filter(Boolean))) as string[];
     try {
       for (const id of idsToRefresh) {
-        await useAccountStore.getState().refreshQuota(id);
+        await useAccountStore.getState().refreshQuota(id, antigravityRuntimeTarget);
       }
     } catch (error) {
       console.error('Card refresh failed:', error);
@@ -2269,7 +2273,7 @@ export function DashboardPage({
           </button>
           <button
             className="mini-icon-btn"
-            onClick={() => switchAgAccount(account.id)}
+            onClick={() => switchAgAccount(account.id, antigravityRuntimeTarget)}
             title={t('dashboard.switch', '切换')}
           >
             <Play size={14} />
@@ -2742,8 +2746,8 @@ export function DashboardPage({
   const renderPlatformCard = (platformId: PlatformId) => {
     const packageStatus = getPackageEntryStatus(platformId);
 
-    if (platformId === 'antigravity') {
-      const antigravityPlatformId = getAntigravityRuntimeTarget();
+  if (platformId === 'antigravity') {
+      const antigravityPlatformId = antigravityRuntimeTarget;
       const antigravityPackageStatus = getPackageEntryStatus(antigravityPlatformId);
       return (
         <div className="main-card antigravity-card" key={platformId}>

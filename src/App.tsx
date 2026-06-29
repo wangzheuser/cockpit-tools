@@ -2975,9 +2975,13 @@ function MainApp() {
           runtimeTarget: retry.runtimeTarget,
         });
         if (!isAppPathMissingSessionActive(session)) return;
+        const runtimeTarget =
+          retry.runtimeTarget === 'antigravity' || retry.runtimeTarget === 'antigravity_ide'
+            ? retry.runtimeTarget
+            : undefined;
         await Promise.allSettled([
           useAccountStore.getState().fetchAccounts(),
-          useAccountStore.getState().fetchCurrentAccount(),
+          useAccountStore.getState().fetchCurrentAccount(runtimeTarget),
         ]);
         if (!isAppPathMissingSessionActive(session)) return;
       } else if (retry?.kind === 'instance' && retry.instanceId) {

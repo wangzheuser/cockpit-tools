@@ -37,6 +37,7 @@ import {
 import { ModalErrorMessage, useModalErrorState } from '../components/ModalErrorMessage';
 import { useEscClose } from '../hooks/useEscClose';
 import { OverviewTabsHeader } from '../components/OverviewTabsHeader';
+import { useAntigravityRuntimeTarget } from '../hooks/useAntigravityRuntimeTarget';
 
 const TASKS_STORAGE_KEY = 'agtools.wakeup.tasks';
 const WAKEUP_ENABLED_KEY = 'agtools.wakeup.enabled';
@@ -662,7 +663,9 @@ const getTriggerMode = (task: WakeupTask): TriggerMode => {
 
 export function WakeupTasksPage({ onNavigate, hideHeader = false }: WakeupPageProps) {
   const { t, i18n } = useTranslation();
-  const { accounts, currentAccount, fetchAccounts, fetchCurrentAccount } = useAccountStore();
+  const antigravityRuntimeTarget = useAntigravityRuntimeTarget();
+  const { accounts, currentAccountsByTarget, fetchAccounts, fetchCurrentAccount } = useAccountStore();
+  const currentAccount = currentAccountsByTarget[antigravityRuntimeTarget] ?? null;
   const locale = i18n.language || 'zh-CN';
   const [tasks, setTasks] = useState<WakeupTask[]>(() => loadTasks(t('wakeup.defaultTaskName')));
   const [wakeupEnabled, setWakeupEnabled] = useState(() => {
@@ -1016,8 +1019,8 @@ export function WakeupTasksPage({ onNavigate, hideHeader = false }: WakeupPagePr
 
   useEffect(() => {
     fetchAccounts();
-    fetchCurrentAccount();
-  }, [fetchAccounts, fetchCurrentAccount]);
+    fetchCurrentAccount(antigravityRuntimeTarget);
+  }, [antigravityRuntimeTarget, fetchAccounts, fetchCurrentAccount]);
 
   useEffect(() => {
     const syncMode = () => {

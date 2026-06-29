@@ -117,13 +117,22 @@ pub async fn reorder_accounts(account_ids: Vec<String>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn get_current_account() -> Result<Option<models::Account>, String> {
-    call_antigravity_account_adapter("accounts.current", json!({}))
+pub async fn get_current_account(
+    runtime_target: Option<String>,
+) -> Result<Option<models::Account>, String> {
+    let runtime_target = normalize_antigravity_runtime_target(runtime_target.as_deref());
+    call_antigravity_account_adapter_for_target(runtime_target, "accounts.current", json!({}))
 }
 
 #[tauri::command]
-pub async fn set_current_account(app: tauri::AppHandle, account_id: String) -> Result<(), String> {
-    call_antigravity_account_adapter::<()>(
+pub async fn set_current_account(
+    app: tauri::AppHandle,
+    account_id: String,
+    runtime_target: Option<String>,
+) -> Result<(), String> {
+    let runtime_target = normalize_antigravity_runtime_target(runtime_target.as_deref());
+    call_antigravity_account_adapter_for_target::<()>(
+        runtime_target,
         "accounts.setCurrent",
         json!({ "accountId": account_id }),
     )?;

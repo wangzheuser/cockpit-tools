@@ -225,7 +225,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
   const untaggedKey = '__untagged__'
   const {
     accounts,
-    currentAccount,
+    currentAccountsByTarget,
     loading,
     error: storeError,
     fetchAccounts,
@@ -237,6 +237,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
     switchAccount,
     updateAccountTags
   } = useAccountStore()
+  const currentAccount = currentAccountsByTarget[antigravityRuntimeTarget] ?? null
 
   const formatSwitchError = useCallback((error: unknown) => String(error), [])
 
@@ -1214,7 +1215,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
 
   useEffect(() => {
     fetchAccounts()
-    fetchCurrentAccount()
+    fetchCurrentAccount(antigravityRuntimeTarget)
     loadDisplayGroups()
     loadVerificationHistory()
 
@@ -1222,14 +1223,14 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
 
     listen<string>('accounts:refresh', async () => {
       await fetchAccounts()
-      await fetchCurrentAccount()
+      await fetchCurrentAccount(antigravityRuntimeTarget)
       const latestAccounts = useAccountStore.getState().accounts
       const accountsWithoutQuota = latestAccounts.filter(
         (acc) => !acc.quota?.models?.length
       )
       if (accountsWithoutQuota.length > 0) {
         await Promise.allSettled(
-          accountsWithoutQuota.map((acc) => refreshQuota(acc.id))
+          accountsWithoutQuota.map((acc) => refreshQuota(acc.id, antigravityRuntimeTarget))
         )
         await fetchAccounts()
       }
@@ -1241,7 +1242,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
     return () => {
       if (unlisten) unlisten()
     }
-  }, [fetchAccounts, fetchCurrentAccount, loadVerificationHistory, refreshQuota])
+  }, [antigravityRuntimeTarget, fetchAccounts, fetchCurrentAccount, loadVerificationHistory, refreshQuota])
 
   // Click outside to close color picker
   useEffect(() => {
@@ -1284,7 +1285,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
       try {
         const newAccount = await accountService.completeOAuthLogin()
         await fetchAccounts()
-        await fetchCurrentAccount()
+        await fetchCurrentAccount(antigravityRuntimeTarget)
         // 如果在文件夹内添加，自动归入当前文件夹
         if (activeGroupIdRef.current && newAccount?.id) {
           await assignAccountsToGroup(activeGroupIdRef.current, [newAccount.id])
@@ -1310,7 +1311,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
       if (unlistenUrl) unlistenUrl()
       if (unlistenCallback) unlistenCallback()
     }
-  }, [fetchAccounts, fetchCurrentAccount])
+  }, [antigravityRuntimeTarget, fetchAccounts, fetchCurrentAccount])
 
   useEffect(() => {
     if (!showAddModal || addTab !== 'oauth' || oauthUrl) return
@@ -1345,7 +1346,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
   const handleRefresh = async (accountId: string) => {
     setRefreshing((prev) => new Set(prev).add(accountId))
     try {
-      await refreshQuota(accountId)
+      await refreshQuota(accountId, antigravityRuntimeTarget)
       setRefreshResult((prev) => ({ ...prev, [accountId]: 'success' }))
       setTimeout(() => setRefreshResult((prev) => { const next = { ...prev }; delete next[accountId]; return next }), 2000)
     } catch (e) {
@@ -1366,7 +1367,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
         const groupAccountIds = new Set(activeGroup.accountIds)
         const groupAccounts = accounts.filter((acc) => groupAccountIds.has(acc.id))
         await Promise.allSettled(
-          groupAccounts.map((acc) => refreshQuota(acc.id))
+          groupAccounts.map((acc) => refreshQuota(acc.id, antigravityRuntimeTarget))
         )
       } else {
         const stats = await refreshAllQuotas()
@@ -1516,7 +1517,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
     await runModalAction(t('modals.import.oauthAction'), async () => {
       await startOAuthLogin()
       await fetchAccounts()
-      await fetchCurrentAccount()
+      await fetchCurrentAccount(antigravityRuntimeTarget)
     })
   }
 
@@ -1524,7 +1525,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
     await runModalAction(t('modals.import.oauthAction'), async () => {
       await accountService.completeOAuthLogin()
       await fetchAccounts()
-      await fetchCurrentAccount()
+      await fetchCurrentAccount(antigravityRuntimeTarget)
     })
   }
 
@@ -1533,7 +1534,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
     setSwitching(accountId)
     try {
       const account = await switchAccount(accountId, antigravityRuntimeTarget)
-      await fetchCurrentAccount()
+      await fetchCurrentAccount(antigravityRuntimeTarget)
       setMessage({ text: t('messages.switched', { email: maskAccountText(account.email) }) })
     } catch (e) {
       const raw = formatSwitchError(e)
@@ -1699,7 +1700,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
     try {
       const imported = await accountService.importFromOldTools()
       await fetchAccounts()
-      await Promise.allSettled(imported.map((acc) => refreshQuota(acc.id)))
+      await Promise.allSettled(imported.map((acc) => refreshQuota(acc.id, antigravityRuntimeTarget)))
       await fetchAccounts()
       if (imported.length === 0) {
         setAddStatus('error')
@@ -1728,7 +1729,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
       await fetchAccounts()
       await new Promise((resolve) => setTimeout(resolve, 180))
       await fetchAccounts()
-      await refreshQuota(imported.id)
+      await refreshQuota(imported.id, antigravityRuntimeTarget)
       await fetchAccounts()
       setAddStatus('success')
       setAddMessage(
@@ -1772,7 +1773,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
       const result = await accountService.importFromFiles(paths)
       const { imported, failed } = result
       await fetchAccounts()
-      await Promise.allSettled(imported.map((acc) => refreshQuota(acc.id)))
+      await Promise.allSettled(imported.map((acc) => refreshQuota(acc.id, antigravityRuntimeTarget)))
       await fetchAccounts()
       if (imported.length === 0 && failed.length === 0) {
         setAddStatus('error')
@@ -1827,7 +1828,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
       )
       const count = await accountService.syncFromExtension()
       await fetchAccounts()
-      await fetchCurrentAccount()
+      await fetchCurrentAccount(antigravityRuntimeTarget)
       if (count === 0) {
         setAddStatus('error')
         setAddMessage(t('modals.import.noAccountsFound'))
@@ -1932,7 +1933,7 @@ export function AccountsPage({ onNavigate, hideHeader = false }: AccountsPagePro
 
     if (importedAccounts.length > 0) {
       await Promise.allSettled(
-        importedAccounts.map((acc) => refreshQuota(acc.id))
+        importedAccounts.map((acc) => refreshQuota(acc.id, antigravityRuntimeTarget))
       )
       await fetchAccounts()
       // 如果在文件夹内添加，自动归入当前文件夹
