@@ -4,10 +4,10 @@ use cockpit_core::modules::{
     process, vscode_inject,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tiny_http::{Header, Method, Response, Server, StatusCode};
 use tokio::runtime::Runtime;
@@ -43,6 +43,8 @@ struct RpcResponse {
 #[serde(rename_all = "camelCase")]
 struct AccountIdPayload {
     account_id: String,
+    #[serde(default)]
+    launch_default_instance: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -566,7 +568,11 @@ fn switch_inject(payload: Value) -> Result<Value, String> {
         let _ = process::start_opencode_with_path(Some(&user_config.opencode_app_path));
     }
 
-    if !user_config.ghcp_launch_on_switch {
+    let should_launch_default_instance = payload
+        .launch_default_instance
+        .unwrap_or(user_config.ghcp_launch_on_switch);
+
+    if !should_launch_default_instance {
         return to_value(SwitchResult {
             message: format!("切换完成: {}", account.github_login),
             restart_error: None,

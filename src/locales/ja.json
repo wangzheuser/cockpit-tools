@@ -382,6 +382,7 @@
     "packageDownloadSourceMissing": "このシステムで利用できるプラットフォームパッケージの配布元がありません。後で更新を確認するか、対応するインストーラーを使用してください。",
     "packageDownloadVerifyFailed": "プラットフォームパッケージの検証に失敗しました。再ダウンロードしてください。失敗が続く場合は、パッケージの再公開をお待ちください。",
     "packageOperationFailedFriendly": "プラットフォームパッケージの処理に失敗しました。しばらくしてから再試行してください。",
+    "packageOperationCanceled": "プラットフォームパッケージの処理をキャンセルしました。",
     "packageOperationRetryHint": "下のボタンで再試行できます。",
     "packagePageRepairTitle": "{{platform}} パッケージの修復が必要です",
     "packagePageInstallTitle": "{{platform}} パッケージは未インストールです",

@@ -53,6 +53,11 @@ const SOURCE_MISSING_ERROR_TOKENS = [
   'missing artifact',
   'no artifact',
 ];
+const PACKAGE_OPERATION_CANCELLED_TOKENS = [
+  '平台包操作已取消',
+  'platform package operation cancelled',
+  'platform package operation canceled',
+];
 
 type PackageAction = PlatformPackageOperation;
 
@@ -532,6 +537,11 @@ function isPackageVerifyError(message: string): boolean {
     || normalized.includes('校验失败');
 }
 
+function isPackageOperationCancelled(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return PACKAGE_OPERATION_CANCELLED_TOKENS.some((token) => normalized.includes(token));
+}
+
 export function formatPlatformPackageOperationError(
   error: unknown,
   t: TFunction,
@@ -542,7 +552,9 @@ export function formatPlatformPackageOperationError(
   const retryable = isRetryablePackageError(detail);
   let summary: string;
 
-  if (retryable) {
+  if (isPackageOperationCancelled(detail)) {
+    summary = t('platformLayout.packageOperationCanceled', '已取消平台包操作。');
+  } else if (retryable) {
     summary = t(
       'platformLayout.packageDownloadFailedRetryable',
       '平台包下载失败，可能是网络或代理暂时不可用。请检查网络后重试。',
@@ -722,6 +734,7 @@ export function PlatformPackageToolbar({
   const updatePackage = usePlatformPackageStore((state) => state.updatePackage);
   const reloadPackage = usePlatformPackageStore((state) => state.reloadPackage);
   const uninstallPackage = usePlatformPackageStore((state) => state.uninstallPackage);
+  const cancelOperation = usePlatformPackageStore((state) => state.cancelOperation);
   const refreshPackages = usePlatformPackageStore((state) => state.refresh);
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
@@ -729,6 +742,37 @@ export function PlatformPackageToolbar({
   const [localReloadEnabled, setLocalReloadEnabled] = useState(false);
   const actionPromisesRef = useRef<Map<string, Promise<PlatformPackageState>>>(new Map());
   const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const requestCancelOperation = useCallback(async () => {
+    await cancelOperation(platformId);
+    dispatchPlatformPackageProgress({
+      platformId,
+      operation: 'install',
+      phase: 'failed',
+      percent: null,
+      downloadedBytes: null,
+      totalBytes: null,
+      message: t('platformLayout.packageOperationCanceled', '已取消平台包操作。'),
+    });
+    dispatchPlatformPackageProgress({
+      platformId,
+      operation: 'update',
+      phase: 'failed',
+      percent: null,
+      downloadedBytes: null,
+      totalBytes: null,
+      message: t('platformLayout.packageOperationCanceled', '已取消平台包操作。'),
+    });
+    dispatchPlatformPackageProgress({
+      platformId,
+      operation: 'uninstall',
+      phase: 'failed',
+      percent: null,
+      downloadedBytes: null,
+      totalBytes: null,
+      message: t('platformLayout.packageOperationCanceled', '已取消平台包操作。'),
+    });
+  }, [cancelOperation, platformId, t]);
 
   const platformPackage = useMemo(
     () => getPlatformPackageFromPackages(packages, platformId) ?? fallbackState ?? null,
@@ -1046,6 +1090,8 @@ export function PlatformPackageToolbar({
     showModal({
       title,
       description,
+      allowCloseWhilePending: true,
+      onPendingClose: requestCancelOperation,
       content: (
         <PlatformPackageOperationProgress
           platformId={platformId}
@@ -1059,22 +1105,24 @@ export function PlatformPackageToolbar({
           id: 'cancel',
           label: t('common.cancel', '取消'),
           variant: 'secondary',
+          allowWhilePending: true,
+          onClick: requestCancelOperation,
         },
-          {
-            id: `platform-package-${action}`,
-            label: actionLabel,
-            variant: action === 'uninstall' ? 'danger' : 'primary',
-            suppressError: true,
-            onClick: async () => {
-              await runAction(action, {
-                requireRuntimeReady: action !== 'uninstall',
+        {
+          id: `platform-package-${action}`,
+          label: actionLabel,
+          variant: action === 'uninstall' ? 'danger' : 'primary',
+          suppressError: true,
+          onClick: async () => {
+            await runAction(action, {
+              requireRuntimeReady: action !== 'uninstall',
               totalBytes: action === 'uninstall' ? null : platformPackage.downloadSizeBytes,
             });
           },
         },
       ],
     });
-  }, [platformId, platformName, platformPackage, runAction, showModal, t]);
+  }, [platformId, platformName, platformPackage, requestCancelOperation, runAction, showModal, t]);
 
   const selectAndConfirmLocalZip = useCallback(async () => {
     if (!platformPackage || actionKey) {
@@ -1132,6 +1180,8 @@ export function PlatformPackageToolbar({
     showModal({
       title,
       description,
+      allowCloseWhilePending: true,
+      onPendingClose: requestCancelOperation,
       content: (
         <PlatformPackageOperationProgress
           platformId={platformId}
@@ -1144,6 +1194,8 @@ export function PlatformPackageToolbar({
           id: 'cancel',
           label: t('common.cancel', '取消'),
           variant: 'secondary',
+          allowWhilePending: true,
+          onClick: requestCancelOperation,
         },
         {
           id: 'platform-package-local-zip',
@@ -1162,6 +1214,7 @@ export function PlatformPackageToolbar({
     platformId,
     platformName,
     platformPackage,
+    requestCancelOperation,
     runLocalZipInstall,
     showModal,
     t,
@@ -1196,6 +1249,8 @@ export function PlatformPackageToolbar({
     showModal({
       title,
       description,
+      allowCloseWhilePending: true,
+      onPendingClose: requestCancelOperation,
       content: (
         <PlatformPackageOperationProgress
           platformId={platformId}
@@ -1209,6 +1264,8 @@ export function PlatformPackageToolbar({
           id: 'cancel',
           label: t('common.cancel', '取消'),
           variant: 'secondary',
+          allowWhilePending: true,
+          onClick: requestCancelOperation,
         },
         {
           id: `platform-package-version-${entry.version}`,
@@ -1227,6 +1284,7 @@ export function PlatformPackageToolbar({
     platformId,
     platformName,
     platformPackage,
+    requestCancelOperation,
     runVersionInstall,
     showModal,
     t,
@@ -1365,6 +1423,8 @@ export function PlatformPackageToolbar({
         platform: platformName,
         defaultValue: '将重新构建本地 {{platform}} 平台包并切换到最新开发包；已保存账号数据不会删除。',
       }),
+      allowCloseWhilePending: true,
+      onPendingClose: requestCancelOperation,
       content: (
         <PlatformPackageOperationProgress
           platformId={platformId}
@@ -1378,19 +1438,21 @@ export function PlatformPackageToolbar({
           id: 'cancel',
           label: t('common.cancel', '取消'),
           variant: 'secondary',
+          allowWhilePending: true,
+          onClick: requestCancelOperation,
         },
-          {
-            id: 'platform-package-reload',
-            label: t('platformLayout.packageReload', '重载'),
-            variant: 'primary',
-            suppressError: true,
-            onClick: async () => {
-              await runLocalReload();
-            },
+        {
+          id: 'platform-package-reload',
+          label: t('platformLayout.packageReload', '重载'),
+          variant: 'primary',
+          suppressError: true,
+          onClick: async () => {
+            await runLocalReload();
+          },
         },
       ],
     });
-  }, [platformId, platformName, platformPackage, runLocalReload, showModal, t]);
+  }, [platformId, platformName, platformPackage, requestCancelOperation, runLocalReload, showModal, t]);
 
   const showChangelog = useCallback(() => {
     if (!platformPackage) {
@@ -1435,6 +1497,8 @@ export function PlatformPackageToolbar({
     showModal({
       title: t('update_notification.title', '发现新版本'),
       width: 'md',
+      allowCloseWhilePending: true,
+      onPendingClose: requestCancelOperation,
       content: (
         <div className="platform-package-update-dialog">
           <div className="platform-package-update-version">v{latestVersion}</div>
@@ -1470,17 +1534,24 @@ export function PlatformPackageToolbar({
       ),
       actions: [
         {
+          id: 'cancel',
+          label: t('common.cancel', '取消'),
+          variant: 'secondary',
+          allowWhilePending: true,
+          onClick: requestCancelOperation,
+        },
+        {
           id: 'platform-package-skip-update',
           label: t('update_notification.skipThisVersion', '跳过此版本'),
           variant: 'secondary',
         },
-          {
-            id: 'platform-package-update-now',
-            label: t('update_notification.updateNow', '立即更新'),
-            variant: 'primary',
-            suppressError: true,
-            onClick: async () => {
-              await runAction('update', {
+        {
+          id: 'platform-package-update-now',
+          label: t('update_notification.updateNow', '立即更新'),
+          variant: 'primary',
+          suppressError: true,
+          onClick: async () => {
+            await runAction('update', {
               requireRuntimeReady: true,
               totalBytes: platformPackage.downloadSizeBytes,
             });
@@ -1488,7 +1559,7 @@ export function PlatformPackageToolbar({
         },
       ],
     });
-  }, [i18n.language, platformId, platformPackage, runAction, showModal, t]);
+  }, [i18n.language, platformId, platformPackage, requestCancelOperation, runAction, showModal, t]);
 
   useEffect(() => {
     setOperationError(null);

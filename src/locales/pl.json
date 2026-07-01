@@ -382,6 +382,7 @@
     "packageDownloadSourceMissing": "Dla tego systemu nie ma dostępnego źródła pakietu platformy. Sprawdź aktualizacje później albo użyj obsługiwanego instalatora.",
     "packageDownloadVerifyFailed": "Weryfikacja pakietu platformy nie powiodła się. Pobierz go ponownie; jeśli problem się powtarza, poczekaj na ponowną publikację pakietu.",
     "packageOperationFailedFriendly": "Operacja pakietu platformy nie powiodła się. Spróbuj ponownie później.",
+    "packageOperationCanceled": "Operacja pakietu platformy została anulowana.",
     "packageOperationRetryHint": "Możesz kliknąć przycisk poniżej, aby spróbować ponownie.",
     "packagePageRepairTitle": "Pakiet {{platform}} wymaga naprawy",
     "packagePageInstallTitle": "Pakiet {{platform}} nie jest zainstalowany",

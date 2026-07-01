@@ -382,6 +382,7 @@
     "packageDownloadSourceMissing": "Aucune source de paquet de plateforme n’est disponible pour ce système. Vérifiez les mises à jour plus tard ou utilisez un installateur compatible.",
     "packageDownloadVerifyFailed": "La vérification du paquet de plateforme a échoué. Téléchargez-le à nouveau ; si l’échec persiste, attendez une nouvelle publication du paquet.",
     "packageOperationFailedFriendly": "L’opération sur le paquet de plateforme a échoué. Veuillez réessayer plus tard.",
+    "packageOperationCanceled": "L’opération sur le paquet de plateforme a été annulée.",
     "packageOperationRetryHint": "Vous pouvez cliquer sur le bouton ci-dessous pour réessayer.",
     "packagePageRepairTitle": "Le paquet {{platform}} doit être réparé",
     "packagePageInstallTitle": "Le paquet {{platform}} n’est pas installé",

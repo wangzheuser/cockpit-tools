@@ -148,6 +148,14 @@ pub async fn uninstall_platform_package(
 }
 
 #[tauri::command]
+pub fn cancel_platform_package_operation(
+    app: AppHandle,
+    platform_id: String,
+) -> Result<(), String> {
+    platform_package::cancel_platform_package_operation(&app, platform_id.as_str())
+}
+
+#[tauri::command]
 pub fn get_platform_package_ui_entry(
     platform_id: String,
 ) -> Result<PlatformPackageUiEntry, String> {

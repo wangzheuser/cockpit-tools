@@ -583,6 +583,7 @@
     "packageDownloadSourceMissing": "当前系统没有可用的平台包源，请稍后检查更新或切换到支持的安装包。",
     "packageDownloadVerifyFailed": "平台包校验失败，请重新下载；如果持续失败，请等待平台包重新发布。",
     "packageOperationFailedFriendly": "平台包处理失败，请稍后重试。",
+    "packageOperationCanceled": "已取消平台包操作。",
     "packageOperationRetryHint": "可以点击下方按钮重试。",
     "packagePageRepairTitle": "{{platform}} 平台包需要修复",
     "packagePageInstallTitle": "{{platform}} 平台包未安装",

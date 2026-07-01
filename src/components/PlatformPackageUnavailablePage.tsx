@@ -33,6 +33,7 @@ export function PlatformPackageUnavailablePage({
   const { showModal } = useGlobalModal();
   const initialized = usePlatformPackageStore((store) => store.initialized);
   const installPackage = usePlatformPackageStore((store) => store.installPackage);
+  const cancelOperation = usePlatformPackageStore((store) => store.cancelOperation);
   const refreshPackages = usePlatformPackageStore((store) => store.refresh);
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
@@ -111,6 +112,10 @@ export function PlatformPackageUnavailablePage({
     }
   }, [installPackage, platformId, refreshPackages, t]);
 
+  const requestCancelOperation = useCallback(async () => {
+    await cancelOperation(platformId);
+  }, [cancelOperation, platformId]);
+
   const confirmInstall = useCallback(() => {
     if (!state || !canInstall || operating) {
       return;
@@ -155,11 +160,15 @@ export function PlatformPackageUnavailablePage({
         />
       ),
       width: 'sm',
+      allowCloseWhilePending: true,
+      onPendingClose: requestCancelOperation,
       actions: [
         {
           id: 'cancel',
           label: t('common.cancel', '取消'),
           variant: 'secondary',
+          allowWhilePending: true,
+          onClick: requestCancelOperation,
         },
         {
           id: 'platform-package-unavailable-install',
@@ -172,7 +181,7 @@ export function PlatformPackageUnavailablePage({
         },
       ],
     });
-  }, [canInstall, operating, platformId, platformName, runInstall, showModal, state, t]);
+  }, [canInstall, operating, platformId, platformName, requestCancelOperation, runInstall, showModal, state, t]);
 
   return (
     <section

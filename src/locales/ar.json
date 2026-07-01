@@ -428,6 +428,7 @@
     "packageDownloadSourceMissing": "لا يتوفر مصدر حزمة منصة لهذا النظام. تحقق من التحديثات لاحقًا أو استخدم مثبّتًا مدعومًا.",
     "packageDownloadVerifyFailed": "فشل التحقق من حزمة المنصة. نزّلها مرة أخرى؛ وإذا استمر الفشل فانتظر إعادة نشر الحزمة.",
     "packageOperationFailedFriendly": "فشلت عملية حزمة المنصة. يرجى المحاولة لاحقًا.",
+    "packageOperationCanceled": "تم إلغاء عملية حزمة المنصة.",
     "packageOperationRetryHint": "يمكنك النقر على الزر أدناه لإعادة المحاولة.",
     "packagePageRepairTitle": "حزمة {{platform}} تحتاج إلى إصلاح",
     "packagePageInstallTitle": "حزمة {{platform}} غير مثبتة",

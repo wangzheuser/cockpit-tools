@@ -382,6 +382,7 @@
     "packageDownloadSourceMissing": "Für dieses System ist keine Plattformpaket-Quelle verfügbar. Prüfe später auf Updates oder verwende ein unterstütztes Installationspaket.",
     "packageDownloadVerifyFailed": "Die Prüfung des Plattformpakets ist fehlgeschlagen. Lade es erneut herunter. Wenn der Fehler bleibt, warte auf eine erneute Veröffentlichung des Pakets.",
     "packageOperationFailedFriendly": "Die Plattformpaket-Aktion ist fehlgeschlagen. Bitte versuche es später erneut.",
+    "packageOperationCanceled": "Die Plattformpaket-Aktion wurde abgebrochen.",
     "packageOperationRetryHint": "Du kannst unten erneut versuchen.",
     "packagePageRepairTitle": "{{platform}}-Paket muss repariert werden",
     "packagePageInstallTitle": "{{platform}}-Paket ist nicht installiert",

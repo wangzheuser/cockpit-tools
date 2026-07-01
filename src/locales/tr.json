@@ -382,6 +382,7 @@
     "packageDownloadSourceMissing": "Bu sistem için kullanılabilir platform paketi kaynağı yok. Daha sonra güncellemeleri kontrol edin veya desteklenen bir kurulum paketi kullanın.",
     "packageDownloadVerifyFailed": "Platform paketi doğrulanamadı. Yeniden indirin; hata sürerse paketin yeniden yayımlanmasını bekleyin.",
     "packageOperationFailedFriendly": "Platform paketi işlemi başarısız oldu. Lütfen daha sonra tekrar deneyin.",
+    "packageOperationCanceled": "Platform paketi işlemi iptal edildi.",
     "packageOperationRetryHint": "Aşağıdaki düğmeyle yeniden deneyebilirsiniz.",
     "packagePageRepairTitle": "{{platform}} paketinin onarılması gerekiyor",
     "packagePageInstallTitle": "{{platform}} paketi yüklü değil",

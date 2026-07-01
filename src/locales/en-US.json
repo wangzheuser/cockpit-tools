@@ -583,6 +583,7 @@
     "packageDownloadSourceMissing": "No platform package source is available for this system. Check for updates later or use a supported installer.",
     "packageDownloadVerifyFailed": "Platform package verification failed. Download again; if it keeps failing, wait for the package to be republished.",
     "packageOperationFailedFriendly": "Platform package operation failed. Please try again later.",
+    "packageOperationCanceled": "Platform package operation canceled.",
     "packageOperationRetryHint": "You can click the button below to try again.",
     "packagePageRepairTitle": "{{platform}} package needs repair",
     "packagePageInstallTitle": "{{platform}} package is not installed",

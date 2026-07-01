@@ -6,7 +6,8 @@ use std::fs;
 use std::fs::File;
 use std::io;
 use std::path::{Component, Path, PathBuf};
-use std::sync::{LazyLock, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::time::{Duration, Instant};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
@@ -74,6 +75,9 @@ const PLATFORM_PACKAGE_INDEX_CACHE_TTL_MS: i64 = 30 * 60 * 1000;
 const MAX_PLATFORM_PACKAGE_DOWNLOAD_BYTES: u64 = 80 * 1024 * 1024;
 const PLATFORM_PACKAGE_DOWNLOAD_MAX_ATTEMPTS: usize = 3;
 const PLATFORM_PACKAGE_DOWNLOAD_RETRY_BASE_DELAY_MS: u64 = 900;
+const PLATFORM_PACKAGE_DOWNLOAD_CONNECT_TIMEOUT_SECS: u64 = 20;
+const PLATFORM_PACKAGE_DOWNLOAD_REQUEST_TIMEOUT_SECS: u64 = 2 * 60;
+const PLATFORM_PACKAGE_CANCEL_POLL_MS: u64 = 100;
 const PLATFORM_PACKAGE_PATH_SWITCH_MAX_ATTEMPTS: usize = 12;
 const PLATFORM_PACKAGE_PATH_SWITCH_RETRY_BASE_DELAY_MS: u64 = 250;
 const PLATFORM_PACKAGE_ORPHAN_PROCESS_CLOSE_TIMEOUT_SECS: u64 = 5;
@@ -87,6 +91,14 @@ const PLATFORM_PACKAGE_DEV_RELOAD_TIMEOUT_SECS: u64 = 10 * 60;
 
 static LOCAL_CONTENT_MISMATCH_LOGGED: LazyLock<Mutex<HashSet<String>>> =
     LazyLock::new(|| Mutex::new(HashSet::new()));
+static PLATFORM_PACKAGE_CANCEL_FLAGS: LazyLock<Mutex<HashMap<String, PlatformPackageCancelState>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+#[derive(Debug, Clone)]
+struct PlatformPackageCancelState {
+    operation: PlatformPackageOperation,
+    flag: Arc<AtomicBool>,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PlatformPackageOperation {
@@ -105,6 +117,95 @@ impl PlatformPackageOperation {
             PlatformPackageOperation::Uninstall => "uninstall",
         }
     }
+}
+
+const PLATFORM_PACKAGE_OPERATION_CANCELLED_MESSAGE: &str = "平台包操作已取消";
+
+fn begin_platform_package_operation(
+    platform_id: &str,
+    operation: PlatformPackageOperation,
+) -> Arc<AtomicBool> {
+    let flag = Arc::new(AtomicBool::new(false));
+    match PLATFORM_PACKAGE_CANCEL_FLAGS.lock() {
+        Ok(mut flags) => {
+            if let Some(existing) = flags.insert(
+                platform_id.to_string(),
+                PlatformPackageCancelState {
+                    operation,
+                    flag: flag.clone(),
+                },
+            ) {
+                existing.flag.store(true, AtomicOrdering::SeqCst);
+            }
+        }
+        Err(error) => logger::log_warn(&format!(
+            "[PlatformPackage] 平台包取消标记注册失败: platform={}, error={}",
+            platform_id, error
+        )),
+    }
+    flag
+}
+
+fn end_platform_package_operation(platform_id: &str, cancel_flag: &Arc<AtomicBool>) {
+    match PLATFORM_PACKAGE_CANCEL_FLAGS.lock() {
+        Ok(mut flags) => {
+            let should_remove = flags
+                .get(platform_id)
+                .map(|state| Arc::ptr_eq(&state.flag, cancel_flag))
+                .unwrap_or(false);
+            if should_remove {
+                flags.remove(platform_id);
+            }
+        }
+        Err(error) => logger::log_warn(&format!(
+            "[PlatformPackage] 平台包取消标记清理失败: platform={}, error={}",
+            platform_id, error
+        )),
+    }
+}
+
+fn check_platform_package_cancelled(cancel_flag: Option<&AtomicBool>) -> Result<(), String> {
+    if let Some(cancel_flag) = cancel_flag {
+        if cancel_flag.load(AtomicOrdering::SeqCst) {
+            return Err(PLATFORM_PACKAGE_OPERATION_CANCELLED_MESSAGE.to_string());
+        }
+    }
+    Ok(())
+}
+
+fn is_platform_package_cancelled_error(error: &str) -> bool {
+    error == PLATFORM_PACKAGE_OPERATION_CANCELLED_MESSAGE
+}
+
+pub fn cancel_platform_package_operation(app: &AppHandle, platform_id: &str) -> Result<(), String> {
+    ensure_supported_platform(platform_id)?;
+    let operation = match PLATFORM_PACKAGE_CANCEL_FLAGS.lock() {
+        Ok(flags) => {
+            let Some(state) = flags.get(platform_id) else {
+                return Ok(());
+            };
+            state.flag.store(true, AtomicOrdering::SeqCst);
+            state.operation
+        }
+        Err(error) => {
+            return Err(format!(
+                "取消平台包操作失败: platform={}, error={}",
+                platform_id, error
+            ));
+        }
+    };
+    emit_platform_package_failure(
+        app,
+        platform_id,
+        operation,
+        PLATFORM_PACKAGE_OPERATION_CANCELLED_MESSAGE,
+    );
+    logger::log_info(&format!(
+        "[PlatformPackage] 已请求取消平台包操作: platform={}, operation={}",
+        platform_id,
+        operation.as_str()
+    ));
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1742,12 +1843,14 @@ fn bootstrap_one_platform_package(
         platform_id,
         &zip_path,
         PlatformPackageOperation::Install,
+        None,
     )?;
     let installed_manifest = replace_current_with_prepared(
         app,
         platform_id,
         &extracted_root,
         PlatformPackageOperation::Install,
+        None,
     )?;
     let mut registry = read_registry()?;
     upsert_record(
@@ -2448,7 +2551,9 @@ fn replace_current_with_prepared(
     platform_id: &str,
     prepared_root: &Path,
     operation: PlatformPackageOperation,
+    cancel_flag: Option<&AtomicBool>,
 ) -> Result<PlatformPackageManifest, String> {
+    check_platform_package_cancelled(cancel_flag)?;
     emit_platform_package_progress(
         app,
         platform_id,
@@ -2470,6 +2575,7 @@ fn replace_current_with_prepared(
     }
 
     if current_dir.exists() {
+        check_platform_package_cancelled(cancel_flag)?;
         close_platform_package_processes_before_switch(platform_id);
         rename_path_for_package_switch(&current_dir, &backup_dir, "备份旧平台包目录失败")?;
     }
@@ -2513,7 +2619,9 @@ fn install_local_source(
     platform_id: &str,
     source_dir: &Path,
     operation: PlatformPackageOperation,
+    cancel_flag: Option<&AtomicBool>,
 ) -> Result<PlatformPackageManifest, String> {
+    check_platform_package_cancelled(cancel_flag)?;
     let platform_dir = package_dir(platform_id)?;
     let staging_dir = unique_work_dir(&platform_dir, "staging");
     remove_path_if_exists(&staging_dir)?;
@@ -2528,7 +2636,7 @@ fn install_local_source(
         None,
     );
     copy_dir_all(source_dir, &staging_dir)?;
-    match replace_current_with_prepared(app, platform_id, &staging_dir, operation) {
+    match replace_current_with_prepared(app, platform_id, &staging_dir, operation, cancel_flag) {
         Ok(manifest) => Ok(manifest),
         Err(error) => {
             let _ = remove_path_if_exists(&staging_dir);
@@ -2575,7 +2683,8 @@ fn wait_before_platform_package_download_retry(
     attempt: usize,
     error: &str,
     total_bytes: Option<u64>,
-) {
+    cancel_flag: Option<&AtomicBool>,
+) -> Result<(), String> {
     logger::log_warn(&format!(
         "[PlatformPackage] 平台包下载失败，准备重试: platform={}, attempt={}/{}, error={}",
         platform_id, attempt, PLATFORM_PACKAGE_DOWNLOAD_MAX_ATTEMPTS, error
@@ -2591,7 +2700,12 @@ fn wait_before_platform_package_download_retry(
         None,
     );
     let delay = PLATFORM_PACKAGE_DOWNLOAD_RETRY_BASE_DELAY_MS.saturating_mul(attempt as u64);
-    std::thread::sleep(Duration::from_millis(delay));
+    let started_at = Instant::now();
+    while started_at.elapsed() < Duration::from_millis(delay) {
+        check_platform_package_cancelled(cancel_flag)?;
+        std::thread::sleep(Duration::from_millis(PLATFORM_PACKAGE_CANCEL_POLL_MS));
+    }
+    Ok(())
 }
 
 fn download_remote_package_zip(
@@ -2599,7 +2713,9 @@ fn download_remote_package_zip(
     platform_id: &str,
     package: &PlatformPackageRemotePackage,
     operation: PlatformPackageOperation,
+    cancel_flag: Option<&AtomicBool>,
 ) -> Result<PathBuf, String> {
+    check_platform_package_cancelled(cancel_flag)?;
     let artifact = selected_remote_artifact(platform_id, package)?;
     let downloads_dir = package_downloads_dir(platform_id)?;
     let zip_path = downloads_dir.join(format!(
@@ -2609,6 +2725,7 @@ fn download_remote_package_zip(
     let expected_sha256 = artifact.sha256.trim().to_ascii_lowercase();
 
     if zip_path.exists() {
+        check_platform_package_cancelled(cancel_flag)?;
         emit_platform_package_progress(
             app,
             platform_id,
@@ -2671,11 +2788,17 @@ fn download_remote_package_zip(
     );
     let client = reqwest::blocking::Client::builder()
         .user_agent("Cockpit-Tools")
-        .timeout(Duration::from_secs(10 * 60))
+        .connect_timeout(Duration::from_secs(
+            PLATFORM_PACKAGE_DOWNLOAD_CONNECT_TIMEOUT_SECS,
+        ))
+        .timeout(Duration::from_secs(
+            PLATFORM_PACKAGE_DOWNLOAD_REQUEST_TIMEOUT_SECS,
+        ))
         .build()
         .map_err(|err| format!("创建平台包下载 HTTP 客户端失败: {}", err))?;
     let mut last_error: Option<String> = None;
     for attempt in 1..=PLATFORM_PACKAGE_DOWNLOAD_MAX_ATTEMPTS {
+        check_platform_package_cancelled(cancel_flag)?;
         if attempt > 1 {
             emit_platform_package_progress(
                 app,
@@ -2704,7 +2827,8 @@ fn download_remote_package_zip(
                         attempt,
                         &message,
                         artifact.download_size_bytes,
-                    );
+                        cancel_flag,
+                    )?;
                     continue;
                 }
                 return Err(message);
@@ -2728,7 +2852,8 @@ fn download_remote_package_zip(
                     attempt,
                     &message,
                     artifact.download_size_bytes,
-                );
+                    cancel_flag,
+                )?;
                 continue;
             }
             return Err(message);
@@ -2754,6 +2879,7 @@ fn download_remote_package_zip(
             let mut last_progress_bytes = 0u64;
             let mut buffer = [0u8; 1024 * 256];
             loop {
+                check_platform_package_cancelled(cancel_flag)?;
                 let read = io::Read::read(&mut response, &mut buffer)
                     .map_err(|err| format!("读取平台包下载数据失败: {}", err))?;
                 if read == 0 {
@@ -2801,6 +2927,7 @@ fn download_remote_package_zip(
                 .sync_all()
                 .map_err(|err| format!("同步平台包下载临时文件失败: {}", err))?;
             drop(temp_file);
+            check_platform_package_cancelled(cancel_flag)?;
 
             if let Some(expected_size) = artifact.download_size_bytes {
                 if expected_size > 0 && expected_size != downloaded {
@@ -2858,7 +2985,8 @@ fn download_remote_package_zip(
                         attempt,
                         &message,
                         artifact.download_size_bytes,
-                    );
+                        cancel_flag,
+                    )?;
                     continue;
                 }
                 return Err(message);
@@ -2873,12 +3001,14 @@ fn extract_zip_safely_with_progress<F>(
     archive: &mut zip::ZipArchive<File>,
     target_dir: &Path,
     mut on_progress: Option<F>,
+    cancel_flag: Option<&AtomicBool>,
 ) -> Result<(), String>
 where
     F: FnMut(usize, usize),
 {
     let total = archive.len();
     for index in 0..archive.len() {
+        check_platform_package_cancelled(cancel_flag)?;
         let mut file = archive
             .by_index(index)
             .map_err(|err| format!("读取平台包 zip 条目失败: {}", err))?;
@@ -2908,8 +3038,17 @@ where
                 err
             )
         })?;
-        io::copy(&mut file, &mut output_file)
-            .map_err(|err| format!("写入平台包解压文件失败: {}", err))?;
+        let mut buffer = [0u8; 1024 * 256];
+        loop {
+            check_platform_package_cancelled(cancel_flag)?;
+            let read = io::Read::read(&mut file, &mut buffer)
+                .map_err(|err| format!("读取平台包解压数据失败: {}", err))?;
+            if read == 0 {
+                break;
+            }
+            io::Write::write_all(&mut output_file, &buffer[..read])
+                .map_err(|err| format!("写入平台包解压文件失败: {}", err))?;
+        }
         #[cfg(unix)]
         if let Some(mode) = file.unix_mode() {
             use std::os::unix::fs::PermissionsExt;
@@ -2921,6 +3060,7 @@ where
             on_progress(index + 1, total);
         }
     }
+    check_platform_package_cancelled(cancel_flag)?;
     Ok(())
 }
 
@@ -2929,7 +3069,9 @@ fn extract_remote_package_zip(
     platform_id: &str,
     zip_path: &Path,
     operation: PlatformPackageOperation,
+    cancel_flag: Option<&AtomicBool>,
 ) -> Result<PathBuf, String> {
+    check_platform_package_cancelled(cancel_flag)?;
     let platform_dir = package_dir(platform_id)?;
     let staging_dir = unique_work_dir(&platform_dir, "extracting");
     remove_path_if_exists(&staging_dir)?;
@@ -2970,7 +3112,9 @@ fn extract_remote_package_zip(
                 None,
             );
         }),
+        cancel_flag,
     )?;
+    check_platform_package_cancelled(cancel_flag)?;
 
     if staging_dir.join(MANIFEST_FILE).exists() {
         return Ok(staging_dir);
@@ -3185,13 +3329,19 @@ fn prepare_remote_source(
         "[PlatformPackage] 静默预准备平台包开始: platform={}, version={}",
         platform_id, source_manifest.version
     ));
-    let zip_path =
-        download_remote_package_zip(app, platform_id, package, PlatformPackageOperation::Prepare)?;
+    let zip_path = download_remote_package_zip(
+        app,
+        platform_id,
+        package,
+        PlatformPackageOperation::Prepare,
+        None,
+    )?;
     let extracted_root = extract_remote_package_zip(
         app,
         platform_id,
         &zip_path,
         PlatformPackageOperation::Prepare,
+        None,
     )?;
     let result = move_extracted_package_to_prepared(platform_id, &extracted_root, &source_manifest);
     let _ = remove_path_if_exists(&zip_path);
@@ -3216,9 +3366,11 @@ fn install_remote_source(
     platform_id: &str,
     package: &PlatformPackageRemotePackage,
     operation: PlatformPackageOperation,
+    cancel_flag: Option<&AtomicBool>,
 ) -> Result<PlatformPackageManifest, String> {
     let source_manifest = manifest_from_remote_package(platform_id, package)?;
     if let Some((prepared_root, _manifest)) = try_prepared_source(platform_id, &source_manifest)? {
+        check_platform_package_cancelled(cancel_flag)?;
         logger::log_info(&format!(
             "[PlatformPackage] 使用预准备平台包完成{}: platform={}, version={}",
             if operation == PlatformPackageOperation::Update {
@@ -3229,12 +3381,19 @@ fn install_remote_source(
             platform_id,
             source_manifest.version
         ));
-        return replace_current_with_prepared(app, platform_id, &prepared_root, operation);
+        return replace_current_with_prepared(
+            app,
+            platform_id,
+            &prepared_root,
+            operation,
+            cancel_flag,
+        );
     }
 
-    let zip_path = download_remote_package_zip(app, platform_id, package, operation)?;
-    let prepared_root = extract_remote_package_zip(app, platform_id, &zip_path, operation)?;
-    match replace_current_with_prepared(app, platform_id, &prepared_root, operation) {
+    let zip_path = download_remote_package_zip(app, platform_id, package, operation, cancel_flag)?;
+    let prepared_root =
+        extract_remote_package_zip(app, platform_id, &zip_path, operation, cancel_flag)?;
+    match replace_current_with_prepared(app, platform_id, &prepared_root, operation, cancel_flag) {
         Ok(manifest) => {
             let _ = remove_path_if_exists(&zip_path);
             Ok(manifest)
@@ -3895,11 +4054,23 @@ pub fn install_platform_package_version(
         source_manifest.download_size_bytes,
         None,
     );
+    let cancel_flag = begin_platform_package_operation(platform_id, operation);
     stop_platform_runtime_before_package_mutation(platform_id, operation);
 
-    let installed_manifest = match install_remote_source(app, platform_id, &package, operation) {
+    let installed_manifest = match install_remote_source(
+        app,
+        platform_id,
+        &package,
+        operation,
+        Some(cancel_flag.as_ref()),
+    ) {
         Ok(manifest) => manifest,
         Err(error) => {
+            end_platform_package_operation(platform_id, &cancel_flag);
+            if is_platform_package_cancelled_error(&error) {
+                emit_platform_package_failure(app, platform_id, operation, &error);
+                return Err(error);
+            }
             let mut registry = read_registry()?;
             upsert_record(
                 &mut registry,
@@ -3918,6 +4089,7 @@ pub fn install_platform_package_version(
             return Err(error);
         }
     };
+    end_platform_package_operation(platform_id, &cancel_flag);
 
     let mut registry = read_registry()?;
     upsert_record(
@@ -4142,8 +4314,15 @@ pub fn install_platform_package_from_local_zip(
         None,
     );
 
-    let result =
-        install_platform_package_from_local_zip_inner(app, platform_id, &zip_path, operation);
+    let cancel_flag = begin_platform_package_operation(platform_id, operation);
+    let result = install_platform_package_from_local_zip_inner(
+        app,
+        platform_id,
+        &zip_path,
+        operation,
+        Some(cancel_flag.as_ref()),
+    );
+    end_platform_package_operation(platform_id, &cancel_flag);
     match result {
         Ok(state) => {
             emit_platform_package_progress(
@@ -4246,9 +4425,12 @@ fn install_platform_package_with_operation(
         None,
         None,
     );
+    let cancel_flag = begin_platform_package_operation(platform_id, operation);
     stop_platform_runtime_before_package_mutation(platform_id, operation);
 
-    let result = install_platform_package_inner(app, platform_id, operation);
+    let result =
+        install_platform_package_inner(app, platform_id, operation, Some(cancel_flag.as_ref()));
+    end_platform_package_operation(platform_id, &cancel_flag);
     match result {
         Ok(state) => {
             emit_platform_package_progress(
@@ -4283,7 +4465,9 @@ fn install_platform_package_inner(
     app: &AppHandle,
     platform_id: &str,
     operation: PlatformPackageOperation,
+    cancel_flag: Option<&AtomicBool>,
 ) -> Result<PlatformPackageState, String> {
+    check_platform_package_cancelled(cancel_flag)?;
     let source = resolve_package_source(app, platform_id, true)?;
     let source_manifest = source.manifest().clone();
     let source_root = match &source {
@@ -4303,14 +4487,17 @@ fn install_platform_package_inner(
 
     let installed_manifest = match match &source {
         PlatformPackageSource::Local { dir, .. } => {
-            install_local_source(app, platform_id, dir, operation)
+            install_local_source(app, platform_id, dir, operation, cancel_flag)
         }
         PlatformPackageSource::Remote { package, .. } => {
-            install_remote_source(app, platform_id, package, operation)
+            install_remote_source(app, platform_id, package, operation, cancel_flag)
         }
     } {
         Ok(manifest) => manifest,
         Err(error) => {
+            if is_platform_package_cancelled_error(&error) {
+                return Err(error);
+            }
             let mut registry = read_registry()?;
             upsert_record(
                 &mut registry,
@@ -4382,7 +4569,9 @@ fn install_platform_package_from_local_zip_inner(
     platform_id: &str,
     zip_path: &Path,
     operation: PlatformPackageOperation,
+    cancel_flag: Option<&AtomicBool>,
 ) -> Result<PlatformPackageState, String> {
+    check_platform_package_cancelled(cancel_flag)?;
     let zip_size = fs::metadata(zip_path).ok().map(|metadata| metadata.len());
     emit_platform_package_progress(
         app,
@@ -4395,7 +4584,8 @@ fn install_platform_package_from_local_zip_inner(
         None,
     );
 
-    let extracted_root = extract_remote_package_zip(app, platform_id, zip_path, operation)?;
+    let extracted_root =
+        extract_remote_package_zip(app, platform_id, zip_path, operation, cancel_flag)?;
     let mut source_manifest = match validate_manifest(platform_id, &extracted_root) {
         Ok(manifest) => manifest,
         Err(error) => {
@@ -4407,14 +4597,19 @@ fn install_platform_package_from_local_zip_inner(
         source_manifest.download_size_bytes = zip_size;
     }
     stop_platform_runtime_before_package_mutation(platform_id, operation);
-    let installed_manifest =
-        match replace_current_with_prepared(app, platform_id, &extracted_root, operation) {
-            Ok(manifest) => manifest,
-            Err(error) => {
-                cleanup_extracted_package_root(platform_id, &extracted_root);
-                return Err(error);
-            }
-        };
+    let installed_manifest = match replace_current_with_prepared(
+        app,
+        platform_id,
+        &extracted_root,
+        operation,
+        cancel_flag,
+    ) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            cleanup_extracted_package_root(platform_id, &extracted_root);
+            return Err(error);
+        }
+    };
 
     let mut registry = read_registry()?;
     upsert_record(
@@ -4555,6 +4750,9 @@ pub fn uninstall_platform_package(
     platform_id: &str,
 ) -> Result<PlatformPackageState, String> {
     ensure_supported_platform(platform_id)?;
+    let cancel_flag = app.map(|_| {
+        begin_platform_package_operation(platform_id, PlatformPackageOperation::Uninstall)
+    });
     if let Some(app) = app {
         emit_platform_package_progress(
             app,
@@ -4567,7 +4765,10 @@ pub fn uninstall_platform_package(
             None,
         );
     }
-    let result = uninstall_platform_package_inner(app, platform_id);
+    let result = uninstall_platform_package_inner(app, platform_id, cancel_flag.as_deref());
+    if let Some(cancel_flag) = &cancel_flag {
+        end_platform_package_operation(platform_id, cancel_flag);
+    }
     if let Some(app) = app {
         match &result {
             Ok(_) => emit_platform_package_progress(
@@ -4594,13 +4795,16 @@ pub fn uninstall_platform_package(
 fn uninstall_platform_package_inner(
     app: Option<&AppHandle>,
     platform_id: &str,
+    cancel_flag: Option<&AtomicBool>,
 ) -> Result<PlatformPackageState, String> {
     logger::log_info(&format!(
         "[PlatformPackage] 卸载平台包开始: {}",
         platform_id
     ));
+    check_platform_package_cancelled(cancel_flag)?;
     let started_at = Instant::now();
     stop_platform_runtime_before_package_mutation(platform_id, PlatformPackageOperation::Uninstall);
+    check_platform_package_cancelled(cancel_flag)?;
     if let Some(app) = app {
         emit_platform_package_progress(
             app,
@@ -4618,6 +4822,7 @@ fn uninstall_platform_package_inner(
     let platform_dir = package_dir(platform_id)?;
     if platform_dir.exists() {
         let remove_started_at = Instant::now();
+        check_platform_package_cancelled(cancel_flag)?;
         close_platform_package_processes_before_switch(platform_id);
         remove_path_for_package_switch(&platform_dir, Some("删除平台包目录失败"))?;
         logger::log_info(&format!(

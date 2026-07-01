@@ -985,6 +985,7 @@ pub fn run() {
             commands::platform_package::update_platform_package,
             commands::platform_package::reload_platform_package,
             commands::platform_package::uninstall_platform_package,
+            commands::platform_package::cancel_platform_package_operation,
             commands::platform_package::get_platform_package_ui_entry,
             commands::platform_package::get_platform_ui_dev_config,
             // Qoder Instance Commands

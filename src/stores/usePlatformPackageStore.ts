@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { PlatformId } from '../types/platform';
 import type { PlatformPackageState, PlatformPackageVersionHistory } from '../types/platformPackage';
 import {
+  cancelPlatformPackageOperation,
   checkPlatformPackageUpdate,
   installPlatformPackage,
   installPlatformPackageFromLocalZip,
@@ -344,6 +345,7 @@ interface PlatformPackageStoreState {
   updatePackage: (platformId: PlatformId) => Promise<PlatformPackageState>;
   reloadPackage: (platformId: PlatformId) => Promise<PlatformPackageState>;
   uninstallPackage: (platformId: PlatformId) => Promise<PlatformPackageState>;
+  cancelOperation: (platformId: PlatformId) => Promise<void>;
   getPackage: (platformId: PlatformId) => PlatformPackageState | null;
   isHotUpdatePlatform: (platformId: PlatformId) => boolean;
   canShowPlatformEntry: (platformId: PlatformId) => boolean;
@@ -651,6 +653,10 @@ export const usePlatformPackageStore = create<PlatformPackageStoreState>((set, g
       error: null,
     }));
     return nextPackage;
+  },
+
+  cancelOperation: async (platformId) => {
+    await cancelPlatformPackageOperation(platformId);
   },
 
   getPackage: (platformId) => packageForPlatform(get().packages, platformId),

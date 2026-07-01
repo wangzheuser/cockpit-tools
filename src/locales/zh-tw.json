@@ -382,6 +382,7 @@
     "packageDownloadSourceMissing": "目前系統沒有可用的平台包來源，請稍後檢查更新或改用支援的安裝包。",
     "packageDownloadVerifyFailed": "平台包校驗失敗，請重新下載；若持續失敗，請等待平台包重新發布。",
     "packageOperationFailedFriendly": "平台包處理失敗，請稍後重試。",
+    "packageOperationCanceled": "已取消平台包操作。",
     "packageOperationRetryHint": "可以點擊下方按鈕重試。",
     "packagePageRepairTitle": "{{platform}} 平台包需要修復",
     "packagePageInstallTitle": "{{platform}} 平台包未安裝",

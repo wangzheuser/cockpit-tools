@@ -382,6 +382,7 @@
     "packageDownloadSourceMissing": "No hay una fuente de paquete de plataforma disponible para este sistema. Busca actualizaciones más tarde o usa un instalador compatible.",
     "packageDownloadVerifyFailed": "La verificación del paquete de plataforma falló. Descárgalo de nuevo; si sigue fallando, espera a que se vuelva a publicar el paquete.",
     "packageOperationFailedFriendly": "La operación del paquete de plataforma falló. Inténtalo de nuevo más tarde.",
+    "packageOperationCanceled": "Se canceló la operación del paquete de plataforma.",
     "packageOperationRetryHint": "Puedes hacer clic en el botón de abajo para reintentarlo.",
     "packagePageRepairTitle": "El paquete de {{platform}} necesita reparación",
     "packagePageInstallTitle": "El paquete de {{platform}} no está instalado",

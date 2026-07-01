@@ -382,6 +382,7 @@
     "packageDownloadSourceMissing": "Không có nguồn gói nền tảng khả dụng cho hệ thống này. Hãy kiểm tra cập nhật sau hoặc dùng bộ cài được hỗ trợ.",
     "packageDownloadVerifyFailed": "Xác minh gói nền tảng thất bại. Hãy tải lại; nếu vẫn lỗi, hãy chờ gói được phát hành lại.",
     "packageOperationFailedFriendly": "Xử lý gói nền tảng thất bại. Vui lòng thử lại sau.",
+    "packageOperationCanceled": "Đã hủy thao tác gói nền tảng.",
     "packageOperationRetryHint": "Bạn có thể bấm nút bên dưới để thử lại.",
     "packagePageRepairTitle": "Gói {{platform}} cần sửa lỗi",
     "packagePageInstallTitle": "Gói {{platform}} chưa được cài đặt",

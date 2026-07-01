@@ -11,6 +11,7 @@ export interface GlobalModalAction {
   autoClose?: boolean;
   disabled?: boolean;
   suppressError?: boolean;
+  allowWhilePending?: boolean;
 }
 
 export interface GlobalModalOptions {
@@ -19,6 +20,8 @@ export interface GlobalModalOptions {
   content?: ReactNode;
   width?: 'sm' | 'md' | 'lg';
   showCloseButton?: boolean;
+  allowCloseWhilePending?: boolean;
+  onPendingClose?: () => void | Promise<void>;
   actions?: GlobalModalAction[];
 }
 

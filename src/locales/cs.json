@@ -382,6 +382,7 @@
     "packageDownloadSourceMissing": "Pro tento systém není dostupný zdroj balíčku platformy. Zkontrolujte aktualizace později nebo použijte podporovaný instalátor.",
     "packageDownloadVerifyFailed": "Ověření balíčku platformy selhalo. Stáhněte jej znovu; pokud chyba trvá, počkejte na nové vydání balíčku.",
     "packageOperationFailedFriendly": "Operace s balíčkem platformy selhala. Zkuste to prosím později.",
+    "packageOperationCanceled": "Operace s balíčkem platformy byla zrušena.",
     "packageOperationRetryHint": "Můžete kliknout na tlačítko níže a zkusit to znovu.",
     "packagePageRepairTitle": "Balíček {{platform}} vyžaduje opravu",
     "packagePageInstallTitle": "Balíček {{platform}} není nainstalován",

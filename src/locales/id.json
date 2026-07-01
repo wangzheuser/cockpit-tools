@@ -428,6 +428,7 @@
     "packageDownloadSourceMissing": "Tidak ada sumber paket platform yang tersedia untuk sistem ini. Periksa pembaruan nanti atau gunakan installer yang didukung.",
     "packageDownloadVerifyFailed": "Verifikasi paket platform gagal. Unduh ulang; jika masih gagal, tunggu paket dipublikasikan ulang.",
     "packageOperationFailedFriendly": "Operasi paket platform gagal. Coba lagi nanti.",
+    "packageOperationCanceled": "Operasi paket platform dibatalkan.",
     "packageOperationRetryHint": "Anda dapat mengeklik tombol di bawah untuk mencoba lagi.",
     "packagePageRepairTitle": "Paket {{platform}} perlu diperbaiki",
     "packagePageInstallTitle": "Paket {{platform}} belum terpasang",

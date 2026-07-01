@@ -1,8 +1,8 @@
 use std::time::{Duration, Instant};
 
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde::de::DeserializeOwned;
+use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter};
 
 use crate::models::github_copilot::{GitHubCopilotAccount, GitHubCopilotOAuthStartResponse};
@@ -257,8 +257,11 @@ pub async fn inject_github_copilot_to_vscode(
         account_id
     ));
 
-    let result: SwitchResult =
-        github_copilot_call_async("switch.inject", json!({ "accountId": account_id })).await?;
+    let result: SwitchResult = github_copilot_call_async(
+        "switch.inject",
+        json!({ "accountId": account_id, "launchDefaultInstance": true }),
+    )
+    .await?;
     let _ = crate::modules::provider_current_state::set_current_account_id(
         "github_copilot",
         Some(account_id.as_str()),

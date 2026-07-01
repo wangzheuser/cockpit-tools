@@ -103,6 +103,12 @@ export async function uninstallPlatformPackage(platformId: PlatformId): Promise<
   );
 }
 
+export async function cancelPlatformPackageOperation(platformId: PlatformId): Promise<void> {
+  await invokePlatformPackage('cancel_platform_package_operation', () =>
+    invoke('cancel_platform_package_operation', { platformId }),
+  );
+}
+
 export async function getPlatformPackageUiEntry(
   platformId: PlatformId,
 ): Promise<PlatformPackageUiEntry> {
