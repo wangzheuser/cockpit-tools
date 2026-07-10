@@ -117,8 +117,7 @@ jobs:
             gh release list \
               --limit 100 \
               --json tagName,isDraft,isPrerelease \
-              --jq '.[] | select(.isDraft == false and .isPrerelease == false) | .tagName' \
-              | awk -v current="${GITHUB_REF_NAME}" '$0 != current { print; exit }'
+              --jq "[.[] | select(.isDraft == false and .isPrerelease == false and .tagName != \"${GITHUB_REF_NAME}\")][0].tagName // \"\""
           )"
           if [ -z "${PREVIOUS_TAG}" ]; then
             echo "No previous published release was found; refusing to stage without a legacy updater manifest."
