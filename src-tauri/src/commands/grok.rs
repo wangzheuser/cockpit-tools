@@ -1,11 +1,13 @@
 use crate::models::grok::{GrokAccountView, GrokOAuthStartResponse};
 use crate::modules::{grok_account, grok_oauth, logger};
 use serde::Serialize;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use tauri::AppHandle;
 
+#[cfg(target_os = "windows")]
+const GROK_CLI_INSTALL_COMMAND: &str = "irm https://x.ai/cli/install.ps1 | iex";
+#[cfg(not(target_os = "windows"))]
 const GROK_CLI_INSTALL_COMMAND: &str = "curl -fsSL https://x.ai/cli/install.sh | bash";
 
 #[derive(Debug, Serialize)]
@@ -44,30 +46,6 @@ fn command_exists(name: &str) -> Option<PathBuf> {
         .map(str::trim)
         .find(|line| !line.is_empty())
         .map(PathBuf::from)
-}
-
-#[cfg(target_os = "windows")]
-fn resolve_windows_bash() -> Option<PathBuf> {
-    if let Some(path) = command_exists("bash") {
-        return Some(path);
-    }
-    let mut candidates = Vec::new();
-    for variable in ["ProgramFiles", "ProgramFiles(x86)"] {
-        if let Ok(root) = std::env::var(variable) {
-            candidates.push(PathBuf::from(root).join("Git/bin/bash.exe"));
-        }
-    }
-    if let Ok(root) = std::env::var("LOCALAPPDATA") {
-        candidates.push(PathBuf::from(root).join("Programs/Git/bin/bash.exe"));
-    }
-    let system_drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_string());
-    candidates.push(PathBuf::from(format!(
-        "{}\\msys64\\usr\\bin\\bash.exe",
-        system_drive
-    )));
-    candidates
-        .into_iter()
-        .find(|candidate| validate_cli_file(candidate).is_ok())
 }
 
 fn expand_home_path(raw: &str) -> PathBuf {
@@ -244,20 +222,6 @@ pub fn grok_update_cli_runtime_config(
 
 #[tauri::command]
 pub fn grok_execute_cli_install_command(terminal: Option<String>) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    let command = {
-        let bash = resolve_windows_bash().ok_or_else(|| {
-            "未检测到 Bash。请先安装 Git for Windows 或 MSYS2，再执行 Grok CLI 官方安装命令"
-                .to_string()
-        })?;
-        let quote = |value: &str| format!("'{}'", value.replace('\'', "''"));
-        format!(
-            "& {} -lc {}",
-            quote(&bash.to_string_lossy()),
-            quote(GROK_CLI_INSTALL_COMMAND)
-        )
-    };
-    #[cfg(not(target_os = "windows"))]
     let command = GROK_CLI_INSTALL_COMMAND.to_string();
 
     #[cfg(target_os = "linux")]
@@ -291,7 +255,9 @@ pub fn grok_execute_cli_install_command(terminal: Option<String>) -> Result<(), 
 
 #[cfg(test)]
 mod tests {
-    use super::{expand_home_path, parse_grok_client_version, validate_cli_file};
+    use super::{expand_home_path, parse_grok_client_version};
+    #[cfg(unix)]
+    use super::validate_cli_file;
 
     #[test]
     fn expands_tilde_prefixed_cli_path() {

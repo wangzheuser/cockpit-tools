@@ -46,8 +46,20 @@ interface GrokLaunchModalState {
   errorScrollKey: number;
 }
 
-const GROK_CLI_INSTALL_COMMAND =
+const GROK_CLI_INSTALL_COMMAND_UNIX =
   'curl -fsSL https://x.ai/cli/install.sh | bash';
+const GROK_CLI_INSTALL_COMMAND_WINDOWS =
+  'irm https://x.ai/cli/install.ps1 | iex';
+
+function getGrokCliInstallCommand(): string {
+  if (typeof navigator === 'undefined') {
+    return GROK_CLI_INSTALL_COMMAND_UNIX;
+  }
+  const platform = `${navigator.platform || ''} ${navigator.userAgent || ''}`;
+  return /win/i.test(platform)
+    ? GROK_CLI_INSTALL_COMMAND_WINDOWS
+    : GROK_CLI_INSTALL_COMMAND_UNIX;
+}
 
 export function GrokInstancesContent({
   accountsForSelect,
@@ -57,6 +69,7 @@ export function GrokInstancesContent({
   const instanceStore = useGrokInstanceStore();
   const accounts = accountsForSelect ?? accountStore.accounts;
   const isSupported = usePlatformRuntimeSupport('desktop');
+  const grokCliInstallCommand = useMemo(() => getGrokCliInstallCommand(), []);
   const [launchModal, setLaunchModal] = useState<GrokLaunchModalState | null>(
     null,
   );
@@ -259,12 +272,13 @@ export function GrokInstancesContent({
         'quickSettings.grok.cliMissing',
         '未检测到 Grok CLI，可填写自定义路径',
       );
+  const showLaunchInstallGuide = !!launchModal?.executeError;
 
   const handleCopyInstallCommand = async () => {
     setCliActionError(null);
     setInstallCommandCopied(false);
     try {
-      await navigator.clipboard.writeText(GROK_CLI_INSTALL_COMMAND);
+      await navigator.clipboard.writeText(grokCliInstallCommand);
       setInstallCommandCopied(true);
       window.setTimeout(() => setInstallCommandCopied(false), 1200);
     } catch {
@@ -287,6 +301,12 @@ export function GrokInstancesContent({
     } finally {
       setInstallExecuting(false);
     }
+  };
+
+  const handleInstallTerminalChange = (terminal: string) => {
+    setSelectedTerminal(terminal);
+    setCliActionError(null);
+    setInstallOpened(false);
   };
 
   const handleCopyLaunchCommand = async () => {
@@ -340,12 +360,14 @@ export function GrokInstancesContent({
           : current,
       );
     } catch (error) {
+      const message = String(error);
+      void loadCliStatus(false);
       setLaunchModal((current) =>
         current
           ? {
               ...current,
               executing: false,
-              executeError: String(error),
+              executeError: message,
               errorScrollKey: current.errorScrollKey + 1,
             }
           : current,
@@ -363,6 +385,69 @@ export function GrokInstancesContent({
         : current,
     );
   };
+
+  const renderGrokCliInstallGuide = (
+    controlsDisabled: boolean,
+    hintText = t(
+      'grok.instances.installHint',
+      '可在终端运行以下官方命令，安装完成后点击刷新。',
+    ),
+  ) => (
+    <div className="grok-cli-install-guide">
+      <strong>
+        {t('grok.instances.installCommand', '官方安装命令')}
+      </strong>
+      <p>{hintText}</p>
+      <div className="grok-cli-install-command">
+        <code>{grokCliInstallCommand}</code>
+        <button
+          type="button"
+          className="btn btn-secondary icon-only"
+          onClick={() => void handleCopyInstallCommand()}
+          title={
+            installCommandCopied
+              ? t('common.success', '成功')
+              : t('common.copy', '复制')
+          }
+          aria-label={t('common.copy', '复制')}
+        >
+          {installCommandCopied ? <Check size={14} /> : <Copy size={14} />}
+        </button>
+      </div>
+      <div className="grok-cli-install-actions">
+        <div className="grok-cli-install-terminal">
+          <label>{t('instances.launchDialog.terminal', '终端')}</label>
+          <SingleSelectDropdown
+            value={selectedTerminal}
+            onChange={handleInstallTerminalChange}
+            options={terminalOptions}
+            disabled={controlsDisabled || installExecuting}
+          />
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => void handleExecuteInstallCommand()}
+          disabled={controlsDisabled || installExecuting}
+        >
+          <Play size={14} />
+          {installExecuting
+            ? t('common.loading', '加载中...')
+            : t('grok.instances.runInTerminal', '终端执行')}
+        </button>
+      </div>
+      {installOpened && (
+        <div className="add-status success">
+          <Check size={14} />
+          <span>{t('common.success', '成功')}</span>
+        </div>
+      )}
+      <ModalErrorMessage
+        message={cliActionError}
+        scrollKey={cliActionErrorScrollKey}
+      />
+    </div>
+  );
 
   return (
     <>
@@ -482,76 +567,8 @@ export function GrokInstancesContent({
                   />
                 </button>
               </div>
-              {cliStatus && !cliStatus.available && (
-                <div className="grok-cli-install-guide">
-                  <strong>
-                    {t(
-                      'grok.instances.installCommand',
-                      '官方安装命令',
-                    )}
-                  </strong>
-                  <p>
-                    {t(
-                      'grok.instances.installHint',
-                      '可在终端运行以下官方命令，安装完成后点击刷新。',
-                    )}
-                  </p>
-                  <div className="grok-cli-install-command">
-                    <code>{GROK_CLI_INSTALL_COMMAND}</code>
-                    <button
-                      type="button"
-                      className="btn btn-secondary icon-only"
-                      onClick={() => void handleCopyInstallCommand()}
-                      title={
-                        installCommandCopied
-                          ? t('common.success', '成功')
-                          : t('common.copy', '复制')
-                      }
-                      aria-label={t('common.copy', '复制')}
-                    >
-                      {installCommandCopied ? (
-                        <Check size={14} />
-                      ) : (
-                        <Copy size={14} />
-                      )}
-                    </button>
-                  </div>
-                  <div className="grok-cli-install-actions">
-                    <div className="grok-cli-install-terminal">
-                      <label>
-                        {t('instances.launchDialog.terminal', '终端')}
-                      </label>
-                      <SingleSelectDropdown
-                        value={selectedTerminal}
-                        onChange={handleTerminalChange}
-                        options={terminalOptions}
-                        disabled={installExecuting || cliSaving}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => void handleExecuteInstallCommand()}
-                      disabled={installExecuting || cliSaving}
-                    >
-                      <Play size={14} />
-                      {installExecuting
-                        ? t('common.loading', '加载中...')
-                        : t('grok.instances.runInTerminal', '终端执行')}
-                    </button>
-                  </div>
-                  {installOpened && (
-                    <div className="add-status success">
-                      <Check size={14} />
-                      <span>{t('common.success', '成功')}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-              <ModalErrorMessage
-                message={cliActionError}
-                scrollKey={cliActionErrorScrollKey}
-              />
+              {cliStatus && !cliStatus.available &&
+                renderGrokCliInstallGuide(cliSaving)}
               <div className="form-group">
                 <label>{t('quickSettings.grok.cliPath', 'CLI 路径')}</label>
                 <input
@@ -598,7 +615,7 @@ export function GrokInstancesContent({
       {launchModal && (
         <div className="modal-overlay">
           <div
-            className="modal modal-lg"
+            className="modal modal-lg grok-launch-modal"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="modal-header">
@@ -628,6 +645,14 @@ export function GrokInstancesContent({
                 message={launchModal.executeError}
                 scrollKey={launchModal.errorScrollKey}
               />
+              {showLaunchInstallGuide &&
+                renderGrokCliInstallGuide(
+                  launchModal.executing,
+                  t(
+                    'grok.instances.installLaunchHint',
+                    '可在终端运行以下官方命令，安装完成后重新点击终端执行。',
+                  ),
+                )}
               <div className="form-group">
                 <label>{t('instances.columns.instance', '实例')}</label>
                 <input

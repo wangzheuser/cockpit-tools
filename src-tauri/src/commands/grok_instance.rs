@@ -241,6 +241,15 @@ fn write_wrapper_file(
     pid_file: &Path,
 ) -> Result<(), String> {
     let script = build_wrapper_script(context, binary, pid_file)?;
+    #[cfg(target_os = "windows")]
+    {
+        let mut bytes = Vec::with_capacity(3 + script.len());
+        bytes.extend_from_slice(&[0xEF, 0xBB, 0xBF]);
+        bytes.extend_from_slice(script.as_bytes());
+        fs::write(&wrapper, bytes)
+            .map_err(|error| format!("写入 Grok 启动 wrapper 失败: {}", error))?;
+    }
+    #[cfg(not(target_os = "windows"))]
     fs::write(&wrapper, script)
         .map_err(|error| format!("写入 Grok 启动 wrapper 失败: {}", error))?;
     #[cfg(unix)]
@@ -608,9 +617,10 @@ pub async fn grok_execute_instance_launch_command(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_wrapper_script, ensure_runtime_dir, process_matches, write_wrapper_file,
-        GrokLaunchContext, DEFAULT_INSTANCE_ID,
+        build_wrapper_script, write_wrapper_file, GrokLaunchContext, DEFAULT_INSTANCE_ID,
     };
+    #[cfg(unix)]
+    use super::{ensure_runtime_dir, process_matches};
     use std::path::{Path, PathBuf};
 
     fn default_context() -> GrokLaunchContext {
@@ -702,6 +712,43 @@ mod tests {
         assert!(script.contains("pid_file='/tmp/Grok Runtime/instance'\"'\"'s pid'"));
         assert!(script.contains("'/tmp/Grok CLI'\"'\"'s bin/grok'"));
         assert!(script.contains("temp_pid=\"${pid_file}.tmp.$$\""));
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn windows_wrapper_is_written_with_utf8_bom_for_non_ascii_paths() {
+        let runtime: PathBuf = std::env::temp_dir().join(format!(
+            "cockpit-grok-wrapper-test-{}-李杰",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&runtime).expect("create test runtime directory");
+        let wrapper = runtime.join("launch-__default__.ps1");
+        let pid_file = runtime.join("__default__.pid");
+        let context = GrokLaunchContext {
+            instance_id: DEFAULT_INSTANCE_ID.to_string(),
+            user_data_dir: runtime
+                .join("grok-home-李杰")
+                .to_string_lossy()
+                .to_string(),
+            working_dir: None,
+            extra_args: String::new(),
+            managed: true,
+        };
+
+        write_wrapper_file(
+            &context,
+            Path::new("C:\\Windows\\System32\\cmd.exe"),
+            &wrapper,
+            &pid_file,
+        )
+        .expect("write PowerShell wrapper");
+
+        let bytes = std::fs::read(&wrapper).expect("read wrapper bytes");
+        assert!(bytes.starts_with(&[0xEF, 0xBB, 0xBF]));
+        let script = String::from_utf8(bytes[3..].to_vec()).expect("script should be utf-8");
+        assert!(script.contains("李杰"));
+
+        let _ = std::fs::remove_dir_all(runtime);
     }
 
     #[cfg(unix)]
