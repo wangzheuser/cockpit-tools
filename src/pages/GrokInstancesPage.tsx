@@ -5,11 +5,13 @@ import {
   CircleCheck,
   CircleX,
   Copy,
+  FolderOpen,
   Play,
   RefreshCw,
   Terminal,
   X,
 } from 'lucide-react';
+import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
 import { useTranslation } from 'react-i18next';
 import { PlatformInstancesContent } from '../components/platform/PlatformInstancesContent';
 import { DosageNotifyQuotaPreview } from '../components/platform/DosageNotifyQuotaPreview';
@@ -20,6 +22,7 @@ import { useLaunchTerminalOptions } from '../hooks/useLaunchTerminalOptions';
 import { usePlatformRuntimeSupport } from '../hooks/usePlatformRuntimeSupport';
 import * as grokInstanceService from '../services/grokInstanceService';
 import type { GrokCliStatus } from '../services/grokInstanceService';
+import * as grokService from '../services/grokService';
 import { useGrokAccountStore } from '../stores/useGrokAccountStore';
 import { useGrokInstanceStore } from '../stores/useGrokInstanceStore';
 import {
@@ -37,13 +40,55 @@ interface GrokInstancesContentProps {
 interface GrokLaunchModalState {
   instanceId: string;
   instanceName: string;
+  accountId: string | null;
+  workingDir: string;
   switchMessage: string;
   launchCommand: string;
+  regeneratingCommand: boolean;
   copied: boolean;
   executing: boolean;
   executeMessage: string | null;
   executeError: string | null;
   errorScrollKey: number;
+}
+
+function resolveGrokLaunchWorkingDir(
+  instance: InstanceProfile,
+  accountMap: Map<string, GrokAccount>,
+  currentAccountId: string | null,
+): { accountId: string | null; workingDir: string } {
+  const boundAccountId = instance.bindAccountId?.trim() || null;
+  if (boundAccountId) {
+    const bound = accountMap.get(boundAccountId);
+    const accountDir = bound?.working_dir?.trim() || '';
+    if (accountDir) {
+      return { accountId: boundAccountId, workingDir: accountDir };
+    }
+    return {
+      accountId: boundAccountId,
+      workingDir: instance.workingDir?.trim() || '',
+    };
+  }
+
+  if (instance.isDefault) {
+    const currentId = currentAccountId?.trim() || null;
+    if (currentId) {
+      const current = accountMap.get(currentId);
+      const accountDir = current?.working_dir?.trim() || '';
+      if (accountDir) {
+        return { accountId: currentId, workingDir: accountDir };
+      }
+      return {
+        accountId: currentId,
+        workingDir: instance.workingDir?.trim() || '',
+      };
+    }
+  }
+
+  return {
+    accountId: null,
+    workingDir: instance.workingDir?.trim() || '',
+  };
 }
 
 const GROK_CLI_INSTALL_COMMAND_UNIX =
@@ -164,30 +209,61 @@ export function GrokInstancesContent({
   }, [accounts]);
 
   const handleInstanceStarted = async (instance: InstanceProfile) => {
-    const launchInfo = await grokInstanceService.getGrokInstanceLaunchCommand(
-      instance.id,
+    const { accountId, workingDir } = resolveGrokLaunchWorkingDir(
+      instance,
+      accountMap,
+      accountStore.currentAccountId,
     );
-    const boundAccount = instance.bindAccountId
-      ? accountMap.get(instance.bindAccountId)
-      : undefined;
+    const boundAccount = accountId ? accountMap.get(accountId) : undefined;
     const instanceName = instance.isDefault
       ? t('instances.defaultName', '默认实例')
       : instance.name || t('instances.defaultName', '默认实例');
-    setLaunchModal({
-      instanceId: instance.id,
-      instanceName,
-      switchMessage: boundAccount
-        ? t('accounts.switched', '已切换至 {{email}}', {
-            email: getGrokAccountDisplayEmail(boundAccount),
-          })
-        : t('instances.messages.launchPrepared', '启动命令已准备'),
-      launchCommand: launchInfo.launchCommand,
-      copied: false,
-      executing: false,
-      executeMessage: null,
-      executeError: null,
-      errorScrollKey: 0,
-    });
+    try {
+      const launchInfo = await grokInstanceService.getGrokInstanceLaunchCommand(
+        instance.id,
+        {
+          workingDir,
+          applyWorkingDirOverride: true,
+        },
+      );
+      setLaunchModal({
+        instanceId: instance.id,
+        instanceName,
+        accountId,
+        workingDir,
+        switchMessage: boundAccount
+          ? t('accounts.switched', '已切换至 {{email}}', {
+              email: getGrokAccountDisplayEmail(boundAccount),
+            })
+          : t('instances.messages.launchPrepared', '启动命令已准备'),
+        launchCommand: launchInfo.launchCommand,
+        regeneratingCommand: false,
+        copied: false,
+        executing: false,
+        executeMessage: null,
+        executeError: null,
+        errorScrollKey: 0,
+      });
+    } catch (error) {
+      setLaunchModal({
+        instanceId: instance.id,
+        instanceName,
+        accountId,
+        workingDir,
+        switchMessage: boundAccount
+          ? t('accounts.switched', '已切换至 {{email}}', {
+              email: getGrokAccountDisplayEmail(boundAccount),
+            })
+          : t('instances.messages.launchPrepared', '启动命令已准备'),
+        launchCommand: '',
+        regeneratingCommand: false,
+        copied: false,
+        executing: false,
+        executeMessage: null,
+        executeError: String(error),
+        errorScrollKey: 1,
+      });
+    }
   };
 
   const handleInstanceStartError = useCallback(
@@ -309,10 +385,172 @@ export function GrokInstancesContent({
     setInstallOpened(false);
   };
 
+  const persistLaunchWorkingDir = useCallback(
+    async (accountId: string | null, workingDir: string) => {
+      if (!accountId) return;
+      await grokService.updateGrokAccountWorkingDir(
+        accountId,
+        workingDir.trim() || null,
+      );
+      await accountStore.fetchAccounts();
+    },
+    [accountStore],
+  );
+
+  const regenerateLaunchCommand = useCallback(
+    async (modal: GrokLaunchModalState, workingDir: string) => {
+      setLaunchModal((current) =>
+        current && current.instanceId === modal.instanceId
+          ? {
+              ...current,
+              workingDir,
+              regeneratingCommand: true,
+              executeError: null,
+              executeMessage: null,
+            }
+          : current,
+      );
+      try {
+        const launchInfo =
+          await grokInstanceService.getGrokInstanceLaunchCommand(
+            modal.instanceId,
+            {
+              workingDir,
+              applyWorkingDirOverride: true,
+            },
+          );
+        setLaunchModal((current) =>
+          current && current.instanceId === modal.instanceId
+            ? {
+                ...current,
+                workingDir,
+                launchCommand: launchInfo.launchCommand,
+                regeneratingCommand: false,
+                executeError: null,
+              }
+            : current,
+        );
+      } catch (error) {
+        setLaunchModal((current) =>
+          current && current.instanceId === modal.instanceId
+            ? {
+                ...current,
+                workingDir,
+                regeneratingCommand: false,
+                executeError: String(error),
+                errorScrollKey: current.errorScrollKey + 1,
+              }
+            : current,
+        );
+      }
+    },
+    [],
+  );
+
+  const updateLaunchWorkingDir = (value: string) => {
+    setLaunchModal((current) =>
+      current
+        ? {
+            ...current,
+            workingDir: value,
+            launchCommand: '',
+            executeError: null,
+            executeMessage: null,
+          }
+        : current,
+    );
+  };
+
+  const handleChooseLaunchWorkingDir = async () => {
+    if (!launchModal || launchModal.executing || launchModal.regeneratingCommand)
+      return;
+    const selected = await openFileDialog({
+      directory: true,
+      multiple: false,
+      title: t('grok.instances.selectWorkingDir', '选择 Grok CLI 工作目录'),
+    });
+    if (!selected || typeof selected !== 'string') return;
+    try {
+      await persistLaunchWorkingDir(launchModal.accountId, selected);
+      await regenerateLaunchCommand(launchModal, selected);
+    } catch (error) {
+      setLaunchModal((current) =>
+        current
+          ? {
+              ...current,
+              executeError: String(error),
+              errorScrollKey: current.errorScrollKey + 1,
+            }
+          : current,
+      );
+    }
+  };
+
+  const handleLaunchWorkingDirBlur = async () => {
+    if (!launchModal || launchModal.executing || launchModal.regeneratingCommand)
+      return;
+    const nextWorkingDir = launchModal.workingDir.trim();
+    try {
+      await regenerateLaunchCommand(launchModal, nextWorkingDir);
+    } catch (error) {
+      setLaunchModal((current) =>
+        current
+          ? {
+              ...current,
+              executeError: String(error),
+              errorScrollKey: current.errorScrollKey + 1,
+            }
+          : current,
+      );
+    }
+  };
+
+  const ensureLaunchCommandReady = async (
+    modal: GrokLaunchModalState,
+  ): Promise<GrokLaunchModalState | null> => {
+    if (modal.launchCommand.trim() && !modal.regeneratingCommand) {
+      return modal;
+    }
+    try {
+      await persistLaunchWorkingDir(modal.accountId, modal.workingDir);
+      const launchInfo = await grokInstanceService.getGrokInstanceLaunchCommand(
+        modal.instanceId,
+        {
+          workingDir: modal.workingDir,
+          applyWorkingDirOverride: true,
+        },
+      );
+      const next: GrokLaunchModalState = {
+        ...modal,
+        launchCommand: launchInfo.launchCommand,
+        regeneratingCommand: false,
+        executeError: null,
+      };
+      setLaunchModal((current) =>
+        current && current.instanceId === modal.instanceId ? next : current,
+      );
+      return next;
+    } catch (error) {
+      setLaunchModal((current) =>
+        current && current.instanceId === modal.instanceId
+          ? {
+              ...current,
+              regeneratingCommand: false,
+              executeError: String(error),
+              errorScrollKey: current.errorScrollKey + 1,
+            }
+          : current,
+      );
+      return null;
+    }
+  };
+
   const handleCopyLaunchCommand = async () => {
     if (!launchModal) return;
+    const prepared = await ensureLaunchCommandReady(launchModal);
+    if (!prepared?.launchCommand) return;
     try {
-      await navigator.clipboard.writeText(launchModal.launchCommand);
+      await navigator.clipboard.writeText(prepared.launchCommand);
       setLaunchModal((current) =>
         current ? { ...current, copied: true, executeError: null } : current,
       );
@@ -338,7 +576,8 @@ export function GrokInstancesContent({
   };
 
   const handleExecuteInTerminal = async () => {
-    if (!launchModal || launchModal.executing) return;
+    if (!launchModal || launchModal.executing || launchModal.regeneratingCommand)
+      return;
     setLaunchModal((current) =>
       current
         ? {
@@ -350,13 +589,29 @@ export function GrokInstancesContent({
         : current,
     );
     try {
+      const prepared = await ensureLaunchCommandReady(launchModal);
+      if (!prepared) {
+        setLaunchModal((current) =>
+          current ? { ...current, executing: false } : current,
+        );
+        return;
+      }
       const result = await grokInstanceService.executeGrokInstanceLaunchCommand(
-        launchModal.instanceId,
+        prepared.instanceId,
         selectedTerminal,
+        {
+          workingDir: prepared.workingDir,
+          applyWorkingDirOverride: true,
+        },
       );
       setLaunchModal((current) =>
         current
-          ? { ...current, executing: false, executeMessage: result }
+          ? {
+              ...current,
+              executing: false,
+              launchCommand: prepared.launchCommand,
+              executeMessage: result,
+            }
           : current,
       );
     } catch (error) {
@@ -662,10 +917,67 @@ export function GrokInstancesContent({
                 />
               </div>
               <div className="form-group">
+                <label>{t('instances.form.workingDir', '工作目录')}</label>
+                <div className="grok-launch-working-dir-row">
+                  <input
+                    className="form-input"
+                    value={launchModal.workingDir}
+                    placeholder={t(
+                      'instances.form.workingDirPlaceholder',
+                      '默认当前路径',
+                    )}
+                    onChange={(event) =>
+                      updateLaunchWorkingDir(event.target.value)
+                    }
+                    onBlur={() => void handleLaunchWorkingDirBlur()}
+                    disabled={
+                      launchModal.executing || launchModal.regeneratingCommand
+                    }
+                  />
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => void handleChooseLaunchWorkingDir()}
+                    disabled={
+                      launchModal.executing || launchModal.regeneratingCommand
+                    }
+                    title={t(
+                      'grok.instances.selectWorkingDir',
+                      '选择 Grok CLI 工作目录',
+                    )}
+                    aria-label={t(
+                      'grok.instances.selectWorkingDir',
+                      '选择 Grok CLI 工作目录',
+                    )}
+                  >
+                    <FolderOpen size={16} />
+                  </button>
+                </div>
+                <p className="form-hint">
+                  {launchModal.accountId
+                    ? t(
+                        'grok.instances.workingDirAccountHint',
+                        '工作目录与当前账号绑定，下次切号启动会自动回填。',
+                      )
+                    : t(
+                        'instances.form.workingDirDesc',
+                        '启动时将首先切换到此目录',
+                      )}
+                </p>
+              </div>
+              <div className="form-group">
                 <label>{t('instances.launchDialog.command', '启动命令')}</label>
                 <textarea
                   className="form-input instance-args-input"
                   value={launchModal.launchCommand}
+                  placeholder={
+                    launchModal.regeneratingCommand
+                      ? t('common.loading', '加载中...')
+                      : t(
+                          'grok.instances.launchCommandPlaceholder',
+                          '选择或确认工作目录后生成启动命令',
+                        )
+                  }
                   readOnly
                 />
                 <p className="form-hint">
@@ -681,7 +993,9 @@ export function GrokInstancesContent({
                   value={selectedTerminal}
                   onChange={handleTerminalChange}
                   options={terminalOptions}
-                  disabled={launchModal.executing}
+                  disabled={
+                    launchModal.executing || launchModal.regeneratingCommand
+                  }
                   ariaLabel={t('instances.launchDialog.terminal', '终端')}
                 />
               </div>
@@ -695,7 +1009,10 @@ export function GrokInstancesContent({
             <div className="modal-footer">
               <button
                 className="btn btn-secondary"
-                onClick={handleCopyLaunchCommand}
+                onClick={() => void handleCopyLaunchCommand()}
+                disabled={
+                  launchModal.executing || launchModal.regeneratingCommand
+                }
               >
                 <Copy size={16} />
                 {launchModal.copied
@@ -704,8 +1021,10 @@ export function GrokInstancesContent({
               </button>
               <button
                 className="btn btn-primary"
-                onClick={handleExecuteInTerminal}
-                disabled={launchModal.executing}
+                onClick={() => void handleExecuteInTerminal()}
+                disabled={
+                  launchModal.executing || launchModal.regeneratingCommand
+                }
               >
                 <Play size={16} />
                 {launchModal.executing

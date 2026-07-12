@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "配置的 Grok CLI 路径无效：{{path}}",
       "saveAndRetry": "保存并重试",
       "installCommand": "官方安装命令",
-      "installHint": "可在终端运行以下官方命令，安装完成后点击刷新。"
+      "installHint": "可在终端运行以下官方命令，安装完成后点击刷新。",
+      "selectWorkingDir": "选择 Grok CLI 工作目录",
+      "workingDirAccountHint": "工作目录与当前账号绑定，下次切号启动会自动回填。",
+      "launchCommandPlaceholder": "选择或确认工作目录后生成启动命令"
     },
     "switch": {
       "success": "切号成功"
@@ -5117,7 +5120,9 @@
       "included": "套餐用量",
       "promotional": "活动额度",
       "frequent": "高频任务",
-      "occasional": "普通任务"
+      "occasional": "普通任务",
+      "resetAt": "{{label}} 重置：{{time}}",
+      "empty": "暂无额度"
     },
     "quotaAlert": {
       "hint": "当当前账号任意配额项低于阈值时，发送原生通知并在页面提示快捷切号。",

@@ -10,6 +10,9 @@ export interface GrokProductUsage {
   /** Original product value returned by xAI. */
   product: string;
   usagePercent?: number | null;
+  used?: number | null;
+  total?: number | null;
+  remaining?: number | null;
 }
 
 export interface GrokQuota {
@@ -17,6 +20,8 @@ export interface GrokQuota {
   periodStart?: string | null;
   periodEnd?: string | null;
   weeklyLimitPercent?: number | null;
+  weeklyUsed?: number | null;
+  weeklyTotal?: number | null;
   onDemandUsed?: number | null;
   onDemandCap?: number | null;
   prepaidBalance?: number | null;
@@ -56,8 +61,21 @@ export interface GrokAccount {
   quota_query_last_error?: string | null;
   quota_query_last_error_at?: number | null;
   usage_updated_at?: number | null;
+  /** Preferred CLI working directory bound to this account. */
+  working_dir?: string | null;
   created_at: number;
   last_used: number;
+}
+
+export interface GrokQuotaSummaryItem {
+  key: string;
+  label: string;
+  percentage: number;
+  resetAtMs: number | null;
+  /** Absolute used amount when API provides it (credits/tasks). */
+  used?: number | null;
+  /** Absolute total/limit amount when API provides it. */
+  total?: number | null;
 }
 
 export interface GrokUsage extends CodebuddyUsage {
@@ -137,29 +155,6 @@ function amountResource(
     usedPercent,
     remainPercent,
     refreshAt,
-    expireAt: null,
-    isBasePackage: false,
-  };
-}
-
-function balanceResource(
-  name: string,
-  balanceValue: number,
-): OfficialQuotaResource {
-  const balance = Math.max(0, balanceValue);
-  return {
-    packageCode: "grok-prepaid-balance",
-    packageName: name,
-    cycleStartTime: null,
-    cycleEndTime: null,
-    deductionEndTime: null,
-    expiredTime: null,
-    total: balance,
-    remain: balance,
-    used: 0,
-    usedPercent: 0,
-    remainPercent: balance > 0 ? 100 : null,
-    refreshAt: null,
     expireAt: null,
     isBasePackage: false,
   };
@@ -275,38 +270,18 @@ export function getGrokPlanBadge(account: GrokAccount): string {
   return raw;
 }
 
+function grokLabelT(key: string, defaultValue?: string): string {
+  return defaultValue ?? key;
+}
+
+/**
+ * Account health uses the same visible quota buckets as the overview cards
+ * (products / tasks / on-demand). Weekly totals are intentionally excluded.
+ */
 export function getGrokUsage(account: GrokAccount): GrokUsage {
-  const weeklyPercent = finite(account.quota?.weeklyLimitPercent);
-  const productPercents = (account.quota?.products ?? [])
-    .map((product) => finite(product.usagePercent))
-    .filter((value): value is number => value != null);
-  const onDemandUsed = finite(account.quota?.onDemandUsed);
-  const onDemandCap = finite(account.quota?.onDemandCap);
-  const onDemandPercent =
-    onDemandCap != null && onDemandCap > 0 && onDemandUsed != null
-      ? (onDemandUsed / onDemandCap) * 100
-      : null;
-  const frequentUsage = finite(account.quota?.frequentUsage);
-  const frequentLimit = finite(account.quota?.frequentLimit);
-  const frequentPercent =
-    frequentLimit != null && frequentLimit > 0 && frequentUsage != null
-      ? (frequentUsage / frequentLimit) * 100
-      : null;
-  const occasionalUsage = finite(account.quota?.occasionalUsage);
-  const occasionalLimit = finite(account.quota?.occasionalLimit);
-  const occasionalPercent =
-    occasionalLimit != null && occasionalLimit > 0 && occasionalUsage != null
-      ? (occasionalUsage / occasionalLimit) * 100
-      : null;
-  const usagePercents = [
-    weeklyPercent,
-    ...productPercents,
-    onDemandPercent,
-    frequentPercent,
-    occasionalPercent,
-  ]
-    .filter((value): value is number => value != null)
-    .map(clampPercent);
+  const usagePercents = getGrokQuotaSummaryItems(account, grokLabelT).map(
+    (item) => clampPercent(item.percentage),
+  );
   // The most constrained bucket drives account health and recommendations.
   const totalUsedPercent =
     usagePercents.length > 0 ? Math.max(...usagePercents) : null;
@@ -347,101 +322,170 @@ export function getGrokUsage(account: GrokAccount): GrokUsage {
   };
 }
 
+/** Compatibility adapter for shared suite / presentation; single source is summary items. */
 export function getGrokQuotaGroups(
   account: GrokAccount,
   t: (key: string, defaultValue?: string) => string,
 ): QuotaCategoryGroup[] {
-  const quota = account.quota;
-  const refreshAt = timestampMs(quota?.periodEnd);
-  const baseItems: OfficialQuotaResource[] = [];
-  const weeklyPercent = finite(quota?.weeklyLimitPercent);
-  if (weeklyPercent != null) {
-    baseItems.push(
-      percentageResource(
-        "grok-weekly-limit",
-        t("grok.quota.weekly", "每周用量"),
-        weeklyPercent,
-        refreshAt,
-      ),
-    );
-  }
-  (quota?.products ?? []).forEach((product, index) => {
-    const usagePercent = finite(product.usagePercent);
-    if (usagePercent == null) return;
-    baseItems.push(
-      percentageResource(
-        `grok-product-${index}`,
-        product.product,
-        usagePercent,
-        refreshAt,
-      ),
+  const summaryItems = getGrokQuotaSummaryItems(account, t);
+  const baseItems: OfficialQuotaResource[] = summaryItems.map((item) => {
+    if (
+      item.used != null &&
+      item.total != null &&
+      Number.isFinite(item.used) &&
+      Number.isFinite(item.total) &&
+      item.total > 0
+    ) {
+      return amountResource(
+        item.key,
+        item.label,
+        item.used,
+        item.total,
+        item.resetAtMs,
+      );
+    }
+    return percentageResource(
+      item.key,
+      item.label,
+      item.percentage,
+      item.resetAtMs,
     );
   });
-  const frequentLimit = finite(quota?.frequentLimit);
-  if (frequentLimit != null && frequentLimit > 0) {
-    baseItems.push(
-      amountResource(
-        "grok-frequent-tasks",
-        t("grok.quota.frequent", "高频任务"),
-        finite(quota?.frequentUsage) ?? 0,
-        frequentLimit,
-        refreshAt,
-      ),
-    );
-  }
-  const occasionalLimit = finite(quota?.occasionalLimit);
-  if (occasionalLimit != null && occasionalLimit > 0) {
-    baseItems.push(
-      amountResource(
-        "grok-occasional-tasks",
-        t("grok.quota.occasional", "普通任务"),
-        finite(quota?.occasionalUsage) ?? 0,
-        occasionalLimit,
-        refreshAt,
-      ),
-    );
-  }
-
-  const onDemandItems: OfficialQuotaResource[] = [];
-  const onDemandUsed = finite(quota?.onDemandUsed);
-  const onDemandCap = finite(quota?.onDemandCap);
-  if (onDemandCap != null && onDemandCap > 0) {
-    onDemandItems.push(
-      amountResource(
-        "grok-on-demand",
-        t("grok.quota.onDemand", "按量用量"),
-        onDemandUsed ?? 0,
-        onDemandCap,
-        refreshAt,
-      ),
-    );
-  }
-
-  const balanceItems: OfficialQuotaResource[] = [];
-  const prepaidBalance = finite(quota?.prepaidBalance);
-  if (prepaidBalance != null && prepaidBalance > 0) {
-    balanceItems.push(
-      balanceResource(t("grok.quota.balance", "余额与积分"), prepaidBalance),
-    );
-  }
-
   return [
     group("base", t("grok.quota.included", "套餐用量"), baseItems),
-    group("activity", t("grok.quota.promotional", "活动额度"), []),
-    group("extra", t("grok.quota.onDemand", "按量用量"), onDemandItems),
-    group("other", t("grok.quota.balance", "余额与积分"), balanceItems),
   ];
 }
 
 export function hasGrokQuotaData(account: GrokAccount): boolean {
+  return getGrokQuotaSummaryItems(account, grokLabelT).length > 0;
+}
+
+export function getGrokQuotaClass(
+  usedPercent: number | null | undefined,
+): "high" | "medium" | "low" | "critical" {
+  if (usedPercent == null || !Number.isFinite(usedPercent)) return "high";
+  if (usedPercent >= 90) return "critical";
+  if (usedPercent >= 70) return "low";
+  if (usedPercent >= 40) return "medium";
+  return "high";
+}
+
+/**
+ * Single source of truth for Grok quota rows (overview, health, presentation).
+ * Weekly billing totals are intentionally omitted from the visible model.
+ * Product rows may carry billing period reset; task/on-demand rows do not
+ * invent a reset time when the API does not provide one.
+ */
+export function getGrokQuotaSummaryItems(
+  account: GrokAccount,
+  t: (key: string, defaultValue?: string) => string,
+): GrokQuotaSummaryItem[] {
   const quota = account.quota;
-  return Boolean(
-    quota &&
-    (finite(quota.weeklyLimitPercent) != null ||
-      quota.products.some((product) => finite(product.usagePercent) != null) ||
-      (finite(quota.frequentLimit) ?? 0) > 0 ||
-      (finite(quota.occasionalLimit) ?? 0) > 0 ||
-      (finite(quota.onDemandCap) ?? 0) > 0 ||
-      (finite(quota.prepaidBalance) ?? 0) > 0),
-  );
+  if (!quota) return [];
+  const billingResetAtMs = timestampMs(quota.periodEnd);
+  const items: GrokQuotaSummaryItem[] = [];
+
+  (quota.products ?? []).forEach((product, index) => {
+    const used = finite(product.used);
+    const total = finite(product.total);
+    const remaining = finite(product.remaining);
+    const resolvedUsed =
+      used ??
+      (total != null && remaining != null
+        ? Math.max(0, total - remaining)
+        : null);
+    const usagePercent =
+      finite(product.usagePercent) ??
+      (resolvedUsed != null && total != null && total > 0
+        ? (resolvedUsed / total) * 100
+        : null);
+    if (usagePercent == null && resolvedUsed == null && total == null) return;
+    items.push({
+      key: `product-${index}`,
+      label: product.product || t("grok.quota.included", "套餐用量"),
+      percentage: clampPercent(usagePercent ?? 0),
+      used: resolvedUsed,
+      total,
+      resetAtMs: billingResetAtMs,
+    });
+  });
+
+  const frequentLimit = finite(quota.frequentLimit);
+  const frequentUsage = finite(quota.frequentUsage);
+  if (frequentLimit != null && frequentLimit > 0 && frequentUsage != null) {
+    items.push({
+      key: "frequent",
+      label: t("grok.quota.frequent", "高频任务"),
+      percentage: clampPercent((frequentUsage / frequentLimit) * 100),
+      used: frequentUsage,
+      total: frequentLimit,
+      // Task usage API does not expose a dedicated reset timestamp.
+      resetAtMs: null,
+    });
+  }
+
+  const occasionalLimit = finite(quota.occasionalLimit);
+  const occasionalUsage = finite(quota.occasionalUsage);
+  if (
+    occasionalLimit != null &&
+    occasionalLimit > 0 &&
+    occasionalUsage != null
+  ) {
+    items.push({
+      key: "occasional",
+      label: t("grok.quota.occasional", "普通任务"),
+      percentage: clampPercent((occasionalUsage / occasionalLimit) * 100),
+      used: occasionalUsage,
+      total: occasionalLimit,
+      resetAtMs: null,
+    });
+  }
+
+  const onDemandCap = finite(quota.onDemandCap);
+  const onDemandUsed = finite(quota.onDemandUsed);
+  if (onDemandCap != null && onDemandCap > 0 && onDemandUsed != null) {
+    items.push({
+      key: "on-demand",
+      label: t("grok.quota.onDemand", "按量用量"),
+      percentage: clampPercent((onDemandUsed / onDemandCap) * 100),
+      used: onDemandUsed,
+      total: onDemandCap,
+      resetAtMs: null,
+    });
+  }
+
+  return items;
+}
+
+export function formatGrokQuotaAmount(
+  value: number | null | undefined,
+): string {
+  if (value == null || !Number.isFinite(value)) return "";
+  if (Math.abs(value - Math.round(value)) < 1e-6) {
+    return String(Math.round(value));
+  }
+  return value.toFixed(1).replace(/\.0$/, "");
+}
+
+export function formatGrokQuotaUsedTotal(
+  used: number | null | undefined,
+  total: number | null | undefined,
+): string {
+  const usedText = formatGrokQuotaAmount(used);
+  const totalText = formatGrokQuotaAmount(total);
+  if (usedText && totalText) return `${usedText}/${totalText}`;
+  if (totalText) return totalText;
+  if (usedText) return usedText;
+  return "";
+}
+
+export function formatGrokQuotaResetTime(
+  value: number | null | undefined,
+): string {
+  if (value == null || !Number.isFinite(value) || value <= 0) return "";
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return "";
+  }
 }

@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, Copy, Play, X } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  ChevronLeft,
+  CircleAlert,
+  Copy,
+  FolderOpen,
+  KeyRound,
+  Play,
+  X,
+} from "lucide-react";
+import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import { ModalErrorMessage } from "../components/ModalErrorMessage";
 import { SingleSelectDropdown } from "../components/SingleSelectDropdown";
@@ -18,10 +29,14 @@ import * as grokInstanceService from "../services/grokInstanceService";
 import * as grokService from "../services/grokService";
 import { useGrokAccountStore } from "../stores/useGrokAccountStore";
 import {
+  formatGrokQuotaResetTime,
+  formatGrokQuotaUsedTotal,
   getGrokAccountDisplayEmail,
   getGrokPlanBadge,
   getGrokPlanRawValue,
+  getGrokQuotaClass,
   getGrokQuotaGroups,
+  getGrokQuotaSummaryItems,
   getGrokUsage,
   hasGrokQuotaData,
   type GrokAccount,
@@ -63,8 +78,11 @@ function getGrokReauthorizationReason(account: GrokAccount): string | null {
 
 interface GrokAccountLaunchModalState {
   instanceId: string;
+  accountId: string;
   accountEmail: string;
+  workingDir: string;
   launchCommand: string;
+  regeneratingCommand: boolean;
   copied: boolean;
   executing: boolean;
   executeMessage: string | null;
@@ -131,13 +149,20 @@ export function GrokAccountsPage() {
       const accountEmail = account
         ? getGrokAccountDisplayEmail(account)
         : displayEmail || accountId;
+      const workingDir = account?.working_dir?.trim() || "";
       try {
         const launchInfo =
-          await grokInstanceService.getGrokInstanceLaunchCommand("__default__");
+          await grokInstanceService.getGrokInstanceLaunchCommand("__default__", {
+            workingDir,
+            applyWorkingDirOverride: true,
+          });
         setLaunchModal({
           instanceId: launchInfo.instanceId || "__default__",
+          accountId,
           accountEmail,
+          workingDir,
           launchCommand: launchInfo.launchCommand,
+          regeneratingCommand: false,
           copied: false,
           executing: false,
           executeMessage: null,
@@ -147,8 +172,11 @@ export function GrokAccountsPage() {
       } catch (error) {
         setLaunchModal({
           instanceId: "__default__",
+          accountId,
           accountEmail,
+          workingDir,
           launchCommand: "",
+          regeneratingCommand: false,
           copied: false,
           executing: false,
           executeMessage: null,
@@ -175,10 +203,181 @@ export function GrokAccountsPage() {
     [page.openAddModal],
   );
 
-  const handleCopyLaunchCommand = async () => {
-    if (!launchModal?.launchCommand) return;
+  const persistAccountWorkingDir = useCallback(
+    async (accountId: string, workingDir: string) => {
+      await grokService.updateGrokAccountWorkingDir(
+        accountId,
+        workingDir.trim() || null,
+      );
+      await store.fetchAccounts();
+    },
+    [store],
+  );
+
+  const regenerateLaunchCommand = useCallback(
+    async (modal: GrokAccountLaunchModalState, workingDir: string) => {
+      setLaunchModal((current) =>
+        current && current.accountId === modal.accountId
+          ? {
+              ...current,
+              workingDir,
+              regeneratingCommand: true,
+              executeError: null,
+              executeMessage: null,
+            }
+          : current,
+      );
+      try {
+        const launchInfo =
+          await grokInstanceService.getGrokInstanceLaunchCommand(
+            modal.instanceId,
+            {
+              workingDir,
+              applyWorkingDirOverride: true,
+            },
+          );
+        setLaunchModal((current) =>
+          current && current.accountId === modal.accountId
+            ? {
+                ...current,
+                workingDir,
+                launchCommand: launchInfo.launchCommand,
+                regeneratingCommand: false,
+                executeError: null,
+              }
+            : current,
+        );
+      } catch (error) {
+        setLaunchModal((current) =>
+          current && current.accountId === modal.accountId
+            ? {
+                ...current,
+                workingDir,
+                regeneratingCommand: false,
+                executeError: String(error),
+                errorScrollKey: current.errorScrollKey + 1,
+              }
+            : current,
+        );
+      }
+    },
+    [],
+  );
+
+  const updateLaunchWorkingDir = (value: string) => {
+    setLaunchModal((current) =>
+      current
+        ? {
+            ...current,
+            workingDir: value,
+            launchCommand: "",
+            executeError: null,
+            executeMessage: null,
+          }
+        : current,
+    );
+  };
+
+  const handleChooseLaunchWorkingDir = async () => {
+    if (!launchModal || launchModal.executing || launchModal.regeneratingCommand)
+      return;
+    const selected = await openFileDialog({
+      directory: true,
+      multiple: false,
+      title: t("grok.instances.selectWorkingDir", "选择 Grok CLI 工作目录"),
+    });
+    if (!selected || typeof selected !== "string") return;
     try {
-      await navigator.clipboard.writeText(launchModal.launchCommand);
+      await persistAccountWorkingDir(launchModal.accountId, selected);
+      await regenerateLaunchCommand(launchModal, selected);
+    } catch (error) {
+      setLaunchModal((current) =>
+        current
+          ? {
+              ...current,
+              executeError: String(error),
+              errorScrollKey: current.errorScrollKey + 1,
+            }
+          : current,
+      );
+    }
+  };
+
+  const handleLaunchWorkingDirBlur = async () => {
+    if (!launchModal || launchModal.executing || launchModal.regeneratingCommand)
+      return;
+    const nextWorkingDir = launchModal.workingDir.trim();
+    if (launchModal.launchCommand.trim()) {
+      // Command already matches current input unless path changed since last gen.
+      // Regenerate when input differs from the last successful bound value.
+      const bound =
+        store.accounts
+          .find((item) => item.id === launchModal.accountId)
+          ?.working_dir?.trim() || "";
+      if (nextWorkingDir === bound) return;
+    }
+    try {
+      // Preview command only; bind to account on copy/execute or folder pick.
+      await regenerateLaunchCommand(launchModal, nextWorkingDir);
+    } catch (error) {
+      setLaunchModal((current) =>
+        current
+          ? {
+              ...current,
+              executeError: String(error),
+              errorScrollKey: current.errorScrollKey + 1,
+            }
+          : current,
+      );
+    }
+  };
+
+  const ensureLaunchCommandReady = async (
+    modal: GrokAccountLaunchModalState,
+  ): Promise<GrokAccountLaunchModalState | null> => {
+    if (modal.launchCommand.trim() && !modal.regeneratingCommand) {
+      return modal;
+    }
+    try {
+      await persistAccountWorkingDir(modal.accountId, modal.workingDir);
+      const launchInfo = await grokInstanceService.getGrokInstanceLaunchCommand(
+        modal.instanceId,
+        {
+          workingDir: modal.workingDir,
+          applyWorkingDirOverride: true,
+        },
+      );
+      const next: GrokAccountLaunchModalState = {
+        ...modal,
+        launchCommand: launchInfo.launchCommand,
+        regeneratingCommand: false,
+        executeError: null,
+      };
+      setLaunchModal((current) =>
+        current && current.accountId === modal.accountId ? next : current,
+      );
+      return next;
+    } catch (error) {
+      setLaunchModal((current) =>
+        current && current.accountId === modal.accountId
+          ? {
+              ...current,
+              regeneratingCommand: false,
+              executeError: String(error),
+              errorScrollKey: current.errorScrollKey + 1,
+            }
+          : current,
+      );
+      return null;
+    }
+  };
+
+  const handleCopyLaunchCommand = async () => {
+    if (!launchModal) return;
+    const prepared = await ensureLaunchCommandReady(launchModal);
+    if (!prepared?.launchCommand) return;
+    try {
+      await navigator.clipboard.writeText(prepared.launchCommand);
       setLaunchModal((current) =>
         current ? { ...current, copied: true, executeError: null } : current,
       );
@@ -204,7 +403,8 @@ export function GrokAccountsPage() {
   };
 
   const handleExecuteInTerminal = async () => {
-    if (!launchModal || launchModal.executing) return;
+    if (!launchModal || launchModal.executing || launchModal.regeneratingCommand)
+      return;
     setLaunchModal((current) =>
       current
         ? {
@@ -216,15 +416,27 @@ export function GrokAccountsPage() {
         : current,
     );
     try {
+      const prepared = await ensureLaunchCommandReady(launchModal);
+      if (!prepared) {
+        setLaunchModal((current) =>
+          current ? { ...current, executing: false } : current,
+        );
+        return;
+      }
       const result = await grokInstanceService.executeGrokInstanceLaunchCommand(
-        launchModal.instanceId,
+        prepared.instanceId,
         selectedTerminal,
+        {
+          workingDir: prepared.workingDir,
+          applyWorkingDirOverride: true,
+        },
       );
       setLaunchModal((current) =>
         current
           ? {
               ...current,
               executing: false,
+              launchCommand: prepared.launchCommand,
               executeMessage: result,
             }
           : current,
@@ -251,6 +463,146 @@ export function GrokAccountsPage() {
         : current,
     );
   };
+
+  const renderGrokQuotaSection = useCallback(
+    (account: GrokAccount, variant: "card" | "table") => {
+      const items = getGrokQuotaSummaryItems(
+        account,
+        t as (key: string, defaultValue?: string) => string,
+      );
+      const reauthorizationReason = getGrokReauthorizationReason(account);
+      const errorMessage = account.quota_query_last_error?.trim() || "";
+      const showError = !!errorMessage && items.length === 0;
+
+      return (
+        <div className={`grok-quota-summary ${variant}`}>
+          {reauthorizationReason && (
+            <div
+              className={`quota-error-inline ${variant === "table" ? "table" : ""}`}
+            >
+              <CircleAlert size={14} />
+              <span title={reauthorizationReason}>{reauthorizationReason}</span>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline quota-error-action"
+                onClick={() => handleReauthorize(account)}
+              >
+                <KeyRound size={12} />
+                {t("common.reauthorize", "重新授权")}
+              </button>
+            </div>
+          )}
+          <div className="grok-quota-items">
+            {items.map((item) => {
+              const percentage = Math.max(
+                0,
+                Math.min(100, Math.round(item.percentage)),
+              );
+              const quotaClass = getGrokQuotaClass(percentage);
+              const amountText = formatGrokQuotaUsedTotal(item.used, item.total);
+              const resetText = formatGrokQuotaResetTime(item.resetAtMs);
+              const resetDisplay = resetText || "-";
+              const titleParts = [
+                item.label,
+                amountText || null,
+                `${percentage}%`,
+                resetText
+                  ? t("grok.quota.resetAt", "{{label}} 重置：{{time}}", {
+                      label: item.label,
+                      time: resetText,
+                    })
+                  : null,
+              ].filter(Boolean);
+              const title = titleParts.join(" · ");
+
+              if (variant === "card") {
+                return (
+                  <div
+                    className="quota-item"
+                    key={`${account.id}-${item.key}`}
+                    title={title}
+                  >
+                    <div className="quota-header">
+                      <CalendarDays size={14} />
+                      <span className="quota-label">{item.label}</span>
+                      <span className={`quota-pct ${quotaClass}`}>
+                        {amountText ? (
+                          <>
+                            <span className="grok-quota-amount">{amountText}</span>
+                            <span className="grok-quota-pct-sep">·</span>
+                          </>
+                        ) : null}
+                        {percentage}%
+                      </span>
+                    </div>
+                    <div className="quota-bar-track">
+                      <div
+                        className={`quota-bar ${quotaClass}`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <span className="quota-reset">{resetDisplay}</span>
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  className="quota-item"
+                  key={`${account.id}-${item.key}`}
+                  title={title}
+                >
+                  <div className="quota-header">
+                    <span className="quota-name">{item.label}</span>
+                    <span className={`quota-value ${quotaClass}`}>
+                      {amountText ? (
+                        <>
+                          <span className="grok-quota-amount">{amountText}</span>
+                          <span className="grok-quota-pct-sep">·</span>
+                        </>
+                      ) : null}
+                      {percentage}%
+                    </span>
+                  </div>
+                  <div className="quota-progress-track">
+                    <div
+                      className={`quota-progress-bar ${quotaClass}`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                  <div className="quota-footer">
+                    <span className="quota-reset">{resetDisplay}</span>
+                  </div>
+                </div>
+              );
+            })}
+            {items.length === 0 && !showError && (
+              <div
+                className={variant === "card" ? "quota-empty" : ""}
+                style={
+                  variant === "table"
+                    ? { color: "var(--text-muted)", fontSize: 13 }
+                    : undefined
+                }
+              >
+                {t("grok.quota.empty", "暂无额度")}
+              </div>
+            )}
+            {errorMessage && (
+              <div
+                className={`quota-error-inline ${variant === "table" ? "table" : ""}`}
+                title={errorMessage}
+              >
+                <CircleAlert size={variant === "table" ? 12 : 14} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    },
+    [handleReauthorize, t],
+  );
 
   const handleInstallTerminalChange = (terminal: string) => {
     setSelectedTerminal(terminal);
@@ -453,6 +805,7 @@ export function GrokAccountsPage() {
     getReauthorizationReason: getGrokReauthorizationReason,
     reauthorizingAccount: reauthTargetAccount,
     onReauthorize: handleReauthorize,
+    renderQuotaSection: renderGrokQuotaSection,
   };
 
   return (
@@ -520,10 +873,62 @@ export function GrokAccountsPage() {
                 />
               </div>
               <div className="form-group">
+                <label>{t("instances.form.workingDir", "工作目录")}</label>
+                <div className="grok-launch-working-dir-row">
+                  <input
+                    className="form-input"
+                    value={launchModal.workingDir}
+                    placeholder={t(
+                      "instances.form.workingDirPlaceholder",
+                      "默认当前路径",
+                    )}
+                    onChange={(event) =>
+                      updateLaunchWorkingDir(event.target.value)
+                    }
+                    onBlur={() => void handleLaunchWorkingDirBlur()}
+                    disabled={
+                      launchModal.executing || launchModal.regeneratingCommand
+                    }
+                  />
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => void handleChooseLaunchWorkingDir()}
+                    disabled={
+                      launchModal.executing || launchModal.regeneratingCommand
+                    }
+                    title={t(
+                      "grok.instances.selectWorkingDir",
+                      "选择 Grok CLI 工作目录",
+                    )}
+                    aria-label={t(
+                      "grok.instances.selectWorkingDir",
+                      "选择 Grok CLI 工作目录",
+                    )}
+                  >
+                    <FolderOpen size={16} />
+                  </button>
+                </div>
+                <p className="form-hint">
+                  {t(
+                    "grok.instances.workingDirAccountHint",
+                    "工作目录与当前账号绑定，下次切号启动会自动回填。",
+                  )}
+                </p>
+              </div>
+              <div className="form-group">
                 <label>{t("instances.launchDialog.command", "启动命令")}</label>
                 <textarea
                   className="form-input instance-args-input"
                   value={launchModal.launchCommand}
+                  placeholder={
+                    launchModal.regeneratingCommand
+                      ? t("common.loading", "加载中...")
+                      : t(
+                          "grok.instances.launchCommandPlaceholder",
+                          "选择或确认工作目录后生成启动命令",
+                        )
+                  }
                   readOnly
                 />
                 <p className="form-hint">
@@ -539,7 +944,9 @@ export function GrokAccountsPage() {
                   value={selectedTerminal}
                   onChange={handleTerminalChange}
                   options={terminalOptions}
-                  disabled={launchModal.executing}
+                  disabled={
+                    launchModal.executing || launchModal.regeneratingCommand
+                  }
                   ariaLabel={t("instances.launchDialog.terminal", "终端")}
                 />
               </div>
@@ -553,8 +960,10 @@ export function GrokAccountsPage() {
             <div className="modal-footer">
               <button
                 className="btn btn-secondary"
-                onClick={handleCopyLaunchCommand}
-                disabled={!launchModal.launchCommand}
+                onClick={() => void handleCopyLaunchCommand()}
+                disabled={
+                  launchModal.executing || launchModal.regeneratingCommand
+                }
               >
                 <Copy size={16} />
                 {launchModal.copied
@@ -563,8 +972,10 @@ export function GrokAccountsPage() {
               </button>
               <button
                 className="btn btn-primary"
-                onClick={handleExecuteInTerminal}
-                disabled={launchModal.executing}
+                onClick={() => void handleExecuteInTerminal()}
+                disabled={
+                  launchModal.executing || launchModal.regeneratingCommand
+                }
               >
                 <Play size={16} />
                 {launchModal.executing

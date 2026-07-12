@@ -161,6 +161,14 @@ export interface CodebuddySuiteAccountsPlatformConfig<
   getReauthorizationReason?: (account: TAccount) => string | null;
   reauthorizingAccount?: TAccount | null;
   onReauthorize?: (account: TAccount) => void;
+  /**
+   * Optional full override for account-card/table quota section.
+   * When provided, skips the default dosage-status + category list UI.
+   */
+  renderQuotaSection?: (
+    account: TAccount,
+    variant: "card" | "table",
+  ) => ReactNode;
 }
 
 interface CodebuddySuiteAccountsSharedViewProps<
@@ -519,6 +527,10 @@ export function CodebuddySuiteAccountsSharedView<
 
   const renderQuotaQuerySection = useCallback(
     (account: TAccount, variant: "card" | "table") => {
+      if (platformConfig.renderQuotaSection) {
+        return platformConfig.renderQuotaSection(account, variant);
+      }
+
       const groups = platformConfig.getQuotaGroups(
         account,
         t as (key: string, defaultValue?: string) => string,

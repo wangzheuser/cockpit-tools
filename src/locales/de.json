@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "Der konfigurierte Grok CLI-Pfad ist ungültig: {{path}}",
       "saveAndRetry": "Speichern und erneut versuchen",
       "installCommand": "Offizieller Installationsbefehl",
-      "installHint": "Führen Sie den folgenden offiziellen Befehl im Terminal aus und klicken Sie nach der Installation auf Aktualisieren."
+      "installHint": "Führen Sie den folgenden offiziellen Befehl im Terminal aus und klicken Sie nach der Installation auf Aktualisieren.",
+      "selectWorkingDir": "Grok-CLI-Arbeitsverzeichnis wählen",
+      "workingDirAccountHint": "Das Arbeitsverzeichnis ist an dieses Konto gebunden und wird beim nächsten Start wiederhergestellt.",
+      "launchCommandPlaceholder": "Arbeitsverzeichnis wählen oder bestätigen, um den Startbefehl zu erzeugen"
     },
     "switch": {
       "success": "Konto gewechselt"
@@ -5117,7 +5120,9 @@
       "included": "Enthaltene Nutzung",
       "promotional": "Aktionskontingent",
       "frequent": "Häufige Aufgaben",
-      "occasional": "Gelegentliche Aufgaben"
+      "occasional": "Gelegentliche Aufgaben",
+      "resetAt": "{{label}} zurücksetzen: {{time}}",
+      "empty": "Kein Kontingent"
     },
     "quotaAlert": {
       "hint": "Wenn ein Kontingentposten des aktuellen Kontos unter den Schwellenwert fällt, wird eine native Benachrichtigung gesendet und in der App eine Schnellwechsel-Aktion angezeigt.",

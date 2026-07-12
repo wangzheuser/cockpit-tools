@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "설정된 Grok CLI 경로가 올바르지 않습니다: {{path}}",
       "saveAndRetry": "저장 후 다시 시도",
       "installCommand": "공식 설치 명령",
-      "installHint": "터미널에서 다음 공식 명령을 실행한 뒤 설치가 완료되면 새로 고침하세요."
+      "installHint": "터미널에서 다음 공식 명령을 실행한 뒤 설치가 완료되면 새로 고침하세요.",
+      "selectWorkingDir": "Grok CLI 작업 디렉터리 선택",
+      "workingDirAccountHint": "작업 디렉터리는 이 계정에 연결되며 다음 실행 시 자동으로 복원됩니다.",
+      "launchCommandPlaceholder": "작업 디렉터리를 선택하거나 확인하면 실행 명령이 생성됩니다"
     },
     "switch": {
       "success": "계정 전환 완료"
@@ -5117,7 +5120,9 @@
       "included": "포함 사용량",
       "promotional": "프로모션 할당량",
       "frequent": "빈번한 작업",
-      "occasional": "일반 작업"
+      "occasional": "일반 작업",
+      "resetAt": "{{label}} 초기화: {{time}}",
+      "empty": "할당량 없음"
     },
     "quotaAlert": {
       "hint": "현재 계정의 할당량 항목 중 하나라도 임계값 아래로 내려가면 기본 알림을 보내고 앱에 빠른 계정 전환 작업을 표시합니다.",

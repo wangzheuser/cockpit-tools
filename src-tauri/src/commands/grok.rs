@@ -439,6 +439,14 @@ pub fn update_grok_account_tags(
 }
 
 #[tauri::command]
+pub fn update_grok_account_working_dir(
+    account_id: String,
+    working_dir: Option<String>,
+) -> Result<GrokAccountView, String> {
+    grok_account::update_working_dir(&account_id, working_dir)
+}
+
+#[tauri::command]
 pub fn get_grok_current_account_id() -> Result<Option<String>, String> {
     grok_account::current_account_id()
 }

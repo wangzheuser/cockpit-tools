@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "Il percorso Grok CLI configurato non è valido: {{path}}",
       "saveAndRetry": "Salva e riprova",
       "installCommand": "Comando di installazione ufficiale",
-      "installHint": "Esegui il seguente comando ufficiale nel terminale, quindi aggiorna al termine dell’installazione."
+      "installHint": "Esegui il seguente comando ufficiale nel terminale, quindi aggiorna al termine dell’installazione.",
+      "selectWorkingDir": "Seleziona directory di lavoro Grok CLI",
+      "workingDirAccountHint": "La directory di lavoro è associata a questo account e verrà ripristinata al prossimo avvio.",
+      "launchCommandPlaceholder": "Scegli o conferma una directory per generare il comando di avvio"
     },
     "switch": {
       "success": "Account cambiato"
@@ -5117,7 +5120,9 @@
       "included": "Utilizzo incluso",
       "promotional": "Credito promozionale",
       "frequent": "Attività frequenti",
-      "occasional": "Attività occasionali"
+      "occasional": "Attività occasionali",
+      "resetAt": "{{label}} reset: {{time}}",
+      "empty": "Nessuna quota"
     },
     "quotaAlert": {
       "hint": "Quando una voce di quota dell’account corrente scende sotto la soglia, invia una notifica nativa e mostra un’azione di cambio rapido nell’app.",

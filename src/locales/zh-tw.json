@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "設定的 Grok CLI 路徑無效：{{path}}",
       "saveAndRetry": "儲存並重試",
       "installCommand": "官方安裝指令",
-      "installHint": "可在終端機執行以下官方指令，安裝完成後點擊重新整理。"
+      "installHint": "可在終端機執行以下官方指令，安裝完成後點擊重新整理。",
+      "selectWorkingDir": "選擇 Grok CLI 工作目錄",
+      "workingDirAccountHint": "工作目錄與目前帳號綁定，下次切號啟動會自動回填。",
+      "launchCommandPlaceholder": "選擇或確認工作目錄後產生啟動命令"
     },
     "switch": {
       "success": "切換帳號成功"
@@ -5117,7 +5120,9 @@
       "included": "方案用量",
       "promotional": "活動額度",
       "frequent": "高頻任務",
-      "occasional": "一般任務"
+      "occasional": "一般任務",
+      "resetAt": "{{label}} 重設：{{time}}",
+      "empty": "暫無額度"
     },
     "quotaAlert": {
       "hint": "當目前帳號任一配額項目低於門檻時，傳送系統通知並在頁面顯示快速切換帳號操作。",

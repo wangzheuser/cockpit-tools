@@ -77,6 +77,16 @@ export async function updateGrokAccountTags(
   return await invoke('update_grok_account_tags', { accountId, tags });
 }
 
+export async function updateGrokAccountWorkingDir(
+  accountId: string,
+  workingDir?: string | null,
+): Promise<GrokAccount> {
+  return await invoke('update_grok_account_working_dir', {
+    accountId,
+    workingDir: workingDir?.trim() || null,
+  });
+}
+
 export async function getGrokCurrentAccountId(): Promise<string | null> {
   return await invoke('get_grok_current_account_id');
 }

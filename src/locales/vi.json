@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "Đường dẫn Grok CLI đã cấu hình không hợp lệ: {{path}}",
       "saveAndRetry": "Lưu và thử lại",
       "installCommand": "Lệnh cài đặt chính thức",
-      "installHint": "Chạy lệnh chính thức sau trong terminal, rồi nhấn Làm mới sau khi cài đặt xong."
+      "installHint": "Chạy lệnh chính thức sau trong terminal, rồi nhấn Làm mới sau khi cài đặt xong.",
+      "selectWorkingDir": "Chọn thư mục làm việc Grok CLI",
+      "workingDirAccountHint": "Thư mục làm việc được gắn với tài khoản này và sẽ được khôi phục lần khởi chạy sau.",
+      "launchCommandPlaceholder": "Chọn hoặc xác nhận thư mục để tạo lệnh khởi chạy"
     },
     "switch": {
       "success": "Đã chuyển tài khoản"
@@ -5117,7 +5120,9 @@
       "included": "Mức dùng trong gói",
       "promotional": "Hạn ngạch khuyến mãi",
       "frequent": "Tác vụ thường xuyên",
-      "occasional": "Tác vụ thông thường"
+      "occasional": "Tác vụ thông thường",
+      "resetAt": "{{label}} đặt lại: {{time}}",
+      "empty": "Không có hạn mức"
     },
     "quotaAlert": {
       "hint": "Khi bất kỳ mục hạn mức nào của tài khoản hiện tại xuống dưới ngưỡng, hãy gửi thông báo hệ thống và hiển thị thao tác chuyển nhanh trong ứng dụng.",

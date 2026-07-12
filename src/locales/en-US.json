@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "The configured Grok CLI path is invalid: {{path}}",
       "saveAndRetry": "Save and retry",
       "installCommand": "Official install command",
-      "installHint": "Run the official command below in a terminal, then refresh after installation."
+      "installHint": "Run the official command below in a terminal, then refresh after installation.",
+      "selectWorkingDir": "Select Grok CLI working directory",
+      "workingDirAccountHint": "Working directory is bound to this account and will be restored on next launch.",
+      "launchCommandPlaceholder": "Choose or confirm a working directory to generate the launch command"
     },
     "switch": {
       "success": "Account switched"
@@ -5117,7 +5120,9 @@
       "included": "Included usage",
       "promotional": "Promotional quota",
       "frequent": "Frequent tasks",
-      "occasional": "Occasional tasks"
+      "occasional": "Occasional tasks",
+      "resetAt": "{{label}} resets: {{time}}",
+      "empty": "No quota"
     },
     "quotaAlert": {
       "hint": "When any quota item for the current account falls below the threshold, send a native notification and show a quick-switch action in the app.",

@@ -1090,6 +1090,7 @@ pub fn run() {
             commands::grok::refresh_all_grok_accounts,
             commands::grok::switch_grok_account,
             commands::grok::update_grok_account_tags,
+            commands::grok::update_grok_account_working_dir,
             commands::grok::get_grok_current_account_id,
             commands::grok::get_grok_accounts_index_path,
             // Grok Instance Commands

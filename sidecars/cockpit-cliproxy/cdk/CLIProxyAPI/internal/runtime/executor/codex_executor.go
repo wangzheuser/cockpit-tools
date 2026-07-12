@@ -861,7 +861,7 @@ func (e *CodexExecutor) Execute(ctx context.Context, auth *cliproxyauth.Auth, re
 	if helps.ShouldInjectImageGenerationTool(e.cfg, requestPath, opts.Headers) {
 		body = ensureImageGenerationTool(body, baseModel, auth, opts.Headers)
 	}
-	body = normalizeCodexParallelToolCallsForTools(body)
+	body = normalizeCodexParallelToolCallsForTools(body, opts.Headers)
 	body = sanitizeOpenAIResponsesReasoningEncryptedContent(ctx, "codex executor", body)
 	body, replayScope := applyCodexReasoningReplayCache(ctx, from, req, opts, body)
 	if sourceFormatEqual(from, sdktranslator.FormatClaude) {
@@ -1029,6 +1029,7 @@ func (e *CodexExecutor) executeCompact(ctx context.Context, auth *cliproxyauth.A
 	body, _ = sjson.SetBytes(body, "model", baseModel)
 	body, _ = sjson.DeleteBytes(body, "stream")
 	body = normalizeCodexInstructions(body)
+	body = normalizeCodexParallelToolCallsForTools(body, opts.Headers)
 	body = sanitizeOpenAIResponsesReasoningEncryptedContent(ctx, "codex executor", body)
 	reporter.SetTranslatedReasoningEffort(body, to.String())
 
@@ -1137,7 +1138,7 @@ func (e *CodexExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth.Au
 	if helps.ShouldInjectImageGenerationTool(e.cfg, requestPath, opts.Headers) {
 		body = ensureImageGenerationTool(body, baseModel, auth, opts.Headers)
 	}
-	body = normalizeCodexParallelToolCallsForTools(body)
+	body = normalizeCodexParallelToolCallsForTools(body, opts.Headers)
 	body = sanitizeOpenAIResponsesReasoningEncryptedContent(ctx, "codex executor", body)
 	body, replayScope := applyCodexReasoningReplayCache(ctx, from, req, opts, body)
 	if sourceFormatEqual(from, sdktranslator.FormatClaude) {
@@ -1877,7 +1878,11 @@ func ensureImageGenerationTool(body []byte, baseModel string, auth *cliproxyauth
 	return body
 }
 
-func normalizeCodexParallelToolCallsForTools(body []byte) []byte {
+func normalizeCodexParallelToolCallsForTools(body []byte, headers http.Header) []byte {
+	if isCodexResponsesLiteRequest(body, headers) {
+		body, _ = sjson.SetBytes(body, "parallel_tool_calls", false)
+		return body
+	}
 	if !gjson.GetBytes(body, "parallel_tool_calls").Exists() {
 		return body
 	}

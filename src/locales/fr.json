@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "Le chemin Grok CLI configuré n’est pas valide : {{path}}",
       "saveAndRetry": "Enregistrer et réessayer",
       "installCommand": "Commande d’installation officielle",
-      "installHint": "Exécutez la commande officielle ci-dessous dans le terminal, puis actualisez après l’installation."
+      "installHint": "Exécutez la commande officielle ci-dessous dans le terminal, puis actualisez après l’installation.",
+      "selectWorkingDir": "Choisir le répertoire de travail Grok CLI",
+      "workingDirAccountHint": "Le répertoire de travail est lié à ce compte et sera restauré au prochain lancement.",
+      "launchCommandPlaceholder": "Choisissez ou confirmez un répertoire pour générer la commande de lancement"
     },
     "switch": {
       "success": "Compte changé"
@@ -5117,7 +5120,9 @@
       "included": "Utilisation incluse",
       "promotional": "Crédits promotionnels",
       "frequent": "Tâches fréquentes",
-      "occasional": "Tâches occasionnelles"
+      "occasional": "Tâches occasionnelles",
+      "resetAt": "{{label}} réinitialisé : {{time}}",
+      "empty": "Aucun quota"
     },
     "quotaAlert": {
       "hint": "Lorsqu’un élément de quota du compte actuel passe sous le seuil, une notification native est envoyée et une action de changement rapide s’affiche dans l’application.",

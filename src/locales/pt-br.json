@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "O caminho configurado do Grok CLI é inválido: {{path}}",
       "saveAndRetry": "Salvar e tentar novamente",
       "installCommand": "Comando oficial de instalação",
-      "installHint": "Execute o comando oficial abaixo no terminal e, após a instalação, clique em Atualizar."
+      "installHint": "Execute o comando oficial abaixo no terminal e, após a instalação, clique em Atualizar.",
+      "selectWorkingDir": "Selecionar diretório de trabalho do Grok CLI",
+      "workingDirAccountHint": "O diretório de trabalho fica vinculado a esta conta e será restaurado no próximo lançamento.",
+      "launchCommandPlaceholder": "Escolha ou confirme um diretório para gerar o comando de lançamento"
     },
     "switch": {
       "success": "Conta alternada"
@@ -5117,7 +5120,9 @@
       "included": "Uso incluído",
       "promotional": "Cota promocional",
       "frequent": "Tarefas frequentes",
-      "occasional": "Tarefas ocasionais"
+      "occasional": "Tarefas ocasionais",
+      "resetAt": "{{label}} redefine: {{time}}",
+      "empty": "Sem cota"
     },
     "quotaAlert": {
       "hint": "Quando qualquer item de cota da conta atual ficar abaixo do limite, envie uma notificação nativa e mostre uma ação de troca rápida no app.",

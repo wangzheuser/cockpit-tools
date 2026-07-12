@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "Path Grok CLI yang dikonfigurasi tidak valid: {{path}}",
       "saveAndRetry": "Simpan dan coba lagi",
       "installCommand": "Perintah instalasi resmi",
-      "installHint": "Jalankan perintah resmi berikut di terminal, lalu klik Segarkan setelah instalasi selesai."
+      "installHint": "Jalankan perintah resmi berikut di terminal, lalu klik Segarkan setelah instalasi selesai.",
+      "selectWorkingDir": "Pilih direktori kerja Grok CLI",
+      "workingDirAccountHint": "Direktori kerja terikat ke akun ini dan akan dipulihkan pada peluncuran berikutnya.",
+      "launchCommandPlaceholder": "Pilih atau konfirmasi direktori untuk membuat perintah peluncuran"
     },
     "switch": {
       "success": "Akun diganti"
@@ -5117,7 +5120,9 @@
       "included": "Penggunaan termasuk paket",
       "promotional": "Kuota promosi",
       "frequent": "Tugas sering",
-      "occasional": "Tugas sesekali"
+      "occasional": "Tugas sesekali",
+      "resetAt": "{{label}} direset: {{time}}",
+      "empty": "Tidak ada kuota"
     },
     "quotaAlert": {
       "hint": "Saat item kuota mana pun untuk akun saat ini berada di bawah ambang, kirim notifikasi sistem dan tampilkan tindakan ganti cepat di aplikasi.",

@@ -39,7 +39,7 @@ func TestEnsureImageGenerationTool_ResponsesLiteFalseStillInjectsTool(t *testing
 
 func TestNormalizeCodexParallelToolCallsForTools_RemovesFieldWithoutTopLevelTools(t *testing.T) {
 	body := []byte(`{"parallel_tool_calls":false,"input":[{"type":"additional_tools","tools":[{"type":"custom","name":"exec"}]}]}`)
-	result := normalizeCodexParallelToolCallsForTools(body)
+	result := normalizeCodexParallelToolCallsForTools(body, nil)
 
 	if gjson.GetBytes(result, "parallel_tool_calls").Exists() {
 		t.Fatalf("parallel_tool_calls should be removed without top-level tools: %s", result)
@@ -51,11 +51,33 @@ func TestNormalizeCodexParallelToolCallsForTools_RemovesFieldWithoutTopLevelTool
 
 func TestNormalizeCodexParallelToolCallsForTools_PreservesFalseWithTopLevelTools(t *testing.T) {
 	body := []byte(`{"parallel_tool_calls":false,"tools":[{"type":"custom","name":"exec"}]}`)
-	result := normalizeCodexParallelToolCallsForTools(body)
+	result := normalizeCodexParallelToolCallsForTools(body, nil)
 
 	parallelToolCalls := gjson.GetBytes(result, "parallel_tool_calls")
 	if !parallelToolCalls.Exists() || parallelToolCalls.Bool() {
 		t.Fatalf("parallel_tool_calls=false should be preserved with top-level tools: %s", result)
+	}
+}
+
+func TestNormalizeCodexParallelToolCallsForTools_ForcesFalseForResponsesLiteHeader(t *testing.T) {
+	body := []byte(`{"input":[{"type":"additional_tools","tools":[{"type":"custom","name":"exec"}]}]}`)
+	headers := make(http.Header)
+	headers.Set(codexResponsesLiteHeaderName, "true")
+	result := normalizeCodexParallelToolCallsForTools(body, headers)
+
+	parallelToolCalls := gjson.GetBytes(result, "parallel_tool_calls")
+	if !parallelToolCalls.Exists() || parallelToolCalls.Bool() {
+		t.Fatalf("Responses Lite should force parallel_tool_calls=false: %s", result)
+	}
+}
+
+func TestNormalizeCodexParallelToolCallsForTools_ForcesFalseForResponsesLiteMetadata(t *testing.T) {
+	body := []byte(`{"parallel_tool_calls":true,"client_metadata":{"ws_request_header_x_openai_internal_codex_responses_lite":true},"input":[]}`)
+	result := normalizeCodexParallelToolCallsForTools(body, nil)
+
+	parallelToolCalls := gjson.GetBytes(result, "parallel_tool_calls")
+	if !parallelToolCalls.Exists() || parallelToolCalls.Bool() {
+		t.Fatalf("Responses Lite metadata should force parallel_tool_calls=false: %s", result)
 	}
 }
 

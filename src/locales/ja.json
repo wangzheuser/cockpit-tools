@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "設定された Grok CLI のパスが無効です：{{path}}",
       "saveAndRetry": "保存して再試行",
       "installCommand": "公式インストールコマンド",
-      "installHint": "ターミナルで次の公式コマンドを実行し、インストール完了後に更新してください。"
+      "installHint": "ターミナルで次の公式コマンドを実行し、インストール完了後に更新してください。",
+      "selectWorkingDir": "Grok CLI の作業ディレクトリを選択",
+      "workingDirAccountHint": "作業ディレクトリはこのアカウントに紐づき、次回起動時に復元されます。",
+      "launchCommandPlaceholder": "作業ディレクトリを選択または確認すると起動コマンドを生成します"
     },
     "switch": {
       "success": "アカウントを切り替えました"
@@ -5117,7 +5120,9 @@
       "included": "プラン内使用量",
       "promotional": "キャンペーン枠",
       "frequent": "高頻度タスク",
-      "occasional": "通常タスク"
+      "occasional": "通常タスク",
+      "resetAt": "{{label}} リセット：{{time}}",
+      "empty": "枠なし"
     },
     "quotaAlert": {
       "hint": "現在のアカウントのいずれかのクォータ項目がしきい値を下回った場合、ネイティブ通知を送信し、アプリにクイック切り替え操作を表示します。",

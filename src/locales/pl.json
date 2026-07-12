@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "Skonfigurowana ścieżka Grok CLI jest nieprawidłowa: {{path}}",
       "saveAndRetry": "Zapisz i ponów",
       "installCommand": "Oficjalne polecenie instalacji",
-      "installHint": "Uruchom poniższe oficjalne polecenie w terminalu, a po instalacji kliknij Odśwież."
+      "installHint": "Uruchom poniższe oficjalne polecenie w terminalu, a po instalacji kliknij Odśwież.",
+      "selectWorkingDir": "Wybierz katalog roboczy Grok CLI",
+      "workingDirAccountHint": "Katalog roboczy jest powiązany z tym kontem i zostanie przywrócony przy następnym uruchomieniu.",
+      "launchCommandPlaceholder": "Wybierz lub potwierdź katalog, aby wygenerować polecenie uruchomienia"
     },
     "switch": {
       "success": "Konto przełączone"
@@ -5117,7 +5120,9 @@
       "included": "Użycie w pakiecie",
       "promotional": "Limit promocyjny",
       "frequent": "Częste zadania",
-      "occasional": "Okazjonalne zadania"
+      "occasional": "Okazjonalne zadania",
+      "resetAt": "{{label}} reset: {{time}}",
+      "empty": "Brak limitu"
     },
     "quotaAlert": {
       "hint": "Gdy dowolna pozycja limitu bieżącego konta spadnie poniżej progu, zostanie wysłane powiadomienie systemowe, a w aplikacji pojawi się szybkie przełączenie.",

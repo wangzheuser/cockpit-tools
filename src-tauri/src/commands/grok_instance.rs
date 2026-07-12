@@ -43,14 +43,28 @@ fn powershell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
 }
 
-fn resolve_context(instance_id: &str) -> Result<GrokLaunchContext, String> {
+fn normalize_working_dir_override(working_dir: Option<String>) -> Option<String> {
+    working_dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string())
+}
+
+fn resolve_context(
+    instance_id: &str,
+    working_dir_override: Option<Option<String>>,
+) -> Result<GrokLaunchContext, String> {
     if instance_id == DEFAULT_INSTANCE_ID {
         let settings = grok_instance::load_default_settings()?;
         return Ok(GrokLaunchContext {
             user_data_dir: grok_instance::get_default_grok_home()?
                 .to_string_lossy()
                 .to_string(),
-            working_dir: settings.working_dir,
+            working_dir: match working_dir_override {
+                Some(value) => normalize_working_dir_override(value),
+                None => settings.working_dir,
+            },
             extra_args: settings.extra_args,
             managed: false,
         });
@@ -64,7 +78,10 @@ fn resolve_context(instance_id: &str) -> Result<GrokLaunchContext, String> {
     grok_instance::ensure_managed_instance_path(Path::new(&instance.user_data_dir))?;
     Ok(GrokLaunchContext {
         user_data_dir: instance.user_data_dir,
-        working_dir: instance.working_dir,
+        working_dir: match working_dir_override {
+            Some(value) => normalize_working_dir_override(value),
+            None => instance.working_dir,
+        },
         extra_args: instance.extra_args,
         managed: true,
     })
@@ -338,8 +355,15 @@ pub async fn grok_open_instance_window(_instance_id: String) -> Result<(), Strin
 #[tauri::command]
 pub async fn grok_get_instance_launch_command(
     instance_id: String,
+    working_dir: Option<String>,
+    apply_working_dir_override: Option<bool>,
 ) -> Result<GrokInstanceLaunchInfo, String> {
-    let context = resolve_context(&instance_id)?;
+    let override_value = if apply_working_dir_override.unwrap_or(false) {
+        Some(working_dir)
+    } else {
+        None
+    };
+    let context = resolve_context(&instance_id, override_value)?;
     Ok(GrokInstanceLaunchInfo {
         instance_id,
         user_data_dir: context.user_data_dir.clone(),
@@ -351,8 +375,15 @@ pub async fn grok_get_instance_launch_command(
 pub async fn grok_execute_instance_launch_command(
     instance_id: String,
     terminal: Option<String>,
+    working_dir: Option<String>,
+    apply_working_dir_override: Option<bool>,
 ) -> Result<String, String> {
-    let context = resolve_context(&instance_id)?;
+    let override_value = if apply_working_dir_override.unwrap_or(false) {
+        Some(working_dir)
+    } else {
+        None
+    };
+    let context = resolve_context(&instance_id, override_value)?;
     let command = build_launch_command(&context)?;
     super::claude::execute_claude_cli_command(&command, terminal)
         .map(|message| message.replace("Claude", "Grok"))

@@ -51,16 +51,30 @@ export async function executeGrokCliInstallCommand(
 
 export async function getGrokInstanceLaunchCommand(
   instanceId: string,
+  options?: {
+    workingDir?: string | null;
+    applyWorkingDirOverride?: boolean;
+  },
 ): Promise<GrokInstanceLaunchInfo> {
-  return await invoke('grok_get_instance_launch_command', { instanceId });
+  return await invoke('grok_get_instance_launch_command', {
+    instanceId,
+    workingDir: options?.workingDir?.trim() || null,
+    applyWorkingDirOverride: options?.applyWorkingDirOverride ?? false,
+  });
 }
 
 export async function executeGrokInstanceLaunchCommand(
   instanceId: string,
   terminal?: string,
+  options?: {
+    workingDir?: string | null;
+    applyWorkingDirOverride?: boolean;
+  },
 ): Promise<string> {
   return await invoke('grok_execute_instance_launch_command', {
     instanceId,
     terminal: terminal ?? null,
+    workingDir: options?.workingDir?.trim() || null,
+    applyWorkingDirOverride: options?.applyWorkingDirOverride ?? false,
   });
 }

@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "Nastavená cesta ke Grok CLI není platná: {{path}}",
       "saveAndRetry": "Uložit a opakovat",
       "installCommand": "Oficiální instalační příkaz",
-      "installHint": "Spusťte následující oficiální příkaz v terminálu a po dokončení instalace klikněte na Obnovit."
+      "installHint": "Spusťte následující oficiální příkaz v terminálu a po dokončení instalace klikněte na Obnovit.",
+      "selectWorkingDir": "Vyberte pracovní adresář Grok CLI",
+      "workingDirAccountHint": "Pracovní adresář je vázán na tento účet a při příštím spuštění se obnoví.",
+      "launchCommandPlaceholder": "Vyberte nebo potvrďte adresář pro generování příkazu spuštění"
     },
     "switch": {
       "success": "Účet přepnut"
@@ -5117,7 +5120,9 @@
       "included": "Zahrnuté využití",
       "promotional": "Propagační kvóta",
       "frequent": "Časté úlohy",
-      "occasional": "Občasné úlohy"
+      "occasional": "Občasné úlohy",
+      "resetAt": "{{label}} reset: {{time}}",
+      "empty": "Bez kvóty"
     },
     "quotaAlert": {
       "hint": "Když libovolná položka kvóty aktuálního účtu klesne pod limit, odešle se systémové oznámení a v aplikaci se zobrazí rychlé přepnutí.",

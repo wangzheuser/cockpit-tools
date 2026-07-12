@@ -1,6 +1,6 @@
 use crate::models::grok::{
-    GrokAccount, GrokAccountIndex, GrokAccountView, GrokOAuthCompletePayload, GrokProductUsage,
-    GrokQuota,
+    GrokAccount, GrokAccountIndex, GrokAccountView, GrokAuthMode, GrokOAuthCompletePayload,
+    GrokProductUsage, GrokQuota,
 };
 use crate::modules::{account, atomic_write, grok_oauth, logger, provider_current_state};
 use chrono::{DateTime, Utc};
@@ -693,9 +693,21 @@ fn write_account_to_auth_path_if_token_matches(
     Ok(true)
 }
 
+fn write_empty_auth_file(auth_path: &Path) -> Result<(), String> {
+    // API key auth uses XAI_API_KEY at launch time. Clear session auth so OAuth
+    // tokens do not outrank the environment key (official credential priority).
+    write_secret_atomic(auth_path, "{}")
+}
+
 pub fn write_account_to_profile(account: &GrokAccount, profile_dir: &Path) -> Result<(), String> {
     ensure_secret_dir(profile_dir)?;
     let auth_path = profile_dir.join(AUTH_FILE);
+    if account.is_api_key_auth() {
+        if account.resolved_api_key().is_none() {
+            return Err("Grok API Key 账号缺少 api_key".to_string());
+        }
+        return write_empty_auth_file(&auth_path);
+    }
     let existing = fs::read_to_string(&auth_path)
         .ok()
         .and_then(|content| serde_json::from_str::<Value>(&content).ok());
@@ -715,12 +727,19 @@ pub fn inject_to_default(account_id: &str) -> Result<String, String> {
     let home = default_grok_home()?;
     ensure_secret_dir(&home)?;
     let auth_path = home.join(AUTH_FILE);
-    let existing = fs::read_to_string(&auth_path)
-        .ok()
-        .and_then(|content| serde_json::from_str::<Value>(&content).ok());
-    let content = serde_json::to_string_pretty(&auth_registry_for(&account, existing))
-        .map_err(|error| format!("序列化 Grok 默认凭据失败: {}", error))?;
-    write_secret_atomic(&auth_path, &content)?;
+    if account.is_api_key_auth() {
+        if account.resolved_api_key().is_none() {
+            return Err("Grok API Key 账号缺少 api_key".to_string());
+        }
+        write_empty_auth_file(&auth_path)?;
+    } else {
+        let existing = fs::read_to_string(&auth_path)
+            .ok()
+            .and_then(|content| serde_json::from_str::<Value>(&content).ok());
+        let content = serde_json::to_string_pretty(&auth_registry_for(&account, existing))
+            .map_err(|error| format!("序列化 Grok 默认凭据失败: {}", error))?;
+        write_secret_atomic(&auth_path, &content)?;
+    }
     provider_current_state::set_current_account_id("grok", Some(account_id))?;
     Ok(account.email)
 }
@@ -748,6 +767,7 @@ fn account_from_auth_object(value: &Value) -> Result<GrokAccount, String> {
     Ok(GrokAccount {
         id: Uuid::new_v4().to_string(),
         email,
+        auth_mode: GrokAuthMode::Oauth,
         tags: None,
         first_name: string_field(object, "first_name"),
         last_name: string_field(object, "last_name"),
@@ -760,6 +780,7 @@ fn account_from_auth_object(value: &Value) -> Result<GrokAccount, String> {
             .get("coding_data_retention_opt_out")
             .and_then(Value::as_bool),
         access_token,
+        api_key: None,
         refresh_token: string_field(object, "refresh_token"),
         id_token: None,
         token_type: Some("Bearer".to_string()),
@@ -786,6 +807,7 @@ fn account_from_auth_object(value: &Value) -> Result<GrokAccount, String> {
         quota_query_last_error: None,
         quota_query_last_error_at: None,
         usage_updated_at: None,
+        working_dir: None,
         created_at,
         last_used: now_ms(),
     })
@@ -834,7 +856,40 @@ fn find_existing_account(candidate: &GrokAccount) -> Option<GrokAccount> {
     })
 }
 
+fn mask_api_key_email(api_key: &str) -> String {
+    let trimmed = api_key.trim();
+    let suffix: String = trimmed
+        .chars()
+        .rev()
+        .take(4)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect();
+    if suffix.is_empty() {
+        "API_KEY".to_string()
+    } else {
+        format!("xai-****{}", suffix)
+    }
+}
+
+fn api_key_account_id(api_key: &str) -> String {
+    format!("{:x}", md5::compute(api_key.trim().as_bytes()))
+}
+
 fn accounts_match_for_upsert(candidate: &GrokAccount, existing: &GrokAccount) -> bool {
+    if candidate.auth_mode != existing.auth_mode {
+        return false;
+    }
+    if candidate.is_api_key_auth() {
+        return match (
+            candidate.resolved_api_key(),
+            existing.resolved_api_key(),
+        ) {
+            (Some(left), Some(right)) => left == right,
+            _ => false,
+        };
+    }
     if let Some(matches) = compare_strong_identity(
         candidate.principal_id.as_deref(),
         candidate.user_id.as_deref(),
@@ -909,9 +964,15 @@ fn upsert_candidate(
         }
         candidate.auth_raw = (!merged_auth.is_empty()).then_some(Value::Object(merged_auth));
         candidate.id = existing.id;
+        candidate.auth_mode = existing.auth_mode;
+        if candidate.api_key.is_none() {
+            candidate.api_key = existing.api_key.clone();
+        }
         candidate.tags = existing.tags;
         candidate.created_at = existing.created_at;
-        candidate.plan_type = existing.plan_type;
+        if !candidate.is_api_key_auth() {
+            candidate.plan_type = existing.plan_type;
+        }
         candidate.quota = existing.quota;
         candidate.billing_raw = existing.billing_raw;
         candidate.subscription_raw = existing.subscription_raw;
@@ -923,6 +984,7 @@ fn upsert_candidate(
         candidate.quota_query_last_error = existing.quota_query_last_error;
         candidate.quota_query_last_error_at = existing.quota_query_last_error_at;
         candidate.usage_updated_at = existing.usage_updated_at;
+        candidate.working_dir = existing.working_dir;
     }
     save_account_locked(&candidate)?;
     Ok(candidate)
@@ -938,6 +1000,7 @@ fn oauth_account_candidate(payload: GrokOAuthCompletePayload) -> GrokAccount {
     GrokAccount {
         id: Uuid::new_v4().to_string(),
         email: payload.email,
+        auth_mode: GrokAuthMode::Oauth,
         tags: None,
         first_name: payload.first_name,
         last_name: payload.last_name,
@@ -948,6 +1011,7 @@ fn oauth_account_candidate(payload: GrokOAuthCompletePayload) -> GrokAccount {
         profile_image_asset_id: payload.profile_image_asset_id,
         coding_data_retention_opt_out: payload.coding_data_retention_opt_out,
         access_token: payload.access_token,
+        api_key: None,
         refresh_token: payload.refresh_token,
         id_token: payload.id_token,
         token_type: payload.token_type.or_else(|| Some("Bearer".to_string())),
@@ -969,6 +1033,7 @@ fn oauth_account_candidate(payload: GrokOAuthCompletePayload) -> GrokAccount {
         quota_query_last_error: None,
         quota_query_last_error_at: None,
         usage_updated_at: None,
+        working_dir: None,
         created_at: now,
         last_used: now,
     }
@@ -983,6 +1048,56 @@ pub fn upsert_oauth_for_reauth(
     target_account_id: &str,
 ) -> Result<GrokAccount, String> {
     upsert_candidate(oauth_account_candidate(payload), Some(target_account_id))
+}
+
+pub fn upsert_api_key(api_key: &str) -> Result<GrokAccountView, String> {
+    let api_key = normalize_text(Some(api_key)).ok_or_else(|| "API Key 不能为空".to_string())?;
+    if api_key.contains(char::is_whitespace) {
+        return Err("API Key 格式无效".to_string());
+    }
+    let now = now_ms();
+    let candidate = GrokAccount {
+        id: api_key_account_id(&api_key),
+        email: mask_api_key_email(&api_key),
+        auth_mode: GrokAuthMode::ApiKey,
+        tags: None,
+        first_name: None,
+        last_name: None,
+        user_id: None,
+        principal_id: None,
+        principal_type: None,
+        team_id: None,
+        profile_image_asset_id: None,
+        coding_data_retention_opt_out: None,
+        access_token: String::new(),
+        api_key: Some(api_key),
+        refresh_token: None,
+        id_token: None,
+        token_type: None,
+        expires_at: None,
+        expires_at_raw: None,
+        oidc_issuer: None,
+        oidc_client_id: None,
+        token_endpoint: None,
+        plan_type: Some("API_KEY".to_string()),
+        quota: None,
+        auth_raw: None,
+        billing_raw: None,
+        subscription_raw: None,
+        user_raw: None,
+        task_usage_raw: None,
+        has_grok_code_access: None,
+        status: Some("normal".to_string()),
+        status_reason: None,
+        quota_query_last_error: None,
+        quota_query_last_error_at: None,
+        usage_updated_at: Some(now),
+        working_dir: None,
+        created_at: now,
+        last_used: now,
+    };
+    let account = upsert_candidate(candidate, None)?;
+    Ok(GrokAccountView::from(&account))
 }
 
 fn parse_auth_registry(value: &Value) -> Result<GrokAccount, String> {
@@ -1239,6 +1354,29 @@ pub fn update_tags(account_id: &str, tags: Vec<String>) -> Result<GrokAccountVie
     Ok(GrokAccountView::from(&account))
 }
 
+pub fn update_working_dir(
+    account_id: &str,
+    working_dir: Option<String>,
+) -> Result<GrokAccountView, String> {
+    let _guard = ACCOUNT_LOCK.lock().map_err(|_| "获取 Grok 账号锁失败")?;
+    let _store_guard = acquire_store_lock()?;
+    let mut account =
+        load_account(account_id).ok_or_else(|| format!("Grok 账号不存在: {}", account_id))?;
+    let normalized = working_dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
+    if let Some(ref path) = normalized {
+        if !Path::new(path).is_dir() {
+            return Err(format!("Grok CLI 工作目录不存在: {}", path));
+        }
+    }
+    account.working_dir = normalized;
+    save_account_locked(&account)?;
+    Ok(GrokAccountView::from(&account))
+}
+
 fn number(value: Option<&Value>) -> Option<f64> {
     match value {
         Some(Value::Number(value)) => value.as_f64(),
@@ -1296,9 +1434,9 @@ fn nested_number(value: &Value, key: &str) -> Option<f64> {
     }
 }
 
-fn credit_bag_usage_percent(value: &Value) -> Option<f64> {
+fn credit_bag_amounts(value: &Value) -> Option<(Option<f64>, Option<f64>, Option<f64>)> {
     if let Some(items) = value.as_array() {
-        return items.iter().find_map(credit_bag_usage_percent);
+        return items.iter().find_map(credit_bag_amounts);
     }
     let object = value.as_object()?;
     let total = number(
@@ -1313,7 +1451,8 @@ fn credit_bag_usage_percent(value: &Value) -> Option<f64> {
         object
             .get("used")
             .or_else(|| object.get("spent"))
-            .or_else(|| object.get("consumed")),
+            .or_else(|| object.get("consumed"))
+            .or_else(|| object.get("usage")),
     );
     let remaining = number(
         object
@@ -1321,19 +1460,33 @@ fn credit_bag_usage_percent(value: &Value) -> Option<f64> {
             .or_else(|| object.get("balance"))
             .or_else(|| object.get("left")),
     );
-    if let Some(total) = total.filter(|value| value.is_finite() && *value > 0.0) {
-        let used = used
-            .or_else(|| remaining.map(|value| (total - value).max(0.0)))
-            .filter(|value| value.is_finite())?;
-        return Some(((used.max(0.0) / total) * 100.0).clamp(0.0, 100.0));
+    if total.is_none() && used.is_none() && remaining.is_none() {
+        return object
+            .get("bags")
+            .or_else(|| object.get("items"))
+            .and_then(credit_bag_amounts);
     }
-    object
-        .get("bags")
-        .or_else(|| object.get("items"))
-        .and_then(credit_bag_usage_percent)
+    let resolved_used = used.or_else(|| match (total, remaining) {
+        (Some(total), Some(remaining)) => Some((total - remaining).max(0.0)),
+        _ => None,
+    });
+    let resolved_remaining = remaining.or_else(|| match (total, resolved_used) {
+        (Some(total), Some(used)) => Some((total - used).max(0.0)),
+        _ => None,
+    });
+    Some((resolved_used, total, resolved_remaining))
 }
 
-fn credit_usage_percent(billing: &Value, config: &Value) -> Option<f64> {
+fn credit_bag_usage_percent(value: &Value) -> Option<f64> {
+    let (used, total, _) = credit_bag_amounts(value)?;
+    if let Some(total) = total.filter(|value| value.is_finite() && *value > 0.0) {
+        let used = used.filter(|value| value.is_finite())?;
+        return Some(((used.max(0.0) / total) * 100.0).clamp(0.0, 100.0));
+    }
+    None
+}
+
+fn credit_usage_sources<'a>(billing: &'a Value, config: &'a Value) -> [Option<&'a Value>; 8] {
     [
         billing.get("credits"),
         billing.get("creditBalance"),
@@ -1344,9 +1497,50 @@ fn credit_usage_percent(billing: &Value, config: &Value) -> Option<f64> {
         config.get("weeklyCredits"),
         config.get("sharedPool"),
     ]
-    .into_iter()
-    .flatten()
-    .find_map(credit_bag_usage_percent)
+}
+
+fn credit_usage_percent(billing: &Value, config: &Value) -> Option<f64> {
+    credit_usage_sources(billing, config)
+        .into_iter()
+        .flatten()
+        .find_map(credit_bag_usage_percent)
+}
+
+fn credit_usage_amounts(billing: &Value, config: &Value) -> (Option<f64>, Option<f64>) {
+    credit_usage_sources(billing, config)
+        .into_iter()
+        .flatten()
+        .find_map(|value| {
+            let (used, total, _) = credit_bag_amounts(value)?;
+            if used.is_some() || total.is_some() {
+                Some((used, total))
+            } else {
+                None
+            }
+        })
+        .unwrap_or((None, None))
+}
+
+fn product_usage_from_value(item: &Value) -> Option<GrokProductUsage> {
+    let product = raw_string(item.get("product"))
+        .or_else(|| raw_string(item.get("name")))
+        .or_else(|| raw_string(item.get("productName")))?;
+    let (used, total, remaining) = credit_bag_amounts(item).unwrap_or((None, None, None));
+    let usage_percent = number(item.get("usagePercent"))
+        .or_else(|| number(item.get("usedPercent")))
+        .or_else(|| match (used, total) {
+            (Some(used), Some(total)) if total > 0.0 => {
+                Some(((used.max(0.0) / total) * 100.0).clamp(0.0, 100.0))
+            }
+            _ => None,
+        });
+    Some(GrokProductUsage {
+        product,
+        usage_percent,
+        used,
+        total,
+        remaining,
+    })
 }
 
 fn quota_from_payload(
@@ -1377,16 +1571,11 @@ fn quota_from_payload(
         .map(|items| {
             items
                 .iter()
-                .filter_map(|item| {
-                    let product = raw_string(item.get("product"))?;
-                    Some(GrokProductUsage {
-                        product,
-                        usage_percent: number(item.get("usagePercent")),
-                    })
-                })
+                .filter_map(product_usage_from_value)
                 .collect()
         })
         .unwrap_or_default();
+    let (weekly_used, weekly_total) = credit_usage_amounts(billing, config);
     GrokQuota {
         period_type: raw_string(period.get("type")),
         period_start: raw_string(period.get("start"))
@@ -1395,6 +1584,8 @@ fn quota_from_payload(
             .or_else(|| raw_string(config.get("billingPeriodEnd"))),
         weekly_limit_percent: number(config.get("creditUsagePercent"))
             .or_else(|| credit_usage_percent(billing, config)),
+        weekly_used,
+        weekly_total,
         on_demand_used: number(config.get("onDemandUsed")),
         on_demand_cap: number(config.get("onDemandCap")),
         prepaid_balance: number(config.get("prepaidBalance")),
@@ -1720,6 +1911,22 @@ async fn refresh_account_inner(
     let _file_guard = acquire_token_refresh_file_lock(account_id)?;
     let mut account =
         load_account(account_id).ok_or_else(|| format!("Grok 账号不存在: {}", account_id))?;
+    if account.is_api_key_auth() {
+        if account.resolved_api_key().is_none() {
+            account.status = Some("error".to_string());
+            account.status_reason = Some("API Key 为空".to_string());
+            save_account_locked(&account)?;
+            return Err("Grok API Key 账号缺少 api_key".to_string());
+        }
+        account.status = Some("normal".to_string());
+        account.status_reason = None;
+        account.quota_query_last_error = None;
+        account.quota_query_last_error_at = None;
+        account.usage_updated_at = Some(now_ms());
+        account.last_used = now_ms();
+        save_account_locked(&account)?;
+        return Ok(GrokAccountView::from(&account));
+    }
     let previous_access_token = account.access_token.clone();
     if let Err(error) = refresh_credentials(&mut account, force_credentials).await {
         account.status = Some(refresh_error_status(&error).to_string());
@@ -1764,6 +1971,14 @@ pub async fn prepare_account_for_injection(account_id: &str) -> Result<GrokAccou
     let _file_guard = acquire_token_refresh_file_lock(account_id)?;
     let mut account =
         load_account(account_id).ok_or_else(|| format!("Grok 账号不存在: {}", account_id))?;
+    if account.is_api_key_auth() {
+        if account.resolved_api_key().is_none() {
+            return Err("Grok API Key 账号缺少 api_key".to_string());
+        }
+        account.last_used = now_ms();
+        save_account_locked(&account)?;
+        return Ok(account);
+    }
     let previous_access_token = account.access_token.clone();
     if let Err(error) = refresh_credentials(&mut account, false).await {
         account.status = Some(refresh_error_status(&error).to_string());
@@ -1806,31 +2021,54 @@ pub fn accounts_index_path_string() -> Result<String, String> {
     Ok(index_path()?.to_string_lossy().to_string())
 }
 
+fn remaining_percent_from_used_total(used: f64, total: f64) -> Option<i32> {
+    if !used.is_finite() || !total.is_finite() || total <= 0.0 {
+        return None;
+    }
+    let remaining = ((total - used).max(0.0) / total * 100.0).clamp(0.0, 100.0);
+    Some(remaining.round() as i32)
+}
+
+fn remaining_percent_from_used_pct(used_percent: f64) -> i32 {
+    (100.0 - used_percent.clamp(0.0, 100.0)).round() as i32
+}
+
+/// Mirrors the visible Grok overview buckets (no weekly-only metric).
 fn quota_remaining_metrics(account: &GrokAccountView) -> Vec<(String, i32)> {
     let Some(quota) = account.quota.as_ref() else {
         return Vec::new();
     };
     let mut metrics = Vec::new();
-    if let Some(used) = quota.weekly_limit_percent {
-        metrics.push((
-            "weekly".to_string(),
-            (100.0 - used.clamp(0.0, 100.0)).round() as i32,
-        ));
-    }
     for product in &quota.products {
-        if let Some(used) = product.usage_percent {
-            metrics.push((
-                product.product.clone(),
-                (100.0 - used.clamp(0.0, 100.0)).round() as i32,
-            ));
+        let remaining = match (product.used, product.total) {
+            (Some(used), Some(total)) => remaining_percent_from_used_total(used, total),
+            _ => product
+                .usage_percent
+                .map(remaining_percent_from_used_pct)
+                .or_else(|| match (product.used, product.remaining, product.total) {
+                    (None, Some(remaining), Some(total)) if total > 0.0 => {
+                        remaining_percent_from_used_total((total - remaining).max(0.0), total)
+                    }
+                    _ => None,
+                }),
+        };
+        if let Some(remaining) = remaining {
+            metrics.push((product.product.clone(), remaining));
+        }
+    }
+    if let (Some(used), Some(limit)) = (quota.frequent_usage, quota.frequent_limit) {
+        if let Some(remaining) = remaining_percent_from_used_total(used, limit) {
+            metrics.push(("frequent".to_string(), remaining));
+        }
+    }
+    if let (Some(used), Some(limit)) = (quota.occasional_usage, quota.occasional_limit) {
+        if let Some(remaining) = remaining_percent_from_used_total(used, limit) {
+            metrics.push(("occasional".to_string(), remaining));
         }
     }
     if let (Some(used), Some(cap)) = (quota.on_demand_used, quota.on_demand_cap) {
-        if cap > 0.0 {
-            metrics.push((
-                "on-demand".to_string(),
-                (100.0 - (used / cap * 100.0).clamp(0.0, 100.0)).round() as i32,
-            ));
+        if let Some(remaining) = remaining_percent_from_used_total(used, cap) {
+            metrics.push(("on-demand".to_string(), remaining));
         }
     }
     metrics
@@ -1975,6 +2213,7 @@ mod tests {
             quota_query_last_error: None,
             quota_query_last_error_at: None,
             usage_updated_at: None,
+            working_dir: None,
             created_at: 1,
             last_used: 1,
         }
@@ -2466,7 +2705,30 @@ mod tests {
         });
         let quota = quota_from_payload(&billing, None, None, None);
         assert_eq!(quota.weekly_limit_percent, Some(25.0));
+        assert_eq!(quota.weekly_used, Some(25.0));
+        assert_eq!(quota.weekly_total, Some(100.0));
         assert_eq!(quota.on_demand_cap, Some(0.0));
+    }
+
+    #[test]
+    fn parses_product_usage_absolute_amounts() {
+        let billing = json!({
+            "config": {
+                "productUsage": [{
+                    "product": "GrokBuild",
+                    "usagePercent": 40.0,
+                    "used": 40,
+                    "total": 100,
+                    "remaining": 60
+                }]
+            }
+        });
+        let quota = quota_from_payload(&billing, None, None, None);
+        assert_eq!(quota.products[0].product, "GrokBuild");
+        assert_eq!(quota.products[0].usage_percent, Some(40.0));
+        assert_eq!(quota.products[0].used, Some(40.0));
+        assert_eq!(quota.products[0].total, Some(100.0));
+        assert_eq!(quota.products[0].remaining, Some(60.0));
     }
 
     #[test]

@@ -1,11 +1,34 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum GrokAuthMode {
+    #[default]
+    Oauth,
+    ApiKey,
+}
+
+impl GrokAuthMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Oauth => "oauth",
+            Self::ApiKey => "api_key",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct GrokProductUsage {
     pub product: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage_percent: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub used: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remaining: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -19,6 +42,10 @@ pub struct GrokQuota {
     pub period_end: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub weekly_limit_percent: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weekly_used: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub weekly_total: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_demand_used: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,6 +72,8 @@ pub struct GrokQuota {
 pub struct GrokAccount {
     pub id: String,
     pub email: String,
+    #[serde(default)]
+    pub auth_mode: GrokAuthMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -63,7 +92,11 @@ pub struct GrokAccount {
     pub profile_image_asset_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub coding_data_retention_opt_out: Option<bool>,
+    #[serde(default)]
     pub access_token: String,
+    /// xAI API key for ApiKey auth mode. Never exposed through GrokAccountView.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refresh_token: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -106,8 +139,27 @@ pub struct GrokAccount {
     pub quota_query_last_error_at: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_updated_at: Option<i64>,
+    /// Preferred CLI working directory for this account (account overview launch).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub working_dir: Option<String>,
     pub created_at: i64,
     pub last_used: i64,
+}
+
+impl GrokAccount {
+    pub fn is_api_key_auth(&self) -> bool {
+        self.auth_mode == GrokAuthMode::ApiKey
+    }
+
+    pub fn resolved_api_key(&self) -> Option<&str> {
+        if !self.is_api_key_auth() {
+            return None;
+        }
+        self.api_key
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +168,8 @@ pub struct GrokAccountView {
     pub email: String,
     // Kept for the shared frontend account shape; real credentials never cross IPC.
     pub access_token: String,
+    #[serde(default)]
+    pub auth_mode: GrokAuthMode,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -152,6 +206,8 @@ pub struct GrokAccountView {
     pub quota_query_last_error_at: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage_updated_at: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub working_dir: Option<String>,
     pub created_at: i64,
     pub last_used: i64,
 }
@@ -162,6 +218,7 @@ impl From<&GrokAccount> for GrokAccountView {
             id: account.id.clone(),
             email: account.email.clone(),
             access_token: String::new(),
+            auth_mode: account.auth_mode,
             tags: account.tags.clone(),
             first_name: account.first_name.clone(),
             last_name: account.last_name.clone(),
@@ -180,6 +237,7 @@ impl From<&GrokAccount> for GrokAccountView {
             quota_query_last_error: account.quota_query_last_error.clone(),
             quota_query_last_error_at: account.quota_query_last_error_at,
             usage_updated_at: account.usage_updated_at,
+            working_dir: account.working_dir.clone(),
             created_at: account.created_at,
             last_used: account.last_used,
         }

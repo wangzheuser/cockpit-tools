@@ -5095,7 +5095,10 @@
       "cliPathInvalid": "Yapılandırılan Grok CLI yolu geçersiz: {{path}}",
       "saveAndRetry": "Kaydet ve yeniden dene",
       "installCommand": "Resmî kurulum komutu",
-      "installHint": "Aşağıdaki resmî komutu terminalde çalıştırın, kurulum tamamlandıktan sonra Yenile'ye tıklayın."
+      "installHint": "Aşağıdaki resmî komutu terminalde çalıştırın, kurulum tamamlandıktan sonra Yenile'ye tıklayın.",
+      "selectWorkingDir": "Grok CLI çalışma dizinini seç",
+      "workingDirAccountHint": "Çalışma dizini bu hesaba bağlıdır ve sonraki başlatmada geri yüklenir.",
+      "launchCommandPlaceholder": "Başlatma komutunu oluşturmak için dizin seçin veya onaylayın"
     },
     "switch": {
       "success": "Hesap değiştirildi"
@@ -5117,7 +5120,9 @@
       "included": "Dahil kullanım",
       "promotional": "Promosyon kotası",
       "frequent": "Sık görevler",
-      "occasional": "Ara sıra görevler"
+      "occasional": "Ara sıra görevler",
+      "resetAt": "{{label}} sıfırlanır: {{time}}",
+      "empty": "Kota yok"
     },
     "quotaAlert": {
       "hint": "Geçerli hesabın herhangi bir kota öğesi eşiğin altına düştüğünde yerel bildirim gönderilir ve uygulamada hızlı geçiş eylemi gösterilir.",

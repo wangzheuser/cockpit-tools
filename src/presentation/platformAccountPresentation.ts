@@ -87,9 +87,11 @@ import {
   getGeminiTierQuotaSummary,
 } from "../types/gemini";
 import {
+  formatGrokQuotaUsedTotal,
   getGrokAccountDisplayEmail,
   getGrokPlanBadge,
-  getGrokQuotaGroups,
+  getGrokQuotaClass,
+  getGrokQuotaSummaryItems,
 } from "../types/grok";
 import {
   formatKiroResetTime,
@@ -1729,33 +1731,37 @@ export function buildGrokAccountPresentation(
   account: GrokAccount,
   t: Translate,
 ): UnifiedAccountPresentation {
-  const quotaItems: UnifiedQuotaMetric[] = getGrokQuotaGroups(account, t)
-    .flatMap((group) => group.items)
-    .map((resource, index) => {
-      const remaining = resource.remainPercent == null
-        ? null
-        : clampPercent(resource.remainPercent);
-      const label = resource.packageName || resource.packageCode || `quota-${index + 1}`;
-      const valueText = resource.total > 0 && resource.total !== 100
-        ? `${resource.remain.toFixed(2)} / ${resource.total.toFixed(2)}`
-        : remaining == null
-          ? "--"
-          : t("common.shared.quota.leftPercent", "{{value}}% left", { value: Math.round(remaining) });
+  const quotaItems: UnifiedQuotaMetric[] = getGrokQuotaSummaryItems(account, t).map(
+    (item) => {
+      const usedPercent = clampPercent(item.percentage);
+      const remaining = clampPercent(100 - usedPercent);
+      const amountText = formatGrokQuotaUsedTotal(item.used, item.total);
+      const left =
+        item.used != null && item.total != null
+          ? Math.max(0, item.total - item.used)
+          : null;
+      const valueText = amountText
+        ? `${amountText} · ${Math.round(usedPercent)}%`
+        : t("common.shared.quota.leftPercent", "{{value}}% left", {
+            value: Math.round(remaining),
+          });
       return {
-        key: resource.packageCode || `grok-${index}`,
-        label,
-        percentage: remaining ?? 0,
-        progressPercent: remaining ?? 0,
-        quotaClass: getRemainingQuotaClass(remaining),
+        key: item.key,
+        label: item.label,
+        percentage: remaining,
+        progressPercent: usedPercent,
+        // Match overview card coloring (used% based), not remaining-only class.
+        quotaClass: getGrokQuotaClass(usedPercent),
         valueText,
-        resetAt: resource.refreshAt,
-        resetText: formatMetricResetText(resource.refreshAt, t),
-        used: resource.used,
-        total: resource.total,
-        left: resource.remain,
-        showProgress: remaining != null,
+        resetAt: item.resetAtMs,
+        resetText: formatMetricResetText(item.resetAtMs, t),
+        used: item.used ?? usedPercent,
+        total: item.total ?? 100,
+        left: left ?? remaining,
+        showProgress: true,
       };
-    });
+    },
+  );
 
   return {
     id: account.id,
